@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
+import '../utils/app_colors.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -28,18 +28,11 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reservas UNIMET 💙💛'),
-      ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
-      ),
+      appBar: AppBar(title: const Text('Reservas UNIMET 💙💛')),
+      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month),
             label: 'Reservar',
@@ -50,7 +43,8 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: unimetBlue, // Icono y texto seleccionado en azul
+        selectedItemColor:
+            AppColors.unimetBlue, // Icono y texto seleccionado en azul
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
@@ -77,7 +71,7 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: unimetBlue,
+              color: AppColors.unimetBlue,
             ),
           ),
           const SizedBox(height: 10),
@@ -89,12 +83,18 @@ class HomeScreen extends StatelessWidget {
           // Tarjeta de información/acción
           Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  const Icon(Icons.school, size: 50, color: unimetYellow),
+                  const Icon(
+                    Icons.school,
+                    size: 50,
+                    color: AppColors.unimetOrange,
+                  ),
                   const SizedBox(height: 15),
                   const Text(
                     '¡Reserva tu Cubículo ahora!',
@@ -105,7 +105,9 @@ class HomeScreen extends StatelessWidget {
                     onPressed: () {
                       // Simular navegación a la pantalla de reservar
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Navegando a Reservar...')),
+                        const SnackBar(
+                          content: Text('Navegando a Reservar...'),
+                        ),
                       );
                       // En una app real, cambiarías el índice del BottomNavigationBar del MainScreen.
                     },
@@ -122,11 +124,11 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: unimetBlue,
+              color: AppColors.unimetBlue,
             ),
           ),
           const ListTile(
-            leading: Icon(Icons.fiber_new, color: unimetBlue),
+            leading: Icon(Icons.fiber_new, color: AppColors.unimetBlue),
             title: Text('Nuevos cubículos disponibles en Biblioteca.'),
             subtitle: Text('2 de Octubre, 2025'),
           ),
@@ -155,7 +157,7 @@ class BookingScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: unimetBlue,
+              color: AppColors.unimetBlue,
             ),
           ),
           const SizedBox(height: 20),
@@ -175,7 +177,8 @@ class BookingScreen extends StatelessWidget {
           _buildArticleCard(
             context,
             title: 'Consolas / Equipos',
-            subtitle: 'Reserva de consolas en el Centro de Diseño Digital (CDD).',
+            subtitle:
+                'Reserva de consolas en el Centro de Diseño Digital (CDD).',
             icon: Icons.gamepad,
             color: Colors.green,
             onTap: () {
@@ -201,13 +204,13 @@ class BookingScreen extends StatelessWidget {
 
   // Widget auxiliar para las tarjetas de artículos
   Widget _buildArticleCard(
-      BuildContext context, {
-        required String title,
-        required String subtitle,
-        required IconData icon,
-        required Color color,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -219,7 +222,10 @@ class BookingScreen extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: unimetBlue),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.unimetBlue,
+          ),
         ),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -234,7 +240,9 @@ class BookingScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Reservar $itemType'),
-        content: const Text('Aquí iría el formulario para seleccionar fecha, hora y ver disponibilidad.'),
+        content: const Text(
+          'Aquí iría el formulario para seleccionar fecha, hora y ver disponibilidad.',
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -302,7 +310,7 @@ class MyBookingsScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: unimetBlue,
+              color: AppColors.unimetBlue,
             ),
           ),
           const SizedBox(height: 10),
@@ -319,21 +327,23 @@ class MyBookingsScreen extends StatelessWidget {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 15),
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: ListTile(
                     leading: Icon(
                       Icons.book_online,
-                      color: unimetBlue,
+                      color: AppColors.unimetBlue,
                       size: 30,
                     ),
                     title: Text(
                       booking['item']!,
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, color: unimetBlue),
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.unimetBlue,
+                      ),
                     ),
-                    subtitle: Text(
-                      '${booking['date']} | ${booking['time']}',
-                    ),
+                    subtitle: Text('${booking['date']} | ${booking['time']}'),
                     trailing: Chip(
                       label: Text(booking['status']!),
                       backgroundColor: booking['color']!.withOpacity(0.1),
@@ -345,7 +355,9 @@ class MyBookingsScreen extends StatelessWidget {
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Detalles de la reserva: ${booking['item']}'),
+                          content: Text(
+                            'Detalles de la reserva: ${booking['item']}',
+                          ),
                         ),
                       );
                     },

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/inicio.dart'; // Importamos la pantalla principal con la navegación
-import 'utils/constants.dart';    // Importamos las constantes de colores
+import 'utils/constants.dart'; // Importamos las constantes de colores
 
 void main() {
   runApp(const MyApp());
@@ -16,15 +16,15 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // Tema principal con el azul de la UNIMET
-        primaryColor: unimetBlue,
+        primaryColor: AppColors.unimetBlue,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: unimetBlue,
-          primary: unimetBlue,
-          secondary: unimetYellow,
+          seedColor: AppColors.unimetBlue,
+          primary: AppColors.unimetBlue,
+          secondary: AppColors.unimetOrange,
         ),
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
-          backgroundColor: unimetBlue,
+          backgroundColor: AppColors.unimetBlue,
           foregroundColor: Colors.white,
           centerTitle: true,
           elevation: 0,
@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
         // Estilo para botones de elevación
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: unimetBlue, // Fondo azul
+            backgroundColor: AppColors.unimetBlue, // Fondo azul
             foregroundColor: Colors.white, // Texto blanco
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             shape: RoundedRectangleBorder(
@@ -42,7 +42,8 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MainScreen(), // Llamamos a la pantalla que contiene el BottomNavigationBar
+      home:
+          const MainScreen(), // Llamamos a la pantalla que contiene el BottomNavigationBar
     );
   }
 }
