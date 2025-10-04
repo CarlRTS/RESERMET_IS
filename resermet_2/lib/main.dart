@@ -1,5 +1,6 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'screens/inicio.dart'; // Importamos la pantalla principal con la navegación
+import 'screens/inicio.dart'; // Importamos la pantalla principal
 import 'utils/constants.dart';    // Importamos las constantes de colores
 
 void main() {
@@ -42,7 +43,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MainScreen(), // Llamamos a la pantalla que contiene el BottomNavigationBar
+      home: const MainScreen(), // Llama a la pantalla principal
     );
   }
 }
