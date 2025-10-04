@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart'; // Importamos la pantalla principal con la navegación
 import 'utils/app_colors.dart'; // Importamos las constantes de colores
 
 void main()  {
-
-
   runApp(const MyApp());
 }
 
