@@ -6,10 +6,10 @@ class Cubiculo extends Articulo {
   final int capacidad;
 
   Cubiculo({
-    required String idObjeto,
+    required int idObjeto,
     required String nombre,
     required String estado,
-    required String idArea,
+    required int idArea,
     required this.ubicacion,
     required this.capacidad,
   }) : super(
@@ -31,13 +31,12 @@ class Cubiculo extends Articulo {
     };
   }
 
-  // Factory para crear desde JOIN de Supabase
   factory Cubiculo.fromSupabase(Map<String, dynamic> json) {
     return Cubiculo(
-      idObjeto: json['articulos']['id_objeto'] ?? json['id_articulo'] ?? '',
-      nombre: json['articulos']['nombre'] ?? '',
-      estado: json['articulos']['estado'] ?? 'disponible',
-      idArea: json['articulos']['id_area'] ?? '',
+      idObjeto: json['articulo']['id_articulo'] ?? json['id_articulo'] ?? 0, // ← CAMBIADO
+      nombre: json['articulo']['nombre'] ?? '',
+      estado: json['articulo']['estado'] ?? 'disponible',
+      idArea: json['articulo']['id_area'] ?? 0,
       ubicacion: json['ubicacion'] ?? '',
       capacidad: json['capacidad'] ?? 1,
     );
