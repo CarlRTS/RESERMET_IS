@@ -38,7 +38,7 @@ class _AddEditCubiculoScreenState extends State<AddEditCubiculoScreen> {
       _ubicacionController.text = widget.cubiculo!.ubicacion;
       _capacidadController.text = widget.cubiculo!.capacidad.toString();
       _estado = widget.cubiculo!.estado;
-      _idAreaController.text = widget.cubiculo!.idArea;
+      _idAreaController.text = widget.cubiculo!.idArea.toString();
     } else {
       // Modo creación - valores por defecto
       _idAreaController.text = '1'; // ID área por defecto
@@ -63,12 +63,12 @@ class _AddEditCubiculoScreenState extends State<AddEditCubiculoScreen> {
 
     try {
       final cubiculo = Cubiculo(
-        idObjeto: widget.cubiculo?.idObjeto ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        idObjeto: widget.cubiculo?.idObjeto ?? 0, // ← CAMBIADO: El servicio generará el ID automáticamente
         nombre: _nombreController.text,
         ubicacion: _ubicacionController.text,
         capacidad: int.parse(_capacidadController.text),
         estado: _estado,
-        idArea: _idAreaController.text,
+        idArea: int.parse(_idAreaController.text),
       );
 
       if (widget.cubiculo == null) {
@@ -184,7 +184,7 @@ class _AddEditCubiculoScreenState extends State<AddEditCubiculoScreen> {
                           child: Text('Prestado'),
                         ),
                         DropdownMenuItem(
-                          value: 'en mantenimiento',
+                          value: 'en_mantenimiento',
                           child: Text('En Mantenimiento'),
                         ),
                       ],
@@ -205,6 +205,9 @@ class _AddEditCubiculoScreenState extends State<AddEditCubiculoScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingresa el ID del área';
+                        }
+                        if (int.tryParse(value) == null) {
+                          return 'Por favor ingresa un número válido';
                         }
                         return null;
                       },

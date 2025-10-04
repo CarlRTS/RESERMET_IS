@@ -1,9 +1,9 @@
 // lib/models/articulo.dart
 abstract class Articulo {
-  final String idObjeto;
+  final int idObjeto; // ← CAMBIADO: String → int
   final String nombre;
-  final String estado; // 'disponible', 'prestado', 'en mantenimiento'
-  final String idArea;
+  final String estado;
+  final int idArea; // ← CAMBIADO: String → int
   
   const Articulo({
     required this.idObjeto,
@@ -12,19 +12,16 @@ abstract class Articulo {
     required this.idArea,
   });
 
-  // Método para identificar el tipo
   String get tipo;
 
-  // Convertir a Map para INSERT/UPDATE en Supabase
   Map<String, dynamic> toArticuloJson() {
     return {
-      'id_objeto': idObjeto,
+      'id_articulo': idObjeto, // ← CAMBIADO: 'id_objeto' → 'id_artim'
       'nombre': nombre,
       'estado': estado,
       'id_area': idArea,
     };
   }
 
-  // Método abstracto para datos específicos de cada hijo
   Map<String, dynamic> toEspecificoJson();
 }
