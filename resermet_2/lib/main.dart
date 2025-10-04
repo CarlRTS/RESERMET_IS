@@ -3,14 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart'; // Importamos la pantalla principal con la navegación
 import 'utils/app_colors.dart'; // Importamos las constantes de colores
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-    url: 'https://xjmgknmtiimpjywwsyon.supabase.co',
-    anonKey:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbWdrbm10aWltcGp5d3dzeW9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1Mjc1MjUsImV4cCI6MjA3NTEwMzUyNX0.HWxPeiX5JlSfW_2S7B_9aBmNpM0f85Zi15_QoxWmbbY',
-  );
-  // Usa Supabase en tu app con: Supabase.instance.client
+void main()  {
+
 
   runApp(const MyApp());
 }
