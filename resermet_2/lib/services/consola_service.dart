@@ -1,63 +1,29 @@
-// lib/services/consola_service.dart
+import 'base_service.dart';
 import '../models/consola.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-class ConsolaService {
-  final supabase = Supabase.instance.client;
+class ConsolaService with BaseService {
 
-  // GET: Obtener todas las consolas
+  // Obtener todas las consolas
   Future<List<Consola>> getConsolas() async {
     try {
       final response = await supabase
           .from('consola')
           .select('*, articulo(*)');
       
-      final List<Consola> consolas = [];
-      for (final item in response) {
-        consolas.add(Consola.fromSupabase(item));
-      }
-      
-      return consolas;
+      return [for (final item in response) Consola.fromSupabase(item)];
     } catch (e) {
-      print('❌ Error en getConsolas: $e');
+      print('Error obteniendo consolas: $e');
       return [];
     }
   }
 
-  // POST: Crear una nueva consola
+  // Crear nueva consola
   Future<Consola> createConsola(Consola consola) async {
     try {
-      // 1. Obtener el máximo ID actual
-      final maxIdResponse = await supabase
-          .from('articulo')
-          .select('id_articulo')
-          .order('id_articulo', ascending: false)
-          .limit(1);
+      final nextId = await getNextId();
       
-      int nextId = 1;
-      if (maxIdResponse.isNotEmpty && maxIdResponse[0]['id_articulo'] != null) {
-        nextId = (maxIdResponse[0]['id_articulo'] as int) + 1;
-      }
-
-      // 2. Crear el artículo
-      final articuloData = {
-        ...consola.toArticuloJson(),
-        'id_articulo': nextId,
-      };
-      
-      await supabase
-          .from('articulo')
-          .insert(articuloData);
-
-      // 3. Crear la consola
-      final consolaData = {
-        ...consola.toEspecificoJson(),
-        'id_articulo': nextId,
-      };
-      
-      await supabase
-          .from('consola')
-          .insert(consolaData);
+      await createArticulo(consola.toArticuloJson(), nextId);
+      await createEspecifico('consola', consola.toEspecificoJson(), nextId);
 
       return Consola(
         idObjeto: nextId,
@@ -69,48 +35,37 @@ class ConsolaService {
         cantidadDisponible: consola.cantidadDisponible,
       );
     } catch (e) {
-      print('❌ Error al crear consola: $e');
-      throw Exception('Error al crear consola: $e');
+      await _rollbackCreacion(consola.idObjeto);
+      throw Exception('Error creando consola: $e');
     }
   }
 
-  // PUT: Actualizar una consola
+  // Actualizar consola existente
   Future<Consola> updateConsola(Consola consola) async {
     try {
-      // 1. Actualizar el artículo
-      await supabase
-          .from('articulo')
-          .update(consola.toArticuloJson())
-          .eq('id_articulo', consola.idObjeto);
-
-      // 2. Actualizar la consola
-      await supabase
-          .from('consola')
-          .update(consola.toEspecificoJson())
-          .eq('id_articulo', consola.idObjeto);
-
+      await updateArticulo(consola.toArticuloJson(), consola.idObjeto);
+      await updateEspecifico('consola', consola.toEspecificoJson(), consola.idObjeto);
       return consola;
     } catch (e) {
-      throw Exception('Error al actualizar consola: $e');
+      throw Exception('Error actualizando consola: $e');
     }
   }
 
-  // DELETE: Eliminar una consola
+  // Eliminar consola
   Future<void> deleteConsola(int idObjeto) async {
     try {
-      // 1. Primero eliminar la consola
-      await supabase
-          .from('consola')
-          .delete()
-          .eq('id_articulo', idObjeto);
-
-      // 2. Luego eliminar el artículo
-      await supabase
-          .from('articulo')
-          .delete()
-          .eq('id_articulo', idObjeto);
+      await deleteEntidad('consola', idObjeto);
     } catch (e) {
-      throw Exception('Error al eliminar consola: $e');
+      throw Exception('Error eliminando consola: $e');
+    }
+  }
+
+  // Rollback en caso de error
+  Future<void> _rollbackCreacion(int idObjeto) async {
+    try {
+      await supabase.from('articulo').delete().eq('id_articulo', idObjeto);
+    } catch (e) {
+      print('Error en rollback: $e');
     }
   }
 }

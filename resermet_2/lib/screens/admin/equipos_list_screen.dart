@@ -1,4 +1,3 @@
-// lib/screens/admin/equipos_list_screen.dart
 import 'package:flutter/material.dart';
 import '../../models/equipo_deportivo.dart';
 import '../../services/equipo_deportivo_service.dart';
@@ -98,7 +97,7 @@ class _EquiposListScreenState extends State<EquiposListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => AddEditEquipoScreen(
-          onEquipoSaved: _loadEquipos,
+          onItemSaved: _loadEquipos,
         ),
       ),
     );
@@ -109,8 +108,8 @@ class _EquiposListScreenState extends State<EquiposListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => AddEditEquipoScreen(
-          equipo: equipo,
-          onEquipoSaved: _loadEquipos,
+          item: equipo,
+          onItemSaved: _loadEquipos,
         ),
       ),
     );
@@ -145,8 +144,7 @@ class _EquiposListScreenState extends State<EquiposListScreen> {
                   itemBuilder: (context, index) {
                     final equipo = _equipos[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: ListTile(
                         leading: const Icon(Icons.sports_baseball, color: Colors.orange),
                         title: Text(
