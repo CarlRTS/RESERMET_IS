@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/inicio.dart'; // Importamos la pantalla principal con la navegación
-import 'utils/constants.dart'; // Importamos las constantes de colores
+import 'screens/home_screen.dart'; // Importamos la pantalla principal con la navegación
+import 'utils/app_colors.dart'; // Importamos las constantes de colores
 
 void main() {
   runApp(const MyApp());
