@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
-import '../screens/my_reservations.dart';
-import '../screens/reservation_screen.dart';
-import '../screens/availability.dart';
+import 'my_reservations.dart';
+import 'reservation_screen.dart';
+import 'availability.dart';
+import 'admin/cubiculos_list_screen.dart'; // ← NUEVO IMPORT
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -15,12 +16,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Lista de las pantallas
+  // Lista de las pantallas - AGREGADA ADMIN
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     BookingScreen(),
     MyBookingsScreen(),
-    AvailabilityScreen()
+    AvailabilityScreen(),
+    CubiculosListScreen(), // ← NUEVA PANTALLA ADMIN
   ];
 
   void _onItemTapped(int index) {
@@ -35,6 +37,7 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(title: const Text('Reservas UNIMET 💙💛')),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed, // ← IMPORTANTE para más de 4 items
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
           BottomNavigationBarItem(
@@ -45,14 +48,17 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.list_alt),
             label: 'Mis Reservas',
           ),
-          BottomNavigationBarItem( // 🆕 Nuevo ítem para la disponibilidad
+          BottomNavigationBarItem(
             icon: Icon(Icons.location_on),
             label: 'Ubicación',
           ),
+          BottomNavigationBarItem( // ← NUEVO ITEM ADMIN
+            icon: Icon(Icons.admin_panel_settings),
+            label: 'Admin',
+          ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor:
-            AppColors.unimetBlue, // Icono y texto seleccionado en azul
+        selectedItemColor: AppColors.unimetBlue,
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
@@ -145,9 +151,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
-
-
-
 
 // 🗺️ Pantalla de Disponibilidad y Ubicación (NUEVA)
 
