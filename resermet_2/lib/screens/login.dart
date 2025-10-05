@@ -32,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final supabase = Supabase.instance.client;
 
     try {
-
       final response = await supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -41,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
 
       if (user == null) {
-        // Usuario no existe
+        // Este caso casi siempre es cubierto por el AuthException
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Usuario no registrado.'),
@@ -58,19 +57,28 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         // Login exitoso
+        // La navegación a MainScreen ocurre automáticamente gracias a AuthGate en main.dart
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ Bienvenido ${user.email}!'),
             backgroundColor: Colors.green,
           ),
         );
-
       }
     } on AuthException catch (e) {
-      // Error de autenticación
+      // 💡 MEJORA: Mensaje de error más específico para el usuario
+      String errorMessage;
+
+      if (e.message.contains('Invalid login credentials') ||
+          e.message.contains('Email not confirmed')) {
+        errorMessage = '❌ Credenciales incorrectas o correo no confirmado.';
+      } else {
+        errorMessage = 'Error: ${e.message}';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.message}'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
         ),
       );

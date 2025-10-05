@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart'; // ← Contiene MainScreen
+import 'screens/login.dart'; // ← Tu pantalla de login
 import 'utils/app_colors.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
@@ -49,8 +50,42 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MainScreen(), // Pantalla principal con login en AppBar
+      home: const AuthGate(), // 👈 Maneja si hay sesión o no
     );
   }
 }
 
+// 🚪 AuthGate: decide si mostrar Login o MainScreen
+// 💡 CÓDIGO CORREGIDO: Ahora usa StreamBuilder para reaccionar a los cambios de Auth.
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Usamos StreamBuilder para escuchar el estado de autenticación de Supabase
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+
+        // 1. Mostrar una pantalla de carga mientras se resuelve el estado inicial
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final AuthState authState = snapshot.data!;
+        final Session? session = authState.session;
+
+        // ✅ Si hay una sesión activa → MainScreen
+        // Esto ocurrirá automáticamente después de un login exitoso.
+        if (session != null) {
+          return const MainScreen();
+        }
+
+        // 🚪 Si no hay sesión (o después de un logout) → LoginScreen
+        return const LoginScreen();
+      },
+    );
+  }
+}
