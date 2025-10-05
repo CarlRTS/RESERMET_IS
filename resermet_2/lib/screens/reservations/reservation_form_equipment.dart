@@ -185,7 +185,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               ),
                               SizedBox(width: 8),
                               Text(
-                                'Seleccionar Equipo',
+                                'Seleccionar item',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -267,7 +267,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              '📋 Información del Equipo',
+                              '📋 Información del item',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,

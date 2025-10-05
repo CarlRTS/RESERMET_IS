@@ -17,34 +17,70 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
-  // Datos de ejemplo para las consolas
-  final List<Map<String, String>> availableConsoles = [
+  // Datos de ejemplo para las consolas con juegos
+  final List<Map<String, dynamic>> availableConsoles = [
     {
       'id': '1',
       'name': 'PlayStation 5',
       'model': 'PS5 Standard',
       'available': '3',
+      'games': [
+        'FIFA 24',
+        'Call of Duty: Modern Warfare III',
+        'Spider-Man 2',
+        'God of War Ragnarök',
+        'NBA 2K24',
+        'Gran Turismo 7',
+      ],
     },
     {
       'id': '2',
       'name': 'Xbox Series X',
       'model': 'Xbox X 1TB',
       'available': '2',
+      'games': [
+        'Halo Infinite',
+        'Forza Horizon 5',
+        'Gears 5',
+        'Starfield',
+        'Microsoft Flight Simulator',
+      ],
     },
     {
       'id': '3',
       'name': 'Nintendo Switch',
       'model': 'Switch OLED',
       'available': '5',
+      'games': [
+        'Super Smash Bros. Ultimate',
+        'Mario Kart 8 Deluxe',
+        'The Legend of Zelda: Tears of the Kingdom',
+        'Animal Crossing: New Horizons',
+        'Super Mario Odyssey',
+        'Splatoon 3',
+      ],
     },
-    {'id': '4', 'name': 'PlayStation 4', 'model': 'PS4 Pro', 'available': '1'},
+    {
+      'id': '4',
+      'name': 'PlayStation 4',
+      'model': 'PS4 Pro',
+      'available': '1',
+      'games': [
+        'The Last of Us Part II',
+        'Ghost of Tsushima',
+        'Red Dead Redemption 2',
+        'Horizon Zero Dawn',
+        'Uncharted 4',
+      ],
+    },
   ];
 
   String? selectedConsoleId;
-  Map<String, String>? selectedConsole;
+  Map<String, dynamic>? selectedConsole;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
+  String? _selectedGame; // Nuevo campo para juego seleccionado
 
   @override
   void initState() {
@@ -105,8 +141,15 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: const Text('Reserva Confirmada'),
-            content: Text(
-              'Has reservado ${selectedConsole?['name']} para el ${_dateController.text} a las ${_timeController.text}',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Has reservado ${selectedConsole!['name']}'),
+                Text('Fecha: ${_dateController.text}'),
+                Text('Hora: ${_timeController.text}'),
+                if (_selectedGame != null) Text('Juego: $_selectedGame'),
+              ],
             ),
             actions: [
               TextButton(
@@ -216,13 +259,13 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      console['name']!,
+                                      console['name'],
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     Text(
-                                      console['model']!,
+                                      console['model'],
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey.shade600,
@@ -238,6 +281,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 selectedConsole = availableConsoles.firstWhere(
                                   (console) => console['id'] == newValue,
                                 );
+                                _selectedGame =
+                                    null; // Resetear juego al cambiar consola
                               });
                             },
                             validator: (value) {
@@ -288,7 +333,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 ),
                               ),
                               title: Text(
-                                selectedConsole!['name']!,
+                                selectedConsole!['name'],
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -297,14 +342,23 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Modelo: ${selectedConsole!['model']!}'),
+                                  Text('Modelo: ${selectedConsole!['model']}'),
                                   Text(
-                                    'Disponibles: ${selectedConsole!['available']!} unidades',
+                                    'Disponibles: ${selectedConsole!['available']} unidades',
                                     style: TextStyle(
                                       color: Colors.green.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
+                                  // Mostrar cantidad de juegos disponibles
+                                  if (selectedConsole!['games'] != null)
+                                    Text(
+                                      'Juegos disponibles: ${selectedConsole!['games'].length}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue.shade600,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -439,6 +493,49 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
                           const SizedBox(height: 16),
 
+                          // NUEVO: Dropdown para seleccionar juego (opcional)
+                          if (selectedConsole != null &&
+                              selectedConsole!['games'] != null &&
+                              selectedConsole!['games'].isNotEmpty)
+                            DropdownButtonFormField<String>(
+                              value: _selectedGame,
+                              decoration: InputDecoration(
+                                labelText: 'Juego (opcional)',
+                                hintText: 'Selecciona un juego',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                prefixIcon: const Icon(Icons.games),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Ningún juego específico'),
+                                ),
+                                ...selectedConsole!['games']
+                                    .map<DropdownMenuItem<String>>((game) {
+                                      return DropdownMenuItem<String>(
+                                        value: game,
+                                        child: Text(game),
+                                      );
+                                    })
+                                    .toList(),
+                              ],
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _selectedGame = newValue;
+                                });
+                              },
+                              // No hay validator porque es opcional
+                            ),
+
+                          if (selectedConsole != null &&
+                              selectedConsole!['games'] != null &&
+                              selectedConsole!['games'].isNotEmpty)
+                            const SizedBox(height: 16),
+
                           // Campo de propósito
                           TextFormField(
                             controller: _purposeController,
@@ -530,7 +627,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         Text(
                           '• La reserva estará pendiente de confirmación\n'
                           '• Debes presentar tu identificación y carnet al recoger la consola\n'
-                          '• El tiempo de uso comienza a partir de la hora seleccionada',
+                          '• El tiempo de uso comienza a partir de la hora seleccionada\n'
+                          '• Puedes solicitar juegos específicos de forma opcional',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
