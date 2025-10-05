@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:resermet_2/screens/reservations/reservation_form_console.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_equipment.dart';
 import '../../utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'reservation_form_console.dart';
@@ -63,7 +64,12 @@ class BookingScreen extends StatelessWidget {
             icon: Icons.people,
             color: Colors.orange,
             onTap: () {
-              _showReservationAlert(context, 'articulos deportivos');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReservationFormEquipment(),
+                ),
+              );
             },
           ),
         ],

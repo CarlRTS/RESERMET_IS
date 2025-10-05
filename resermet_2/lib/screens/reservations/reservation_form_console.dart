@@ -529,7 +529,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         SizedBox(height: 8),
                         Text(
                           '• La reserva estará pendiente de confirmación\n'
-                          '• Debes presentar tu identificación al recoger la consola\n'
+                          '• Debes presentar tu identificación y carnet al recoger la consola\n'
                           '• El tiempo de uso comienza a partir de la hora seleccionada',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
