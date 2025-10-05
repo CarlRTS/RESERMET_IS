@@ -1,6 +1,5 @@
-
-
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,18 +9,18 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Controladores para capturar el texto de los formularios
+  final _formKey = GlobalKey<FormState>();
+
+  // Controladores
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _carnetController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // Clave global para manejar la validación del formulario
-  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    // Liberar recursos
     _emailController.dispose();
     _carnetController.dispose();
     _passwordController.dispose();
@@ -29,30 +28,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _submitRegistration() {
-    // 1. Validar el formulario (chequea los validadores de cada campo)
-    if (_formKey.currentState!.validate()) {
+  // Registro con verificación de correo
+  Future<void> _registerUser() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      // 2. Realiza la validación de coincidencia de contraseñas
-      if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: Las contraseñas no coinciden.')),
-        );
-        return; // Detiene el proceso
-      }
-
-      // 3. Si todo es válido:
-      final email = _emailController.text;
-
-      print('✅ Registro exitoso para: Email=$email');
-
-      // Parte de la api
-
-      // Feedback visual y navegación de regreso al Login (simulando un registro exitoso)
+    if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cuenta creada para $email!')),
+        const SnackBar(content: Text('❌ Las contraseñas no coinciden.')),
       );
-      Navigator.pop(context); // Vuelve a la pantalla de Login
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: 'https://xjmgknmtiimpjywwsyon.supabase.co/auth/v1/callback',
+        data: {
+          'carnet': _carnetController.text.trim(),
+        },
+      );
+
+      if (response.user != null) {
+        // ✅ Mostrar mensaje de que revise su correo
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Cuenta creada. Revisa tu correo institucional ($email) para verificar tu cuenta antes de iniciar sesión.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context); // Regresar al login
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ No se pudo crear la cuenta. Intenta de nuevo.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -65,9 +104,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(30.0),
         child: Form(
-          key: _formKey, // Vincula la clave de validación al formulario
+          key: _formKey,
           child: Column(
-            children: <Widget>[
+            children: [
               const Text(
                 'Completa tus datos para empezar a reservar.',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
@@ -75,7 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 30),
 
-              // 1. Campo de Correo UNIMET
+              // Correo UNIMET
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -85,7 +124,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.isEmpty || !value.toLowerCase().endsWith('@correo.unimet.edu.ve')) {
+                  if (value == null ||
+                      value.isEmpty ||
+                      !value.toLowerCase().endsWith('@correo.unimet.edu.ve')) {
                     return 'Ingrese un correo UNIMET válido.';
                   }
                   return null;
@@ -93,12 +134,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 2. Campo de Carnet
+              // Carnet
               TextFormField(
                 controller: _carnetController,
                 decoration: const InputDecoration(
                   labelText: 'Carnet (Ej: 2023141223)',
-                  prefixIcon: Icon(Icons.person),
+                  prefixIcon: Icon(Icons.badge),
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
@@ -111,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 3. Campo de Contraseña
+              // Contraseña
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
@@ -122,14 +163,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.length < 6) {
-                    return 'La contraseña debe tener al menos 6 caracteres.';
+                    return 'Debe tener al menos 6 caracteres.';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
 
-              // 4. Campo de Verificación de Contraseña
+              // Confirmar Contraseña
               TextFormField(
                 controller: _confirmPasswordController,
                 decoration: const InputDecoration(
@@ -142,17 +183,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Confirme su contraseña.';
                   }
-                  // La validación de coincidencia estricta se hace en _submitRegistration
                   return null;
                 },
               ),
               const SizedBox(height: 30),
 
-              // Botón de Registrarse
+              // Botón Registrar
               ElevatedButton(
-                onPressed: _submitRegistration,
-                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                child: const Text('CREAR CUENTA', style: TextStyle(fontSize: 18)),
+                onPressed: _isLoading ? null : _registerUser,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('CREAR CUENTA', style: TextStyle(fontSize: 18)),
               ),
             ],
           ),
@@ -161,3 +205,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+

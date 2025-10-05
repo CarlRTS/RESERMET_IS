@@ -3,7 +3,9 @@ import '../utils/app_colors.dart';
 import 'my_reservations.dart';
 import 'reservation_screen.dart';
 import 'availability.dart';
-import 'admin/cubiculos_list_screen.dart'; // ← NUEVO IMPORT
+import 'admin/cubiculos_list_screen.dart';
+import 'login.dart';
+import 'registro.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -16,13 +18,12 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Lista de las pantallas - AGREGADA ADMIN
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     BookingScreen(),
     MyBookingsScreen(),
     AvailabilityScreen(),
-    CubiculosListScreen(), // ← NUEVA PANTALLA ADMIN
+    CubiculosListScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -34,28 +35,34 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reservas UNIMET 💙💛')),
+      appBar: AppBar(
+        title: const Text('Reservas UNIMET 💙💛'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.login),
+            tooltip: 'Iniciar sesión',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+          ),
+        ],
+      ),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed, // ← IMPORTANTE para más de 4 items
+        type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month),
-            label: 'Reservar',
-          ),
+              icon: Icon(Icons.calendar_month), label: 'Reservar'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: 'Mis Reservas',
-          ),
+              icon: Icon(Icons.list_alt), label: 'Mis Reservas'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.location_on),
-            label: 'Ubicación',
-          ),
-          BottomNavigationBarItem( // ← NUEVO ITEM ADMIN
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Admin',
-          ),
+              icon: Icon(Icons.location_on), label: 'Ubicación'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: AppColors.unimetBlue,
@@ -69,7 +76,6 @@ class _MainScreenState extends State<MainScreen> {
 // -------------------------------------------------------------------
 
 // 🏠 Pantalla de Inicio
-
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -94,21 +100,16 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, color: Colors.black87),
           ),
           const SizedBox(height: 30),
-          // Tarjeta de información/acción
           Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.school,
-                    size: 50,
-                    color: AppColors.unimetOrange,
-                  ),
+                  const Icon(Icons.school,
+                      size: 50, color: AppColors.unimetOrange),
                   const SizedBox(height: 15),
                   const Text(
                     '¡Reserva tu Cubículo ahora!',
@@ -117,13 +118,10 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
                     onPressed: () {
-                      // Simular navegación a la pantalla de reservar
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Navegando a Reservar...'),
-                        ),
+                            content: Text('Navegando a Reservar...')),
                       );
-                      // En una app real, cambiarías el índice del BottomNavigationBar del MainScreen.
                     },
                     icon: const Icon(Icons.calendar_today),
                     label: const Text('Comenzar Reserva'),
@@ -152,12 +150,10 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// 🗺️ Pantalla de Disponibilidad y Ubicación (NUEVA)
-
+// 🗺️ Pantalla de Disponibilidad y Ubicación
 class AvailabilityScreen extends StatelessWidget {
   const AvailabilityScreen({super.key});
 
-  // Datos simulados de cubículos
   final List<Map<String, dynamic>> cubicles = const [
     {
       'name': 'Cubículo A-1 (Ind.)',
@@ -224,7 +220,9 @@ class AvailabilityScreen extends StatelessWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(15),
                   leading: Icon(
-                    isAvailable ? Icons.check_circle_outline : Icons.cancel_outlined,
+                    isAvailable
+                        ? Icons.check_circle_outline
+                        : Icons.cancel_outlined,
                     color: statusColor,
                     size: 35,
                   ),
@@ -247,7 +245,8 @@ class AvailabilityScreen extends StatelessWidget {
                   trailing: Chip(
                     label: Text(
                       isAvailable ? 'Disponible' : 'Ocupado',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     backgroundColor: statusColor,
                   ),
