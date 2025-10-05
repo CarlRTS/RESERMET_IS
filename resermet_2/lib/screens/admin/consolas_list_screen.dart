@@ -1,38 +1,38 @@
 import 'package:flutter/material.dart';
-import '../../models/cubiculo.dart';
-import '../../services/cubiculo_service.dart';
-import 'add_edit_cubiculo_screen.dart';
+import '../../models/consola.dart';
+import '../../services/consola_service.dart';
+import 'add_edit_consola_screen.dart';
 
-class CubiculosListScreen extends StatefulWidget {
-  const CubiculosListScreen({super.key});
+class ConsolasListScreen extends StatefulWidget {
+  const ConsolasListScreen({super.key});
 
   @override
-  State<CubiculosListScreen> createState() => _CubiculosListScreenState();
+  State<ConsolasListScreen> createState() => _ConsolasListScreenState();
 }
 
-class _CubiculosListScreenState extends State<CubiculosListScreen> {
-  final CubiculoService _cubiculoService = CubiculoService();
-  List<Cubiculo> _cubiculos = [];
+class _ConsolasListScreenState extends State<ConsolasListScreen> {
+  final ConsolaService _consolaService = ConsolaService();
+  List<Consola> _consolas = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCubiculos();
+    _loadConsolas();
   }
 
-  Future<void> _loadCubiculos() async {
+  Future<void> _loadConsolas() async {
     try {
-      final cubiculos = await _cubiculoService.getCubiculos();
+      final consolas = await _consolaService.getConsolas();
       setState(() {
-        _cubiculos = cubiculos;
+        _consolas = consolas;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      _showErrorSnackbar('Error al cargar cubículos: $e');
+      _showErrorSnackbar('Error al cargar consolas: $e');
     }
   }
 
@@ -45,13 +45,13 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     );
   }
 
-  void _showDeleteConfirmation(Cubiculo cubiculo) {
+  void _showDeleteConfirmation(Consola consola) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Eliminar Cubículo'),
-          content: Text('¿Estás seguro de eliminar "${cubiculo.nombre}"?'),
+          title: const Text('Eliminar Consola'),
+          content: Text('¿Estás seguro de eliminar "${consola.nombre}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -60,7 +60,7 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _deleteCubiculo(cubiculo);
+                _deleteConsola(consola);
               },
               child: const Text(
                 'Eliminar',
@@ -73,13 +73,13 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     );
   }
 
-  Future<void> _deleteCubiculo(Cubiculo cubiculo) async {
+  Future<void> _deleteConsola(Consola consola) async {
     try {
-      await _cubiculoService.deleteCubiculo(cubiculo.idObjeto);
-      _showSuccessSnackbar('Cubículo eliminado exitosamente');
-      _loadCubiculos();
+      await _consolaService.deleteConsola(consola.idObjeto);
+      _showSuccessSnackbar('Consola eliminada exitosamente');
+      _loadConsolas();
     } catch (e) {
-      _showErrorSnackbar('Error al eliminar cubículo: $e');
+      _showErrorSnackbar('Error al eliminar consola: $e');
     }
   }
 
@@ -92,24 +92,24 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     );
   }
 
-  void _navigateToAddCubiculo() {
+  void _navigateToAddConsola() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditCubiculoScreen(
-          onItemSaved: _loadCubiculos,
+        builder: (context) => AddEditConsolaScreen(
+          onItemSaved: _loadConsolas,
         ),
       ),
     );
   }
 
-  void _navigateToEditCubiculo(Cubiculo cubiculo) {
+  void _navigateToEditConsola(Consola consola) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditCubiculoScreen(
-          item: cubiculo,
-          onItemSaved: _loadCubiculos,
+        builder: (context) => AddEditConsolaScreen(
+          item: consola,
+          onItemSaved: _loadConsolas,
         ),
       ),
     );
@@ -119,44 +119,45 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Cubículos'),
-        backgroundColor: const Color(0xFF0033A0),
+        title: const Text('Gestión de Consolas'),
+        backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _navigateToAddCubiculo,
-            tooltip: 'Agregar Cubículo',
+            onPressed: _navigateToAddConsola,
+            tooltip: 'Agregar Consola',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _cubiculos.isEmpty
+          : _consolas.isEmpty
               ? const Center(
                   child: Text(
-                    'No hay cubículos registrados',
+                    'No hay consolas registradas',
                     style: TextStyle(fontSize: 16),
                   ),
                 )
               : ListView.builder(
-                  itemCount: _cubiculos.length,
+                  itemCount: _consolas.length,
                   itemBuilder: (context, index) {
-                    final cubiculo = _cubiculos[index];
+                    final consola = _consolas[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: ListTile(
-                        leading: const Icon(Icons.meeting_room, color: Color(0xFF0033A0)),
+                        leading: const Icon(Icons.gamepad, color: Colors.green),
                         title: Text(
-                          cubiculo.nombre,
+                          consola.nombre,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Ubicación: ${cubiculo.ubicacion}'),
-                            Text('Capacidad: ${cubiculo.capacidad} personas'),
-                            Text('Estado: ${cubiculo.estado}'),
+                            Text('Modelo: ${consola.modelo}'),
+                            Text('Total: ${consola.cantidadTotal} unidades'),
+                            Text('Disponibles: ${consola.cantidadDisponible} unidades'),
+                            Text('Estado: ${consola.estado}'),
                           ],
                         ),
                         trailing: Row(
@@ -164,11 +165,11 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _navigateToEditCubiculo(cubiculo),
+                              onPressed: () => _navigateToEditConsola(consola),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _showDeleteConfirmation(cubiculo),
+                              onPressed: () => _showDeleteConfirmation(consola),
                             ),
                           ],
                         ),
