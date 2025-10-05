@@ -7,6 +7,7 @@ import 'availability.dart';
 import 'admin/admin_home_screen.dart'; // ← CAMBIADO EL IMPORT
 import 'catalog_equipo_deportivo_screen.dart';
 import 'admin/cubiculos_list_screen.dart';
+import 'admin/admin_home_screen.dart';
 import 'login.dart';
 import 'registro.dart';
 
@@ -27,7 +28,7 @@ class _MainScreenState extends State<MainScreen> {
     BookingScreen(),
     MyBookingsScreen(),
     AvailabilityScreen(),
-    CubiculosListScreen(),
+    AdminHomeScreen(),
   ];
 
   void _onItemTapped(int index) {
