@@ -5,6 +5,7 @@ import 'my_reservations.dart';
 import 'reservation_screen.dart';
 import 'availability.dart';
 import 'admin/admin_home_screen.dart'; // ← CAMBIADO EL IMPORT
+import 'catalog_equipo_deportivo_screen.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reservas UNIMET 💙💛')),
+      appBar: AppBar(title: const Text('RESERMET')),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -95,6 +96,7 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, color: Colors.black87),
           ),
           const SizedBox(height: 30),
+
           // Tarjeta de información/acción
           Card(
             elevation: 4,
@@ -112,27 +114,75 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 15),
                   const Text(
-                    '¡Reserva tu Cubículo ahora!',
+                    '¡Reserva lo que necesitas!',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Simular navegación a la pantalla de reservar
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Navegando a Reservar...'),
+                  const SizedBox(height: 12),
+
+                  // Fila 1: Cubículo + Equipo Deportivo
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Navegando a Reservar Cubículo...',
+                                ),
+                              ),
+                            );
+                            // En tu flujo real, puedes cambiar el tab del BottomNavigationBar:
+                            // (context.findAncestorStateOfType<_MainScreenState>()?._onItemTapped(1));
+                          },
+                          icon: const Icon(Icons.meeting_room),
+                          label: const Text('Reserva tu Cubículo'),
                         ),
-                      );
-                      // En una app real, cambiarías el índice del BottomNavigationBar del MainScreen.
-                    },
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Comenzar Reserva'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const CatalogEquipoDeportivoScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.sports_soccer),
+                          label: const Text('Reserva tu Equipo Deportivo'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Fila 2: Sala Gamer (placeholder por ahora)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // TODO: cuando hagas el catálogo de consolas/sala gamer, navega allí
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Sala Gamer: próximamente'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.sports_esports),
+                          label: const Text('Reserva en la Sala Gamer'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
+
           const SizedBox(height: 30),
           const Text(
             'Últimas Noticias',
@@ -225,7 +275,9 @@ class AvailabilityScreen extends StatelessWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(15),
                   leading: Icon(
-                    isAvailable ? Icons.check_circle_outline : Icons.cancel_outlined,
+                    isAvailable
+                        ? Icons.check_circle_outline
+                        : Icons.cancel_outlined,
                     color: statusColor,
                     size: 35,
                   ),
@@ -248,7 +300,10 @@ class AvailabilityScreen extends StatelessWidget {
                   trailing: Chip(
                     label: Text(
                       isAvailable ? 'Disponible' : 'Ocupado',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     backgroundColor: statusColor,
                   ),

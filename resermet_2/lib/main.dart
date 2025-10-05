@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Reservas UNIMET',
+      title: 'RESERMET',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // Tema principal con el azul de la UNIMET
