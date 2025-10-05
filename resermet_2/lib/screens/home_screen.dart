@@ -1,11 +1,14 @@
-// lib/screens/home_screen.dart ACTUALIZADO
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_colors.dart';
 import 'my_reservations.dart';
 import 'reservation_screen.dart';
 import 'availability.dart';
 import 'admin/admin_home_screen.dart'; // ← CAMBIADO EL IMPORT
 import 'catalog_equipo_deportivo_screen.dart';
+import 'admin/cubiculos_list_screen.dart';
+import 'login.dart';
+import 'registro.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -18,19 +21,41 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Lista de las pantallas - ACTUALIZADA
+  // Lista de las pantallas
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     BookingScreen(),
     MyBookingsScreen(),
     AvailabilityScreen(),
-    AdminHomeScreen(), // ← CAMBIADO: CubiculosListScreen → AdminHomeScreen
+    CubiculosListScreen(),
   ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  // 💡 FUNCIÓN DE CERRAR SESIÓN (LOGOUT)
+  Future<void> _signOut() async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+      // El AuthGate en main.dart detectará este cambio y navegará a LoginScreen
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cerrar sesión: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -70,7 +95,7 @@ class _MainScreenState extends State<MainScreen> {
 
 // -------------------------------------------------------------------
 
-// 🏠 Pantalla de Inicio
+// 🏠 Pantalla de Inicio (Limpia)
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -184,13 +209,18 @@ class HomeScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 30),
-          const Text(
-            'Últimas Noticias',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.unimetBlue,
-            ),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Últimas Noticias',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.unimetBlue,
+                ),
+              ),
+            ],
           ),
           const ListTile(
             leading: Icon(Icons.fiber_new, color: AppColors.unimetBlue),
@@ -203,7 +233,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// 🗺️ Pantalla de Disponibilidad y Ubicación (NUEVA)
+// 🗺️ Pantalla de Disponibilidad y Ubicación (sin cambios)
 
 class AvailabilityScreen extends StatelessWidget {
   const AvailabilityScreen({super.key});

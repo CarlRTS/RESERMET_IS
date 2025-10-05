@@ -1,8 +1,7 @@
-// lib/screens/admin/consolas_list_screen.dart
 import 'package:flutter/material.dart';
-import '../../../models/consola.dart';
-import '../../../services/consola_service.dart';
-import './add_edit_consola_screen.dart';
+import '../../models/consola.dart';
+import '../../services/consola_service.dart';
+import 'add_edit_consola_screen.dart';
 
 class ConsolasListScreen extends StatefulWidget {
   const ConsolasListScreen({super.key});
@@ -98,7 +97,7 @@ class _ConsolasListScreenState extends State<ConsolasListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => AddEditConsolaScreen(
-          onConsolaSaved: _loadConsolas,
+          onItemSaved: _loadConsolas,
         ),
       ),
     );
@@ -109,8 +108,8 @@ class _ConsolasListScreenState extends State<ConsolasListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => AddEditConsolaScreen(
-          consola: consola,
-          onConsolaSaved: _loadConsolas,
+          item: consola,
+          onItemSaved: _loadConsolas,
         ),
       ),
     );
@@ -145,8 +144,7 @@ class _ConsolasListScreenState extends State<ConsolasListScreen> {
                   itemBuilder: (context, index) {
                     final consola = _consolas[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: ListTile(
                         leading: const Icon(Icons.gamepad, color: Colors.green),
                         title: Text(

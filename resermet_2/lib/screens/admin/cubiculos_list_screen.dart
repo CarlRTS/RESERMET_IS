@@ -1,4 +1,3 @@
-// lib/screens/admin/cubiculos_list_screen.dart
 import 'package:flutter/material.dart';
 import '../../models/cubiculo.dart';
 import '../../services/cubiculo_service.dart';
@@ -78,7 +77,7 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     try {
       await _cubiculoService.deleteCubiculo(cubiculo.idObjeto);
       _showSuccessSnackbar('Cubículo eliminado exitosamente');
-      _loadCubiculos(); // Recargar la lista
+      _loadCubiculos();
     } catch (e) {
       _showErrorSnackbar('Error al eliminar cubículo: $e');
     }
@@ -98,7 +97,7 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => AddEditCubiculoScreen(
-          onCubiculoSaved: _loadCubiculos,
+          onItemSaved: _loadCubiculos,
         ),
       ),
     );
@@ -109,8 +108,8 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => AddEditCubiculoScreen(
-          cubiculo: cubiculo,
-          onCubiculoSaved: _loadCubiculos,
+          item: cubiculo,
+          onItemSaved: _loadCubiculos,
         ),
       ),
     );
@@ -121,7 +120,7 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Cubículos'),
-        backgroundColor: const Color(0xFF0033A0), // Azul UNIMET
+        backgroundColor: const Color(0xFF0033A0),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -145,15 +144,12 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
                   itemBuilder: (context, index) {
                     final cubiculo = _cubiculos[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: ListTile(
-                        leading: const Icon(Icons.meeting_room,
-                            color: Color(0xFF0033A0)),
+                        leading: const Icon(Icons.meeting_room, color: Color(0xFF0033A0)),
                         title: Text(
                           cubiculo.nombre,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,16 +163,12 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.edit,
-                                  color: Colors.blue),
-                              onPressed: () =>
-                                  _navigateToEditCubiculo(cubiculo),
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _navigateToEditCubiculo(cubiculo),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete,
-                                  color: Colors.red),
-                              onPressed: () =>
-                                  _showDeleteConfirmation(cubiculo),
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _showDeleteConfirmation(cubiculo),
                             ),
                           ],
                         ),

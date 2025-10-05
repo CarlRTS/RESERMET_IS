@@ -1,48 +1,34 @@
-// lib/screens/admin/add_edit_cubiculo_screen.dart
 import 'package:flutter/material.dart';
 import '../../models/cubiculo.dart';
 import '../../services/cubiculo_service.dart';
+import 'base_form_screen.dart';
 
-class AddEditCubiculoScreen extends StatefulWidget {
-  final Cubiculo? cubiculo;
-  final VoidCallback onCubiculoSaved;
-
+class AddEditCubiculoScreen extends BaseFormScreen<Cubiculo> {
   const AddEditCubiculoScreen({
     super.key,
-    this.cubiculo,
-    required this.onCubiculoSaved,
-  });
+    super.item,
+    required super.onItemSaved,
+  }) : super(
+          screenTitle: item == null ? 'Agregar Cubículo' : 'Editar Cubículo',
+          appBarColor: const Color(0xFF0033A0),
+        );
 
   @override
   State<AddEditCubiculoScreen> createState() => _AddEditCubiculoScreenState();
 }
 
-class _AddEditCubiculoScreenState extends State<AddEditCubiculoScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _cubiculoService = CubiculoService();
-
+class _AddEditCubiculoScreenState extends BaseFormScreenState<Cubiculo, AddEditCubiculoScreen> {
+  final CubiculoService _cubiculoService = CubiculoService();
   final _nombreController = TextEditingController();
   final _ubicacionController = TextEditingController();
   final _capacidadController = TextEditingController();
   String _estado = 'disponible';
   final _idAreaController = TextEditingController();
 
-  bool _isLoading = false;
-
   @override
   void initState() {
+    _idAreaController.text = '1';
     super.initState();
-    if (widget.cubiculo != null) {
-      // Modo edición - llenar con datos existentes
-      _nombreController.text = widget.cubiculo!.nombre;
-      _ubicacionController.text = widget.cubiculo!.ubicacion;
-      _capacidadController.text = widget.cubiculo!.capacidad.toString();
-      _estado = widget.cubiculo!.estado;
-      _idAreaController.text = widget.cubiculo!.idArea.toString();
-    } else {
-      // Modo creación - valores por defecto
-      _idAreaController.text = '1'; // ID área por defecto
-    }
   }
 
   @override
@@ -54,189 +40,75 @@ class _AddEditCubiculoScreenState extends State<AddEditCubiculoScreen> {
     super.dispose();
   }
 
-  Future<void> _saveCubiculo() async {
-    if (!_formKey.currentState!.validate()) return;
+  @override
+  Cubiculo createItem() {
+    return Cubiculo(
+      idObjeto: widget.item?.idObjeto ?? 0,
+      nombre: _nombreController.text,
+      ubicacion: _ubicacionController.text,
+      capacidad: int.parse(_capacidadController.text),
+      estado: _estado,
+      idArea: int.parse(_idAreaController.text),
+    );
+  }
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final cubiculo = Cubiculo(
-        idObjeto: widget.cubiculo?.idObjeto ?? 0, // ← CAMBIADO: El servicio generará el ID automáticamente
-        nombre: _nombreController.text,
-        ubicacion: _ubicacionController.text,
-        capacidad: int.parse(_capacidadController.text),
-        estado: _estado,
-        idArea: int.parse(_idAreaController.text),
-      );
-
-      if (widget.cubiculo == null) {
-        // Crear nuevo
-        await _cubiculoService.createCubiculo(cubiculo);
-      } else {
-        // Actualizar existente
-        await _cubiculoService.updateCubiculo(cubiculo);
-      }
-
-      widget.onCubiculoSaved();
-      Navigator.of(context).pop();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.cubiculo == null 
-              ? 'Cubículo creado exitosamente' 
-              : 'Cubículo actualizado exitosamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+  @override
+  Future<void> saveItem(Cubiculo cubiculo) async {
+    if (widget.item == null) {
+      await _cubiculoService.createCubiculo(cubiculo);
+    } else {
+      await _cubiculoService.updateCubiculo(cubiculo);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.cubiculo == null 
-            ? 'Agregar Cubículo' 
-            : 'Editar Cubículo'),
-        backgroundColor: const Color(0xFF0033A0),
-        foregroundColor: Colors.white,
+  void populateFormFields(Cubiculo cubiculo) {
+    _nombreController.text = cubiculo.nombre;
+    _ubicacionController.text = cubiculo.ubicacion;
+    _capacidadController.text = cubiculo.capacidad.toString();
+    _estado = cubiculo.estado;
+    _idAreaController.text = cubiculo.idArea.toString();
+  }
+
+  @override
+  List<Widget> buildFormFields() {
+    return [
+      TextFormField(
+        controller: _nombreController,
+        decoration: const InputDecoration(labelText: 'Nombre del Cubículo', border: OutlineInputBorder()),
+        validator: (value) => requiredValidator(value, 'el nombre'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  children: [
-                    TextFormField(
-                      controller: _nombreController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre del Cubículo',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor ingresa el nombre';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _ubicacionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Ubicación',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor ingresa la ubicación';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _capacidadController,
-                      decoration: const InputDecoration(
-                        labelText: 'Capacidad',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor ingresa la capacidad';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Por favor ingresa un número válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _estado,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'disponible',
-                          child: Text('Disponible'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'prestado',
-                          child: Text('Prestado'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'en_mantenimiento',
-                          child: Text('En Mantenimiento'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _estado = value!;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _idAreaController,
-                      decoration: const InputDecoration(
-                        labelText: 'ID Área',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor ingresa el ID del área';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Por favor ingresa un número válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _saveCubiculo,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0033A0),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text(widget.cubiculo == null 
-                              ? 'Crear Cubículo' 
-                              : 'Actualizar Cubículo'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-    );
+      const SizedBox(height: 16),
+      TextFormField(
+        controller: _ubicacionController,
+        decoration: const InputDecoration(labelText: 'Ubicación', border: OutlineInputBorder()),
+        validator: (value) => requiredValidator(value, 'la ubicación'),
+      ),
+      const SizedBox(height: 16),
+      TextFormField(
+        controller: _capacidadController,
+        decoration: const InputDecoration(labelText: 'Capacidad', border: OutlineInputBorder()),
+        keyboardType: TextInputType.number,
+        validator: (value) => numberValidator(value, 'la capacidad'),
+      ),
+      const SizedBox(height: 16),
+      DropdownButtonFormField<String>(
+        value: _estado,
+        decoration: const InputDecoration(labelText: 'Estado', border: OutlineInputBorder()),
+        items: const [
+          DropdownMenuItem(value: 'disponible', child: Text('Disponible')),
+          DropdownMenuItem(value: 'prestado', child: Text('Prestado')),
+          DropdownMenuItem(value: 'en_mantenimiento', child: Text('En Mantenimiento')),
+        ],
+        onChanged: (value) => setState(() => _estado = value!),
+      ),
+      const SizedBox(height: 16),
+      TextFormField(
+        controller: _idAreaController,
+        decoration: const InputDecoration(labelText: 'ID Área', border: OutlineInputBorder()),
+        keyboardType: TextInputType.number,
+        validator: (value) => numberValidator(value, 'el ID del área'),
+      ),
+    ];
   }
 }
