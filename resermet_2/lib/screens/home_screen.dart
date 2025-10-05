@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import 'my_reservations.dart';
-import 'reservation_screen.dart';
+import 'reservations/reservation_screen.dart';
 import 'availability.dart';
 import 'admin/admin_home_screen.dart'; // ← CAMBIADO EL IMPORT
 
@@ -225,7 +225,9 @@ class AvailabilityScreen extends StatelessWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(15),
                   leading: Icon(
-                    isAvailable ? Icons.check_circle_outline : Icons.cancel_outlined,
+                    isAvailable
+                        ? Icons.check_circle_outline
+                        : Icons.cancel_outlined,
                     color: statusColor,
                     size: 35,
                   ),
@@ -248,7 +250,10 @@ class AvailabilityScreen extends StatelessWidget {
                   trailing: Chip(
                     label: Text(
                       isAvailable ? 'Disponible' : 'Ocupado',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     backgroundColor: statusColor,
                   ),

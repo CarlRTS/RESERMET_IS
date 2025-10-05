@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import '../utils/app_colors.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_console.dart';
+import '../../utils/app_colors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'reservation_form_console.dart';
+
 // 🗓️ Pantalla de Reservar
 
 class BookingScreen extends StatelessWidget {
@@ -37,24 +41,29 @@ class BookingScreen extends StatelessWidget {
           _buildArticleCard(
             context,
             title: 'Consolas / Equipos',
-            subtitle:
-            'Reserva de consolas en el Centro de Diseño Digital (CDD).',
+            subtitle: 'Reserva de consolas en el Decanato de estudiantes',
             icon: Icons.gamepad,
             color: Colors.green,
             onTap: () {
-              _showReservationAlert(context, 'Consolas');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReservationFormConsole(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 15),
           // Opción Otros (Ej: Salas de Reunión)
           _buildArticleCard(
             context,
-            title: 'Salas de Reunión',
-            subtitle: 'Salas para presentaciones o trabajos en equipo.',
+            title: 'Articulos deportivos',
+            subtitle:
+                'Articulos deportivos entre otros en el Decanato de estudiantes',
             icon: Icons.people,
             color: Colors.orange,
             onTap: () {
-              _showReservationAlert(context, 'Salas de Reunión');
+              _showReservationAlert(context, 'articulos deportivos');
             },
           ),
         ],
@@ -64,13 +73,13 @@ class BookingScreen extends StatelessWidget {
 
   // Widget auxiliar para las tarjetas de artículos
   Widget _buildArticleCard(
-      BuildContext context, {
-        required String title,
-        required String subtitle,
-        required IconData icon,
-        required Color color,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
