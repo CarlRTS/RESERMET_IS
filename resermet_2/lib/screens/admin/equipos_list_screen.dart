@@ -1,38 +1,38 @@
 import 'package:flutter/material.dart';
-import '../../models/cubiculo.dart';
-import '../../services/cubiculo_service.dart';
-import 'add_edit_cubiculo_screen.dart';
+import '../../models/equipo_deportivo.dart';
+import '../../services/equipo_deportivo_service.dart';
+import 'add_edit_equipo_screen.dart';
 
-class CubiculosListScreen extends StatefulWidget {
-  const CubiculosListScreen({super.key});
+class EquiposListScreen extends StatefulWidget {
+  const EquiposListScreen({super.key});
 
   @override
-  State<CubiculosListScreen> createState() => _CubiculosListScreenState();
+  State<EquiposListScreen> createState() => _EquiposListScreenState();
 }
 
-class _CubiculosListScreenState extends State<CubiculosListScreen> {
-  final CubiculoService _cubiculoService = CubiculoService();
-  List<Cubiculo> _cubiculos = [];
+class _EquiposListScreenState extends State<EquiposListScreen> {
+  final EquipoDeportivoService _equipoService = EquipoDeportivoService();
+  List<EquipoDeportivo> _equipos = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCubiculos();
+    _loadEquipos();
   }
 
-  Future<void> _loadCubiculos() async {
+  Future<void> _loadEquipos() async {
     try {
-      final cubiculos = await _cubiculoService.getCubiculos();
+      final equipos = await _equipoService.getEquiposDeportivos();
       setState(() {
-        _cubiculos = cubiculos;
+        _equipos = equipos;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      _showErrorSnackbar('Error al cargar cubículos: $e');
+      _showErrorSnackbar('Error al cargar equipos deportivos: $e');
     }
   }
 
@@ -45,13 +45,13 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     );
   }
 
-  void _showDeleteConfirmation(Cubiculo cubiculo) {
+  void _showDeleteConfirmation(EquipoDeportivo equipo) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Eliminar Cubículo'),
-          content: Text('¿Estás seguro de eliminar "${cubiculo.nombre}"?'),
+          title: const Text('Eliminar Equipo Deportivo'),
+          content: Text('¿Estás seguro de eliminar "${equipo.nombre}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -60,7 +60,7 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _deleteCubiculo(cubiculo);
+                _deleteEquipo(equipo);
               },
               child: const Text(
                 'Eliminar',
@@ -73,13 +73,13 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     );
   }
 
-  Future<void> _deleteCubiculo(Cubiculo cubiculo) async {
+  Future<void> _deleteEquipo(EquipoDeportivo equipo) async {
     try {
-      await _cubiculoService.deleteCubiculo(cubiculo.idObjeto);
-      _showSuccessSnackbar('Cubículo eliminado exitosamente');
-      _loadCubiculos();
+      await _equipoService.deleteEquipoDeportivo(equipo.idObjeto);
+      _showSuccessSnackbar('Equipo deportivo eliminado exitosamente');
+      _loadEquipos();
     } catch (e) {
-      _showErrorSnackbar('Error al eliminar cubículo: $e');
+      _showErrorSnackbar('Error al eliminar equipo deportivo: $e');
     }
   }
 
@@ -92,24 +92,24 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
     );
   }
 
-  void _navigateToAddCubiculo() {
+  void _navigateToAddEquipo() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditCubiculoScreen(
-          onItemSaved: _loadCubiculos,
+        builder: (context) => AddEditEquipoScreen(
+          onItemSaved: _loadEquipos,
         ),
       ),
     );
   }
 
-  void _navigateToEditCubiculo(Cubiculo cubiculo) {
+  void _navigateToEditEquipo(EquipoDeportivo equipo) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditCubiculoScreen(
-          item: cubiculo,
-          onItemSaved: _loadCubiculos,
+        builder: (context) => AddEditEquipoScreen(
+          item: equipo,
+          onItemSaved: _loadEquipos,
         ),
       ),
     );
@@ -119,44 +119,45 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Cubículos'),
-        backgroundColor: const Color(0xFF0033A0),
+        title: const Text('Gestión de Equipos Deportivos'),
+        backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _navigateToAddCubiculo,
-            tooltip: 'Agregar Cubículo',
+            onPressed: _navigateToAddEquipo,
+            tooltip: 'Agregar Equipo',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _cubiculos.isEmpty
+          : _equipos.isEmpty
               ? const Center(
                   child: Text(
-                    'No hay cubículos registrados',
+                    'No hay equipos deportivos registrados',
                     style: TextStyle(fontSize: 16),
                   ),
                 )
               : ListView.builder(
-                  itemCount: _cubiculos.length,
+                  itemCount: _equipos.length,
                   itemBuilder: (context, index) {
-                    final cubiculo = _cubiculos[index];
+                    final equipo = _equipos[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: ListTile(
-                        leading: const Icon(Icons.meeting_room, color: Color(0xFF0033A0)),
+                        leading: const Icon(Icons.sports_baseball, color: Colors.orange),
                         title: Text(
-                          cubiculo.nombre,
+                          equipo.nombre,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Ubicación: ${cubiculo.ubicacion}'),
-                            Text('Capacidad: ${cubiculo.capacidad} personas'),
-                            Text('Estado: ${cubiculo.estado}'),
+                            Text('Tipo: ${equipo.tipoEquipo}'),
+                            Text('Total: ${equipo.cantidadTotal} unidades'),
+                            Text('Disponibles: ${equipo.cantidadDisponible} unidades'),
+                            Text('Estado: ${equipo.estado}'),
                           ],
                         ),
                         trailing: Row(
@@ -164,11 +165,11 @@ class _CubiculosListScreenState extends State<CubiculosListScreen> {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _navigateToEditCubiculo(cubiculo),
+                              onPressed: () => _navigateToEditEquipo(equipo),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _showDeleteConfirmation(cubiculo),
+                              onPressed: () => _showDeleteConfirmation(equipo),
                             ),
                           ],
                         ),

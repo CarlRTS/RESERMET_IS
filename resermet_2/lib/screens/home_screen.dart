@@ -1,9 +1,10 @@
+// lib/screens/home_screen.dart ACTUALIZADO
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import 'my_reservations.dart';
 import 'reservation_screen.dart';
 import 'availability.dart';
-import 'admin/cubiculos_list_screen.dart'; // ← NUEVO IMPORT
+import 'admin/admin_home_screen.dart'; // ← CAMBIADO EL IMPORT
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -16,13 +17,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // Lista de las pantallas - AGREGADA ADMIN
+  // Lista de las pantallas - ACTUALIZADA
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     BookingScreen(),
     MyBookingsScreen(),
     AvailabilityScreen(),
-    CubiculosListScreen(), // ← NUEVA PANTALLA ADMIN
+    AdminHomeScreen(), // ← CAMBIADO: CubiculosListScreen → AdminHomeScreen
   ];
 
   void _onItemTapped(int index) {
@@ -37,7 +38,7 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(title: const Text('Reservas UNIMET 💙💛')),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed, // ← IMPORTANTE para más de 4 items
+        type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
           BottomNavigationBarItem(
@@ -52,7 +53,7 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.location_on),
             label: 'Ubicación',
           ),
-          BottomNavigationBarItem( // ← NUEVO ITEM ADMIN
+          BottomNavigationBarItem(
             icon: Icon(Icons.admin_panel_settings),
             label: 'Admin',
           ),
