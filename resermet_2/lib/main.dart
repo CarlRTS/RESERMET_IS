@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Reservas UNIMET',
+      title: 'RESERMET',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: AppColors.unimetBlue,
