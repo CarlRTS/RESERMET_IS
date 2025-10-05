@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
+import '../utils/app_colors.dart'; // Asegúrate de que este import exista
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _obscureText = true;
 
   @override
   void dispose() {
@@ -40,7 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
 
       if (user == null) {
-        // Este caso casi siempre es cubierto por el AuthException
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Usuario no registrado.'),
@@ -48,7 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else if (user.emailConfirmedAt == null) {
-        // Usuario registrado pero correo no confirmado
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Debes confirmar tu correo antes de iniciar sesión.'),
@@ -56,8 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
-        // Login exitoso
-        // La navegación a MainScreen ocurre automáticamente gracias a AuthGate en main.dart
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ Bienvenido ${user.email}!'),
@@ -66,7 +64,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on AuthException catch (e) {
-      // 💡 MEJORA: Mensaje de error más específico para el usuario
       String errorMessage;
 
       if (e.message.contains('Invalid login credentials') ||
@@ -83,7 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } catch (e) {
-      // Error inesperado
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error inesperado: $e'),
@@ -106,65 +102,110 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Iniciar Sesión Resermet')),
-      body: Padding(
-        padding: const EdgeInsets.all(30.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock_outline, size: 80, color: Colors.blue),
-              const SizedBox(height: 20),
-              const Text(
-                'Bienvenido a Resermet',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+      // 💡 Cambio visual: Usar SingleChildScrollView para evitar overflow y centrar
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            // 💡 Nuevo: Tarjeta para agrupar el formulario
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(height: 40),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Correo UNIMET',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+              child: Padding(
+                padding: const EdgeInsets.all(30.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min, // Ajusta al contenido
+                  children: [
+                    // Icono de Branding
+                    Icon(
+                      Icons.school_outlined,
+                      size: 90,
+                      color: AppColors.unimetBlue,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Resermet - UNIMET',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.unimetBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Campo Correo
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo UNIMET',
+                        prefixIcon: Icon(Icons.email),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Ingrese su correo UNIMET';
+                        if (!value.toLowerCase().endsWith('@correo.unimet.edu.ve')) return 'Use su correo institucional';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Campo Contraseña
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        prefixIcon: const Icon(Icons.lock),
+                        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureText ? Icons.visibility : Icons.visibility_off,
+                            color: AppColors.unimetOrange, // Color del ojo
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureText = !_obscureText;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: _obscureText,
+                      validator: (value) {
+                        if (value == null || value.length < 6) return 'Ingrese una contraseña válida';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Botón Login
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _loginUser,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        backgroundColor: AppColors.unimetBlue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 18)),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Botón Registro
+                    TextButton(
+                      onPressed: _goToRegister,
+                      child: Text(
+                        '¿No tienes cuenta? Regístrate aquí',
+                        style: TextStyle(fontSize: 16, color: AppColors.unimetOrange),
+                      ),
+                    ),
+                  ],
                 ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Ingrese su correo UNIMET';
-                  if (!value.toLowerCase().endsWith('@correo.unimet.edu.ve')) return 'Use su correo institucional';
-                  return null;
-                },
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña',
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.length < 6) return 'Ingrese una contraseña válida';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _loginUser,
-                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 18)),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: _goToRegister,
-                child: const Text(
-                  '¿No tienes cuenta? Regístrate aquí',
-                  style: TextStyle(fontSize: 16, color: Colors.blue),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -104,7 +104,7 @@ class _MainScreenState extends State<MainScreen> {
 
 // -------------------------------------------------------------------
 
-// 🏠 Pantalla de Inicio (Limpia, sin el botón de Logout)
+// 🏠 Pantalla de Inicio (Limpia)
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});

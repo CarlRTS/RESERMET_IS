@@ -56,7 +56,7 @@ class MyApp extends StatelessWidget {
 }
 
 // 🚪 AuthGate: decide si mostrar Login o MainScreen
-// 💡 CÓDIGO CORREGIDO: Ahora usa StreamBuilder para reaccionar a los cambios de Auth.
+// 💡 CORRECCIÓN CLAVE: Usa StreamBuilder para reaccionar a los cambios de Auth.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -78,7 +78,6 @@ class AuthGate extends StatelessWidget {
         final Session? session = authState.session;
 
         // ✅ Si hay una sesión activa → MainScreen
-        // Esto ocurrirá automáticamente después de un login exitoso.
         if (session != null) {
           return const MainScreen();
         }
