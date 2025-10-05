@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormConsole extends StatefulWidget {
@@ -130,7 +131,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
           'Reservar Consola',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: AppColors.unimetOrange,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -139,7 +140,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.blue.shade50, Colors.grey.shade100],
+            colors: [Colors.white, AppColors.unimetLightGray],
           ),
         ),
         child: Padding(
@@ -156,13 +157,13 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                      color: AppColors.unimetBlue,
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Selecciona la consola y completa los datos de reserva',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                    style: TextStyle(color: AppColors.unimetBlue, fontSize: 16),
                   ),
                   const SizedBox(height: 30),
 
@@ -415,16 +416,12 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 child: Text('1 hora'),
                               ),
                               DropdownMenuItem(
+                                value: '1.5 horas',
+                                child: Text('1.5 horas'),
+                              ),
+                              DropdownMenuItem(
                                 value: '2 horas',
                                 child: Text('2 horas'),
-                              ),
-                              DropdownMenuItem(
-                                value: '3 horas',
-                                child: Text('3 horas'),
-                              ),
-                              DropdownMenuItem(
-                                value: '4 horas',
-                                child: Text('4 horas'),
                               ),
                             ],
                             onChanged: (newValue) {
