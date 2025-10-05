@@ -180,7 +180,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             children: [
                               Icon(
                                 Icons.sports_soccer,
-                                color: Colors.red,
+                                color: AppColors.unimetBlueSecondary,
                                 size: 24,
                               ),
                               SizedBox(width: 8),
@@ -189,7 +189,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.red,
+                                  color: AppColors.unimetBlueSecondary,
                                 ),
                               ),
                             ],
@@ -202,7 +202,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              prefixIcon: const Icon(Icons.sports),
+                              prefixIcon: const Icon(Icons.sports_tennis_sharp),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
@@ -271,7 +271,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: Colors.red,
+                                color: Colors.lightBlue,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -283,8 +283,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
-                                  Icons.sports,
-                                  color: Colors.red,
+                                  Icons.sports_tennis_sharp,
+                                  color: Colors.lightBlue,
                                 ),
                               ),
                               title: Text(
@@ -475,7 +475,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     child: ElevatedButton(
                       onPressed: _submitReservation,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -506,22 +506,22 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade100),
+                      border: Border.all(color: Colors.blue.shade100),
                     ),
                     child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.info, color: Colors.red, size: 20),
+                            Icon(Icons.info, color: Colors.lightBlue, size: 20),
                             SizedBox(width: 8),
                             Text(
                               'Información importante',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.red,
+                                color: AppColors.unimetBlue,
                               ),
                             ),
                           ],

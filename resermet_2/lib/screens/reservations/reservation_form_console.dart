@@ -521,7 +521,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               'Información importante',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                                color: AppColors.unimetBlue,
                               ),
                             ),
                           ],
