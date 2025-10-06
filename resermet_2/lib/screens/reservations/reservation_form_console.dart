@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:resermet_2/models/consola.dart';
+import 'package:resermet_2/services/consola_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,84 +13,56 @@ class ReservationFormConsole extends StatefulWidget {
 
 class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   final _formKey = GlobalKey<FormState>();
+  final ConsolaService _consolaService =
+      ConsolaService(); // Instanciar servicio
 
   // Controladores para los campos de texto
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
-  // Datos de ejemplo para las consolas con juegos
-  final List<Map<String, dynamic>> availableConsoles = [
-    {
-      'id': '1',
-      'name': 'PlayStation 5',
-      'model': 'PS5 Standard',
-      'available': '3',
-      'games': [
-        'FIFA 24',
-        'Call of Duty: Modern Warfare III',
-        'Spider-Man 2',
-        'God of War Ragnarök',
-        'NBA 2K24',
-        'Gran Turismo 7',
-      ],
-    },
-    {
-      'id': '2',
-      'name': 'Xbox Series X',
-      'model': 'Xbox X 1TB',
-      'available': '2',
-      'games': [
-        'Halo Infinite',
-        'Forza Horizon 5',
-        'Gears 5',
-        'Starfield',
-        'Microsoft Flight Simulator',
-      ],
-    },
-    {
-      'id': '3',
-      'name': 'Nintendo Switch',
-      'model': 'Switch OLED',
-      'available': '5',
-      'games': [
-        'Super Smash Bros. Ultimate',
-        'Mario Kart 8 Deluxe',
-        'The Legend of Zelda: Tears of the Kingdom',
-        'Animal Crossing: New Horizons',
-        'Super Mario Odyssey',
-        'Splatoon 3',
-      ],
-    },
-    {
-      'id': '4',
-      'name': 'PlayStation 4',
-      'model': 'PS4 Pro',
-      'available': '1',
-      'games': [
-        'The Last of Us Part II',
-        'Ghost of Tsushima',
-        'Red Dead Redemption 2',
-        'Horizon Zero Dawn',
-        'Uncharted 4',
-      ],
-    },
-  ];
-
-  String? selectedConsoleId;
-  Map<String, dynamic>? selectedConsole;
+  // Variables para consolas reales
+  List<Consola> _consolasDisponibles = [];
+  Consola? _consolaSeleccionada;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
-  String? _selectedGame; // Nuevo campo para juego seleccionado
+  String? _selectedGame;
+
+  bool _isLoading = true;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    // Seleccionar la primera consola por defecto
-    if (availableConsoles.isNotEmpty) {
-      selectedConsoleId = availableConsoles[0]['id'];
-      selectedConsole = availableConsoles[0];
+    _cargarConsolasDisponibles();
+  }
+
+  // Método para cargar consolas desde la base de datos
+  Future<void> _cargarConsolasDisponibles() async {
+    try {
+      final consolas = await _consolaService.getConsolas();
+
+      // Filtrar consolas disponibles (cantidadDisponible > 0)
+      final consolasDisponibles = consolas
+          .where((consola) => consola.cantidadDisponible > 0)
+          .toList();
+
+      setState(() {
+        _consolasDisponibles = consolasDisponibles;
+        _isLoading = false;
+
+        // Seleccionar la primera consola disponible por defecto
+        if (_consolasDisponibles.isNotEmpty) {
+          _consolaSeleccionada = _consolasDisponibles[0];
+        }
+      });
+    } catch (e) {
+      print('Error cargando consolas: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      _mostrarError('Error al cargar las consolas disponibles');
     }
   }
 
@@ -132,38 +106,120 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // Simulación de envío del formulario
-  void _submitReservation() {
-    if (_formKey.currentState!.validate()) {
-      // Mostrar diálogo de confirmación
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Reserva Confirmada'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Has reservado ${selectedConsole!['name']}'),
-                Text('Fecha: ${_dateController.text}'),
-                Text('Hora: ${_timeController.text}'),
-                if (_selectedGame != null) Text('Juego: $_selectedGame'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop(); // Regresar a pantalla anterior
-                },
-                child: const Text('Aceptar'),
-              ),
-            ],
-          );
-        },
-      );
+  // Método para mostrar errores
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
+  // Método para crear reserva en la base de datos
+  Future<void> _crearReserva() async {
+    if (_consolaSeleccionada == null) {
+      _mostrarError('Por favor selecciona una consola');
+      return;
     }
+
+    if (_selectedDate == null ||
+        _selectedTime == null ||
+        _selectedDuration == null) {
+      _mostrarError('Por favor completa todos los campos de fecha y hora');
+      return;
+    }
+
+    // OBTENER EL USUARIO ACTUAL
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _mostrarError('Debes iniciar sesión para hacer una reserva');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final fechaInicio = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+
+      final fechaFin = _calcularFechaFin(fechaInicio, _selectedDuration!);
+
+      // Crear objeto de reserva
+      final reservaData = {
+        'id_articulo': _consolaSeleccionada!.idObjeto,
+        'id_usuario': user.id,
+        'fecha_reserva': DateTime.now().toIso8601String().split('T')[0],
+        'inicio': fechaInicio.toIso8601String(),
+        'fin': fechaFin.toIso8601String(),
+        'compromiso_estudiante': _purposeController.text,
+        'estado': 'activa',
+      };
+
+      // Insertar en la base de datos
+      await Supabase.instance.client.from('reserva').insert(reservaData);
+
+      // Mostrar confirmación
+      _mostrarConfirmacion();
+    } catch (e) {
+      print('Error creando reserva: $e');
+      _mostrarError('Error al crear la reserva: $e');
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+
+  // Método para calcular fecha fin basado en la duración
+  DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
+    switch (duracion) {
+      case '30 min':
+        return fechaInicio.add(const Duration(minutes: 30));
+      case '1 hora':
+        return fechaInicio.add(const Duration(hours: 1));
+      case '1.5 horas':
+        return fechaInicio.add(const Duration(minutes: 90));
+      case '2 horas':
+        return fechaInicio.add(const Duration(hours: 2));
+      default:
+        return fechaInicio.add(const Duration(hours: 1));
+    }
+  }
+
+  // Método para mostrar confirmación
+  void _mostrarConfirmacion() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reserva Confirmada'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Has reservado ${_consolaSeleccionada!.nombre}'),
+              Text('Fecha: ${_dateController.text}'),
+              Text('Hora: ${_timeController.text}'),
+              if (_selectedGame != null) Text('Juego: $_selectedGame'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Regresar a pantalla anterior
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -240,58 +296,71 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            value: selectedConsoleId,
-                            decoration: InputDecoration(
-                              labelText: 'Consolas Disponibles',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.videogame_asset),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
-                            items: availableConsoles.map((console) {
-                              return DropdownMenuItem<String>(
-                                value: console['id'],
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      console['name'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      console['model'],
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
+
+                          if (_isLoading)
+                            const Center(child: CircularProgressIndicator())
+                          else if (_consolasDisponibles.isEmpty)
+                            const Text(
+                              'No hay consolas disponibles en este momento',
+                              style: TextStyle(color: Colors.grey),
+                            )
+                          else
+                            DropdownButtonFormField<Consola>(
+                              value: _consolaSeleccionada,
+                              decoration: InputDecoration(
+                                labelText: 'Consolas Disponibles',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (newValue) {
-                              setState(() {
-                                selectedConsoleId = newValue;
-                                selectedConsole = availableConsoles.firstWhere(
-                                  (console) => console['id'] == newValue,
+                                prefixIcon: const Icon(Icons.videogame_asset),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                              ),
+                              items: _consolasDisponibles.map((consola) {
+                                return DropdownMenuItem<Consola>(
+                                  value: consola,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        consola.nombre,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Modelo: ${consola.modelo}', // ← CAMBIADO: modelo en lugar de plataforma
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Disponibles: ${consola.cantidadDisponible}', // ← AGREGADO: cantidad disponible
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.green.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 );
-                                _selectedGame =
-                                    null; // Resetear juego al cambiar consola
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una consola';
-                              }
-                              return null;
-                            },
-                          ),
+                              }).toList(),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _consolaSeleccionada = newValue;
+                                  _selectedGame = null;
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Por favor selecciona una consola';
+                                }
+                                return null;
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -300,7 +369,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                   const SizedBox(height: 20),
 
                   // Información de la consola seleccionada
-                  if (selectedConsole != null) ...[
+                  if (_consolaSeleccionada != null) ...[
                     Card(
                       elevation: 3,
                       shape: RoundedRectangleBorder(
@@ -333,7 +402,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 ),
                               ),
                               title: Text(
-                                selectedConsole!['name'],
+                                _consolaSeleccionada!.nombre,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -342,23 +411,28 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Modelo: ${selectedConsole!['model']}'),
                                   Text(
-                                    'Disponibles: ${selectedConsole!['available']} unidades',
+                                    'Modelo: ${_consolaSeleccionada!.modelo}',
+                                  ), // ← CAMBIADO: modelo
+                                  Text(
+                                    'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color: Colors.green.shade600,
+                                      color:
+                                          _consolaSeleccionada!
+                                                  .cantidadDisponible >
+                                              0
+                                          ? Colors.green.shade600
+                                          : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  // Mostrar cantidad de juegos disponibles
-                                  if (selectedConsole!['games'] != null)
-                                    Text(
-                                      'Juegos disponibles: ${selectedConsole!['games'].length}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blue.shade600,
-                                      ),
+                                  Text(
+                                    'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
                                     ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -493,48 +567,51 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
                           const SizedBox(height: 16),
 
-                          // NUEVO: Dropdown para seleccionar juego (opcional)
-                          if (selectedConsole != null &&
-                              selectedConsole!['games'] != null &&
-                              selectedConsole!['games'].isNotEmpty)
-                            DropdownButtonFormField<String>(
-                              value: _selectedGame,
-                              decoration: InputDecoration(
-                                labelText: 'Juego (opcional)',
-                                hintText: 'Selecciona un juego',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: const Icon(Icons.games),
-                                filled: true,
-                                fillColor: Colors.grey.shade50,
+                          // Dropdown para juego (opcional) - Mantenido de tu código original
+                          // Nota: Para conectar esto a la base de datos, necesitarías una tabla de juegos
+                          // Por ahora lo dejamos como campo de texto libre
+                          DropdownButtonFormField<String>(
+                            value: _selectedGame,
+                            decoration: InputDecoration(
+                              labelText: 'Juego (opcional)',
+                              hintText: 'Selecciona un juego',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text('Ningún juego específico'),
-                                ),
-                                ...selectedConsole!['games']
-                                    .map<DropdownMenuItem<String>>((game) {
-                                      return DropdownMenuItem<String>(
-                                        value: game,
-                                        child: Text(game),
-                                      );
-                                    })
-                                    .toList(),
-                              ],
-                              onChanged: (newValue) {
-                                setState(() {
-                                  _selectedGame = newValue;
-                                });
-                              },
-                              // No hay validator porque es opcional
+                              prefixIcon: const Icon(Icons.games),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
                             ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: null,
+                                child: Text('Ningún juego específico'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'FIFA 24',
+                                child: Text('FIFA 24'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Call of Duty: Modern Warfare III',
+                                child: Text('Call of Duty: Modern Warfare III'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Spider-Man 2',
+                                child: Text('Spider-Man 2'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Otro juego',
+                                child: Text('Otro juego'),
+                              ),
+                            ],
+                            onChanged: (newValue) {
+                              setState(() {
+                                _selectedGame = newValue;
+                              });
+                            },
+                          ),
 
-                          if (selectedConsole != null &&
-                              selectedConsole!['games'] != null &&
-                              selectedConsole!['games'].isNotEmpty)
-                            const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
                           // Campo de propósito
                           TextFormField(
@@ -570,29 +647,36 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _submitReservation,
+                      onPressed: _isSubmitting || _consolasDisponibles.isEmpty
+                          ? null
+                          : _crearReserva,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor:
+                            _isSubmitting || _consolasDisponibles.isEmpty
+                            ? Colors.grey
+                            : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 4,
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 10),
-                          Text(
-                            'Confirmar Reserva',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                      child: _isSubmitting
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.white),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Confirmar Reserva',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
 
