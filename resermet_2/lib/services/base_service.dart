@@ -31,9 +31,11 @@ mixin BaseService {
 
   // Actualizar artículo base
   Future<void> updateArticulo(Map<String, dynamic> articuloData, int id) async {
+    final dataForUpdate = Map<String, dynamic>.from(articuloData);
+    dataForUpdate.remove('id_articulo');
     await supabase
         .from('articulo')
-        .update(articuloData)
+        .update(dataForUpdate)
         .eq('id_articulo', id);
   }
 
