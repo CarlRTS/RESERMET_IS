@@ -154,14 +154,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         'estado': 'activa',
       };
 
-      // CORRECCIÓN: Insertar sin .execute() y verificar error
-      final response = await Supabase.instance.client
-          .from('reserva')
-          .insert(reservaData);
+      print('Intentando insertar reserva con datos: $reservaData');
 
-      if (response.error != null) {
-        throw Exception(response.error!.message);
-      }
+      await Supabase.instance.client.from('reserva').insert(reservaData);
 
       // Mostrar confirmación
       _mostrarConfirmacion();
