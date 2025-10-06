@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:resermet_2/models/equipo_deportivo.dart';
+import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,45 +14,54 @@ class ReservationFormEquipment extends StatefulWidget {
 
 class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   final _formKey = GlobalKey<FormState>();
+  final EquipoDeportivoService _equipoService = EquipoDeportivoService();
 
   // Controladores para los campos de texto
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
-  // Datos de ejemplo para los equipos deportivos
-  final List<Map<String, String>> availableEquipment = [
-    {'id': '1', 'name': 'Balón de Fútbol', 'type': 'Fútbol', 'available': '8'},
-    {
-      'id': '2',
-      'name': 'Balón de Baloncesto',
-      'type': 'Baloncesto',
-      'available': '6',
-    },
-    {'id': '3', 'name': 'Raquetas de Tenis', 'type': 'Tenis', 'available': '4'},
-    {
-      'id': '4',
-      'name': 'Pelotas de Voleibol',
-      'type': 'Voleibol',
-      'available': '10',
-    },
-    {'id': '5', 'name': 'Bate de Béisbol', 'type': 'Béisbol', 'available': '3'},
-    {'id': '6', 'name': 'Guantes de Boxeo', 'type': 'Boxeo', 'available': '5'},
-  ];
-
-  String? selectedEquipmentId;
-  Map<String, String>? selectedEquipment;
+  // Variables para equipos deportivos reales
+  List<EquipoDeportivo> _equiposDisponibles = [];
+  EquipoDeportivo? _equipoSeleccionado;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
 
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+
   @override
   void initState() {
     super.initState();
-    // Seleccionar el primer equipo por defecto
-    if (availableEquipment.isNotEmpty) {
-      selectedEquipmentId = availableEquipment[0]['id'];
-      selectedEquipment = availableEquipment[0];
+    _cargarEquiposDisponibles();
+  }
+
+  // Método para cargar equipos desde la base de datos
+  Future<void> _cargarEquiposDisponibles() async {
+    try {
+      final equipos = await _equipoService.getEquiposDeportivos();
+
+      // Filtrar equipos disponibles (cantidad_disponible > 0)
+      final equiposDisponibles = equipos
+          .where((equipo) => equipo.cantidadDisponible > 0)
+          .toList();
+
+      setState(() {
+        _equiposDisponibles = equiposDisponibles;
+        _isLoading = false;
+
+        // Seleccionar el primer equipo disponible por defecto
+        if (_equiposDisponibles.isNotEmpty) {
+          _equipoSeleccionado = _equiposDisponibles[0];
+        }
+      });
+    } catch (e) {
+      print('Error cargando equipos: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      _mostrarError('Error al cargar los equipos disponibles');
     }
   }
 
@@ -94,31 +105,114 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     }
   }
 
-  // Simulación de envío del formulario
-  void _submitReservation() {
-    if (_formKey.currentState!.validate()) {
-      // Mostrar diálogo de confirmación
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Reserva Confirmada'),
-            content: Text(
-              'Has reservado ${selectedEquipment?['name']} para el ${_dateController.text} a las ${_timeController.text}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop(); // Regresar a pantalla anterior
-                },
-                child: const Text('Aceptar'),
-              ),
-            ],
-          );
-        },
-      );
+  // Método para mostrar errores
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
+  // Método para crear reserva en la base de datos
+  Future<void> _crearReserva() async {
+    if (_equipoSeleccionado == null) {
+      _mostrarError('Por favor selecciona un equipo');
+      return;
     }
+
+    if (_selectedDate == null ||
+        _selectedTime == null ||
+        _selectedDuration == null) {
+      _mostrarError('Por favor completa todos los campos de fecha y hora');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // Calcular fecha y hora de inicio y fin
+      final fechaInicio = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+
+      // Calcular fecha fin basado en la duración seleccionada
+      final fechaFin = _calcularFechaFin(fechaInicio, _selectedDuration!);
+
+      // Crear objeto de reserva
+      final reservaData = {
+        'id_articulo': _equipoSeleccionado!.idObjeto,
+        'id_usuario': Supabase.instance.client.auth.currentUser?.id,
+        'fecha_reserva': DateTime.now().toIso8601String().split('T')[0],
+        'inicio': fechaInicio.toIso8601String(),
+        'fin': fechaFin.toIso8601String(),
+        'compromiso_estudiante': _purposeController.text,
+        'estado': 'activa',
+      };
+
+      // CORRECCIÓN: Insertar sin .execute() y verificar error
+      final response = await Supabase.instance.client
+          .from('reserva')
+          .insert(reservaData);
+
+      if (response.error != null) {
+        throw Exception(response.error!.message);
+      }
+
+      // Mostrar confirmación
+      _mostrarConfirmacion();
+    } catch (e) {
+      print('Error creando reserva: $e');
+      _mostrarError('Error al crear la reserva: $e');
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+
+  // Método para calcular fecha fin basado en la duración
+  DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
+    switch (duracion) {
+      case '30 min':
+        return fechaInicio.add(const Duration(minutes: 30));
+      case '1 hora':
+        return fechaInicio.add(const Duration(hours: 1));
+      case '1.5 horas':
+        return fechaInicio.add(const Duration(minutes: 90));
+      case '2 horas':
+        return fechaInicio.add(const Duration(hours: 2));
+      default:
+        return fechaInicio.add(const Duration(hours: 1));
+    }
+  }
+
+  // Método para mostrar confirmación
+  void _mostrarConfirmacion() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reserva Confirmada'),
+          content: Text(
+            'Has reservado ${_equipoSeleccionado?.nombre} para el ${_dateController.text} a las ${_timeController.text}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Regresar a pantalla anterior
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -195,58 +289,72 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            value: selectedEquipmentId,
-                            decoration: InputDecoration(
-                              labelText: 'Equipos Disponibles',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.sports_tennis_sharp),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
-                            items: availableEquipment.map((equipment) {
-                              return DropdownMenuItem<String>(
-                                value: equipment['id'],
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      equipment['name']!,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Tipo: ${equipment['type']!}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
+
+                          if (_isLoading)
+                            const Center(child: CircularProgressIndicator())
+                          else if (_equiposDisponibles.isEmpty)
+                            const Text(
+                              'No hay equipos disponibles en este momento',
+                              style: TextStyle(color: Colors.grey),
+                            )
+                          else
+                            DropdownButtonFormField<EquipoDeportivo>(
+                              value: _equipoSeleccionado,
+                              decoration: InputDecoration(
+                                labelText: 'Equipos Disponibles',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (newValue) {
-                              setState(() {
-                                selectedEquipmentId = newValue;
-                                selectedEquipment = availableEquipment
-                                    .firstWhere(
-                                      (equipment) =>
-                                          equipment['id'] == newValue,
-                                    );
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona un equipo';
-                              }
-                              return null;
-                            },
-                          ),
+                                prefixIcon: const Icon(
+                                  Icons.sports_tennis_sharp,
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                              ),
+                              items: _equiposDisponibles.map((equipo) {
+                                return DropdownMenuItem<EquipoDeportivo>(
+                                  value: equipo,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        equipo.nombre,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Tipo: ${equipo.tipoEquipo}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Disponibles: ${equipo.cantidadDisponible}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.green.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _equipoSeleccionado = newValue;
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Por favor selecciona un equipo';
+                                }
+                                return null;
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -255,7 +363,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                   const SizedBox(height: 20),
 
                   // Información del equipo seleccionado
-                  if (selectedEquipment != null) ...[
+                  if (_equipoSeleccionado != null) ...[
                     Card(
                       elevation: 3,
                       shape: RoundedRectangleBorder(
@@ -288,7 +396,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 ),
                               ),
                               title: Text(
-                                selectedEquipment!['name']!,
+                                _equipoSeleccionado!.nombre,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -297,14 +405,29 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Tipo: ${selectedEquipment!['type']!}'),
                                   Text(
-                                    'Disponibles: ${selectedEquipment!['available']!} unidades',
+                                    'Tipo: ${_equipoSeleccionado!.tipoEquipo}',
+                                  ),
+                                  Text(
+                                    'Disponibles: ${_equipoSeleccionado!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color: Colors.green.shade600,
+                                      color:
+                                          _equipoSeleccionado!
+                                                  .cantidadDisponible >
+                                              0
+                                          ? Colors.green.shade600
+                                          : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
+                                  if (_equipoSeleccionado!.cantidadTotal > 0)
+                                    Text(
+                                      'Total en inventario: ${_equipoSeleccionado!.cantidadTotal}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -315,7 +438,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Campos del formulario
+                  // Campos del formulario (fecha, hora, duración, propósito)
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(
@@ -439,7 +562,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                           const SizedBox(height: 16),
 
-                          // Campo de propósito (adaptado para equipos deportivos)
+                          // Campo de propósito
                           TextFormField(
                             controller: _purposeController,
                             decoration: InputDecoration(
@@ -473,35 +596,42 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _submitReservation,
+                      onPressed: _isSubmitting || _equiposDisponibles.isEmpty
+                          ? null
+                          : _crearReserva,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor:
+                            _isSubmitting || _equiposDisponibles.isEmpty
+                            ? Colors.grey
+                            : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 4,
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.sports, color: Colors.white),
-                          SizedBox(width: 10),
-                          Text(
-                            'Confirmar Reserva',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                      child: _isSubmitting
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.sports, color: Colors.white),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Confirmar Reserva',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // Información adicional (adaptada para equipos deportivos)
+                  // Información adicional
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
