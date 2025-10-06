@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
-import '../utils/app_colors.dart';
+import 'package:resermet_2/models/cubiculo.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_console.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_equipment.dart';
+import 'package:resermet_2/services/cubiculo_service.dart';
+import 'package:resermet_2/utils/app_colors.dart';
+
 // 🗓️ Pantalla de Reservar
 
 class BookingScreen extends StatelessWidget {
