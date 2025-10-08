@@ -156,15 +156,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       print('Intentando insertar reserva con datos: $reservaData');
 
-
-      final response = await Supabase.instance.client
-          .from('reserva')
-          .insert(reservaData);
-
-      if (response.error != null) {
-        throw Exception(response.error!.message);
-      }
-
+      await Supabase.instance.client.from('reserva').insert(reservaData);
       // Mostrar confirmación
       _mostrarConfirmacion();
     } catch (e) {
@@ -616,7 +608,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.sports, color: Colors.white),
+                                Icon(Icons.sports_tennis, color: Colors.white),
                                 SizedBox(width: 10),
                                 Text(
                                   'Confirmar Reserva',
