@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
-import '../utils/app_colors.dart'; // Asegúrate de que este import exista
+import '../utils/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,7 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (user.emailConfirmedAt == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ Debes confirmar tu correo antes de iniciar sesión.'),
+            content: Text(
+              '❌ Debes confirmar tu correo antes de iniciar sesión.',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -74,10 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,13 +101,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Iniciar Sesión Resermet')),
-      // 💡 Cambio visual: Usar SingleChildScrollView para evitar overflow y centrar
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Form(
             key: _formKey,
-            // 💡 Nuevo: Tarjeta para agrupar el formulario
             child: Card(
               elevation: 8,
               shape: RoundedRectangleBorder(
@@ -117,9 +114,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(30.0),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Ajusta al contenido
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icono de Branding
                     Icon(
                       Icons.school_outlined,
                       size: 90,
@@ -142,12 +138,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Correo UNIMET',
                         prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Ingrese su correo UNIMET';
-                        if (!value.toLowerCase().endsWith('@correo.unimet.edu.ve')) return 'Use su correo institucional';
+                        if (value == null || value.isEmpty)
+                          return 'Ingrese su correo UNIMET';
+                        if (!value.toLowerCase().endsWith(
+                          '@correo.unimet.edu.ve',
+                        ))
+                          return 'Use su correo institucional';
                         return null;
                       },
                     ),
@@ -159,11 +161,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Contraseña',
                         prefixIcon: const Icon(Icons.lock),
-                        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+                        border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureText ? Icons.visibility : Icons.visibility_off,
-                            color: AppColors.unimetOrange, // Color del ojo
+                            _obscureText
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: AppColors.unimetOrange,
                           ),
                           onPressed: () {
                             setState(() {
@@ -174,7 +180,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       obscureText: _obscureText,
                       validator: (value) {
-                        if (value == null || value.length < 6) return 'Ingrese una contraseña válida';
+                        if (value == null || value.length < 6)
+                          return 'Ingrese una contraseña válida';
                         return null;
                       },
                     ),
@@ -186,11 +193,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size.fromHeight(50),
                         backgroundColor: AppColors.unimetBlue,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 18)),
+                          : const Text(
+                              'INICIAR SESIÓN',
+                              style: TextStyle(fontSize: 18),
+                            ),
                     ),
                     const SizedBox(height: 20),
 
@@ -199,7 +211,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _goToRegister,
                       child: Text(
                         '¿No tienes cuenta? Regístrate aquí',
-                        style: TextStyle(fontSize: 16, color: AppColors.unimetOrange),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppColors.unimetOrange,
+                        ),
                       ),
                     ),
                   ],
