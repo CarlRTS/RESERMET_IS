@@ -156,7 +156,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       print('Intentando insertar reserva con datos: $reservaData');
 
-      await Supabase.instance.client.from('reserva').insert(reservaData);
+
+      final response = await Supabase.instance.client
+          .from('reserva')
+          .insert(reservaData);
+
+      if (response.error != null) {
+        throw Exception(response.error!.message);
+      }
 
       // Mostrar confirmación
       _mostrarConfirmacion();
