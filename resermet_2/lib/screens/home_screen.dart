@@ -230,7 +230,7 @@ class HomeScreen extends StatelessWidget {
 
 // 🗺️ Pantalla de Disponibilidad y Ubicación (NUEVA)
 
-class AvailabilityScreen extends StatelessWidget {
+/*class AvailabilityScreen extends StatelessWidget {
   const AvailabilityScreen({super.key});
 
   // Datos simulados de cubículos
@@ -351,4 +351,4 @@ class AvailabilityScreen extends StatelessWidget {
       ],
     );
   }
-}
+}*/

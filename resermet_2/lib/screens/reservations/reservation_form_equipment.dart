@@ -4,6 +4,7 @@ import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+
 class ReservationFormEquipment extends StatefulWidget {
   const ReservationFormEquipment({super.key});
 
@@ -20,6 +21,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
+
 
   // Variables para equipos deportivos reales
   List<EquipoDeportivo> _equiposDisponibles = [];
