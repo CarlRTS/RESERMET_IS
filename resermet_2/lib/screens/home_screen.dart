@@ -60,11 +60,11 @@ class _MainScreenState extends State<MainScreen> {
       const MyBookingsScreen(),
       const AvailabilityScreen(),
     ];
-    
+
     if (_isAdmin) {
       screens.add(const AdminHomeScreen());
     }
-    
+
     return screens;
   }
 
@@ -85,14 +85,14 @@ class _MainScreenState extends State<MainScreen> {
         label: 'Ubicación',
       ),
     ];
-    
+
     if (_isAdmin) {
       items.add(const BottomNavigationBarItem(
         icon: Icon(Icons.admin_panel_settings),
         label: 'Admin',
       ));
     }
-    
+
     return items;
   }
 
@@ -106,7 +106,13 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _signOut() async {
     try {
       await Supabase.instance.client.auth.signOut();
-      // El AuthGate en main.dart detectará este cambio y navegará a LoginScreen
+      // Redirigir al login después de cerrar sesión
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+        );
+      }
     } on AuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -127,7 +133,39 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('RESERMET')),
+      appBar: AppBar(
+        title: const Text('RESERMET'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Cerrar sesión'),
+                  content:
+                  const Text('¿Estás seguro que deseas cerrar sesión?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancelar'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Cerrar sesión'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await _signOut();
+              }
+            },
+          ),
+        ],
+      ),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -142,7 +180,6 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // 🏠 Pantalla de Inicio (Limpia)
-
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -211,7 +248,7 @@ class HomeScreen extends StatelessWidget {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) =>
-                                    const CatalogEquipoDeportivoScreen(),
+                                const CatalogEquipoDeportivoScreen(),
                               ),
                             );
                           },
@@ -230,7 +267,6 @@ class HomeScreen extends StatelessWidget {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // TODO: cuando hagas el catálogo de consolas/sala gamer, navega allí
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Sala Gamer: próximamente'),

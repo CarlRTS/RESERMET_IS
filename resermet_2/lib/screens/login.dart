@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ Usuario no registrado.'),
+            content: Text(' Usuario no registrado.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              '❌ Debes confirmar tu correo antes de iniciar sesión.',
+              ' Debes confirmar tu correo antes de iniciar sesión.',
             ),
             backgroundColor: Colors.orange,
           ),
@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Bienvenido ${user.email}!'),
+            content: Text(' Bienvenido ${user.email}!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (e.message.contains('Invalid login credentials') ||
           e.message.contains('Email not confirmed')) {
-        errorMessage = '❌ Credenciales incorrectas o correo no confirmado.';
+        errorMessage = ' Credenciales incorrectas o correo no confirmado.';
       } else {
         errorMessage = 'Error: ${e.message}';
       }
@@ -146,9 +146,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty)
                           return 'Ingrese su correo UNIMET';
-                        if (!value.toLowerCase().endsWith(
-                          '@correo.unimet.edu.ve',
-                        ))
+                        final correo = value.toLowerCase();
+                        if (!correo.endsWith('@correo.unimet.edu.ve') &&
+                            !correo.endsWith('@unimet.edu.ve'))
                           return 'Use su correo institucional';
                         return null;
                       },
@@ -200,9 +200,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
-                              'INICIAR SESIÓN',
-                              style: TextStyle(fontSize: 18),
-                            ),
+                        'INICIAR SESIÓN',
+                        style: TextStyle(fontSize: 18),
+                      ),
                     ),
                     const SizedBox(height: 20),
 

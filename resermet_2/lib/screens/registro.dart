@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _telefonoController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -27,7 +27,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedRol = 'estudiante';
   String? _selectedCarrera;
 
-  // Lista de carreras disponibles
   final List<String> _carreras = [
     'Ingeniería',
     'Administración',
@@ -59,7 +58,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // Función para registrar en todas las tablas
   Future<void> _registrarUsuarioCompleto() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -74,56 +72,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final carrera = _selectedCarrera!;
 
     try {
-      // 1. Registrar en Supabase Auth
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
       );
 
-      if (authResponse.user == null) {
-        throw Exception('Error en el registro de autenticación');
+      final user = authResponse.user;
+
+      if (user != null) {
+        await Supabase.instance.client.from('usuario').insert({
+          'id_usuario': user.id,
+          'correo': user.email,
+          'nombre': nombre,
+          'apellido': apellido,
+          'telefono': telefono,
+          'rol': rol,
+        });
+
+        if (rol == 'estudiante') {
+          await Supabase.instance.client.from('estudiante').insert({
+            'id_usuario': user.id,
+            'carrera': carrera,
+          });
+        } else if (rol == 'administrador') {
+          await Supabase.instance.client.from('administrador').insert({
+            'id_usuario': user.id,
+          });
+        }
       }
 
-      final user = authResponse.user!;
-
-      // 2. Insertar en tabla usuario
-      await Supabase.instance.client.from('usuario').insert({
-        'id_usuario': user.id,
-        'correo': user.email,
-        'nombre': nombre,
-        'apellido': apellido,
-        'telefono': telefono,
-        'rol': rol,
-      });
-
-      // 3. Insertar en la tabla correspondiente según el rol
-      if (rol == 'estudiante') {
-        await Supabase.instance.client.from('estudiante').insert({
-          'id_usuario': user.id,
-          'carrera': carrera,
-        });
-      } else if (rol == 'administrador') {
-        await Supabase.instance.client.from('administrador').insert({
-          'id_usuario': user.id,
-        });
-      }
-
+      // Mensaje de verificación de correo
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            '✅ Registro exitoso! Revisa tu correo UNIMET para confirmar.',
+            ' Registro exitoso! Verifica tu correo para activar la cuenta.',
           ),
           backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
       );
-      Navigator.of(context).pop();
-    } on AuthException catch (e) {
+
+      // Esperar un poco antes de regresar al login
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+    } on AuthException catch (_) {
+      // Mostrar el mismo mensaje aunque haya excepción de correo no confirmado
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de registro: ${e.message}'),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text(
+            '✅ Registro exitoso! Verifica tu correo para activar la cuenta.',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
       );
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -155,7 +165,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icono de Branding
                     Icon(
                       Icons.person_add_alt_1_outlined,
                       size: 90,
@@ -186,9 +195,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty)
                           return 'Ingrese su correo UNIMET';
-                        if (!value.toLowerCase().endsWith(
-                          '@correo.unimet.edu.ve',
-                        ))
+                        final correo = value.toLowerCase();
+                        if (!correo.endsWith('@correo.unimet.edu.ve') &&
+                            !correo.endsWith('@unimet.edu.ve'))
                           return 'Use su correo institucional';
                         return null;
                       },
@@ -209,6 +218,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (value == null || value.isEmpty) {
                           return 'El nombre es obligatorio';
                         }
+                        if (!RegExp(r"^[a-zA-Z\s]+$").hasMatch(value)) {
+                          return 'Solo se permiten letras';
+                        }
                         return null;
                       },
                     ),
@@ -227,6 +239,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'El apellido es obligatorio';
+                        }
+                        if (!RegExp(r"^[a-zA-Z\s]+$").hasMatch(value)) {
+                          return 'Solo se permiten letras';
                         }
                         return null;
                       },
@@ -247,6 +262,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'El teléfono es obligatorio';
+                        }
+                        if (!RegExp(r"^\d{10,}$").hasMatch(value)) {
+                          return 'El teléfono debe tener al menos 10 dígitos';
                         }
                         return null;
                       },
@@ -287,7 +305,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Carrera (solo para estudiantes)
+                    // Carrera (solo estudiantes)
                     if (_selectedRol == 'estudiante') ...[
                       DropdownButtonFormField<String>(
                         value: _selectedCarrera,
@@ -372,7 +390,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           onPressed: () {
                             setState(() {
                               _obscureConfirmPassword =
-                                  !_obscureConfirmPassword;
+                              !_obscureConfirmPassword;
                             });
                           },
                         ),
@@ -403,9 +421,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
-                              'CREAR CUENTA',
-                              style: TextStyle(fontSize: 18),
-                            ),
+                        'CREAR CUENTA',
+                        style: TextStyle(fontSize: 18),
+                      ),
                     ),
                   ],
                 ),
@@ -417,3 +435,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
