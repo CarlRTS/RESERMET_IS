@@ -1,15 +1,14 @@
-import 'base_service.dart';
-import '../models/equipo_deportivo.dart';
+import 'base_service.dart'; // Clase base con Supabase inicializado
+import '../models/equipo_deportivo.dart'; // Modelo de datos
 
 class EquipoDeportivoService with BaseService {
-
   // Obtener todos los equipos deportivos
   Future<List<EquipoDeportivo>> getEquiposDeportivos() async {
     try {
       final response = await supabase
           .from('equipo_deportivo')
           .select('*, articulo(*)');
-      
+
       return [for (final item in response) EquipoDeportivo.fromSupabase(item)];
     } catch (e) {
       print('Error obteniendo equipos deportivos: $e');
@@ -21,9 +20,13 @@ class EquipoDeportivoService with BaseService {
   Future<EquipoDeportivo> createEquipoDeportivo(EquipoDeportivo equipo) async {
     try {
       final nextId = await getNextId();
-      
+
       await createArticulo(equipo.toArticuloJson(), nextId);
-      await createEspecifico('equipo_deportivo', equipo.toEspecificoJson(), nextId);
+      await createEspecifico(
+        'equipo_deportivo',
+        equipo.toEspecificoJson(),
+        nextId,
+      );
 
       return EquipoDeportivo(
         idObjeto: nextId,
@@ -44,7 +47,11 @@ class EquipoDeportivoService with BaseService {
   Future<EquipoDeportivo> updateEquipoDeportivo(EquipoDeportivo equipo) async {
     try {
       await updateArticulo(equipo.toArticuloJson(), equipo.idObjeto);
-      await updateEspecifico('equipo_deportivo', equipo.toEspecificoJson(), equipo.idObjeto);
+      await updateEspecifico(
+        'equipo_deportivo',
+        equipo.toEspecificoJson(),
+        equipo.idObjeto,
+      );
       return equipo;
     } catch (e) {
       throw Exception('Error actualizando equipo deportivo: $e');

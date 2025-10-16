@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_colors.dart';
 import 'my_reservations.dart';
-import 'reservation_screen.dart';
+import 'reservations/reservation_screen.dart';
 import 'availability.dart';
+import 'admin/admin_home_screen.dart';
+import 'catalog_equipo_deportivo_screen.dart';
 import 'admin/cubiculos_list_screen.dart';
+import 'admin/admin_home_screen.dart';
 import 'login.dart';
 import 'registro.dart';
 
@@ -18,15 +21,80 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  bool _isAdmin = false;
 
-  // Lista de las pantallas
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomeScreen(),
-    BookingScreen(),
-    MyBookingsScreen(),
-    AvailabilityScreen(),
-    CubiculosListScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminRole();
+  }
+
+  // Función para verificar si el usuario es administrador
+  Future<void> _checkAdminRole() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final response = await Supabase.instance.client
+            .from('usuario')
+            .select('rol')
+            .eq('id_usuario', user.id)
+            .maybeSingle();
+
+        if (response != null) {
+          final userData = response as Map<String, dynamic>;
+          setState(() {
+            _isAdmin = userData['rol'] == 'administrador';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error verificando rol de administrador: $e');
+    }
+  }
+
+  // Lista de las pantallas (sin admin si no es administrador)
+  List<Widget> get _widgetOptions {
+    final screens = <Widget>[
+      const HomeScreen(),
+      const BookingScreen(),
+      const MyBookingsScreen(),
+      const AvailabilityScreen(),
+    ];
+    
+    if (_isAdmin) {
+      screens.add(const AdminHomeScreen());
+    }
+    
+    return screens;
+  }
+
+  // Ítems del bottom navigation (sin admin si no es administrador)
+  List<BottomNavigationBarItem> get _bottomNavItems {
+    final items = <BottomNavigationBarItem>[
+      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.calendar_month),
+        label: 'Reservar',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.list_alt),
+        label: 'Mis Reservas',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.location_on),
+        label: 'Ubicación',
+      ),
+    ];
+    
+    if (_isAdmin) {
+      items.add(const BottomNavigationBarItem(
+        icon: Icon(Icons.admin_panel_settings),
+        label: 'Admin',
+      ));
+    }
+    
+    return items;
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -59,40 +127,11 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reservas UNIMET 💙💛'),
-        // 💡 BOTÓN DE CERRAR SESIÓN EN LA ESQUINA DERECHA
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            color: Colors.white,
-            onPressed: _signOut,
-            tooltip: 'Cerrar Sesión',
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('RESERMET')),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month),
-            label: 'Reservar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: 'Mis Reservas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.location_on),
-            label: 'Ubicación',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Admin',
-          ),
-        ],
+        items: _bottomNavItems,
         currentIndex: _selectedIndex,
         selectedItemColor: AppColors.unimetBlue,
         unselectedItemColor: Colors.grey,
@@ -101,8 +140,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-
-// -------------------------------------------------------------------
 
 // 🏠 Pantalla de Inicio (Limpia)
 
@@ -130,6 +167,7 @@ class HomeScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, color: Colors.black87),
           ),
           const SizedBox(height: 30),
+
           // Tarjeta de información/acción
           Card(
             elevation: 4,
@@ -147,24 +185,69 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 15),
                   const Text(
-                    '¡Reserva tu Cubículo ahora!',
+                    '¡Reserva lo que necesitas!',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Navegar a la pestaña de "Reservar" (índice 1)
-                      if (context.findAncestorStateOfType<_MainScreenState>() != null) {
-                        context.findAncestorStateOfType<_MainScreenState>()!._onItemTapped(1);
-                      }
-                    },
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Comenzar Reserva'),
+                  const SizedBox(height: 12),
+
+                  // Fila 1: Cubículo + Equipo Deportivo
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            context
+                                .findAncestorStateOfType<_MainScreenState>()
+                                ?._onItemTapped(3);
+                          },
+                          icon: const Icon(Icons.meeting_room),
+                          label: const Text('Reserva tu Cubículo'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const CatalogEquipoDeportivoScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.sports_soccer),
+                          label: const Text('Reserva tu Equipo Deportivo'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Fila 2: Sala Gamer (placeholder por ahora)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // TODO: cuando hagas el catálogo de consolas/sala gamer, navega allí
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Sala Gamer: próximamente'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.sports_esports),
+                          label: const Text('Reserva en la Sala Gamer'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
+
           const SizedBox(height: 30),
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -186,126 +269,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// 🗺️ Pantalla de Disponibilidad y Ubicación (sin cambios)
-
-class AvailabilityScreen extends StatelessWidget {
-  const AvailabilityScreen({super.key});
-
-  // Datos simulados de cubículos
-  final List<Map<String, dynamic>> cubicles = const [
-    {
-      'name': 'Cubículo A-1 (Ind.)',
-      'location': 'Biblioteca (Piso 1)',
-      'available': true,
-      'capacity': '1 persona',
-    },
-    {
-      'name': 'Cubículo B-4 (Grup.)',
-      'location': 'Biblioteca (Piso 2)',
-      'available': false,
-      'capacity': '4 personas',
-    },
-    {
-      'name': 'Cubículo C-10 (Ind.)',
-      'location': 'Edif. Postgrado',
-      'available': true,
-      'capacity': '1 persona',
-    },
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 10.0),
-          child: Text(
-            'Disponibilidad y Ubicación 📍',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.unimetBlue,
-            ),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.0),
-          child: Text(
-            'Consulta el estado en tiempo real de los cubículos.',
-            style: TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: ListView.builder(
-            itemCount: cubicles.length,
-            itemBuilder: (context, index) {
-              final cubicle = cubicles[index];
-              final isAvailable = cubicle['available'] as bool;
-              final statusColor = isAvailable ? Colors.green : Colors.red;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: statusColor.withOpacity(0.5),
-                    width: 1.5,
-                  ),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(15),
-                  leading: Icon(
-                    isAvailable ? Icons.check_circle_outline : Icons.cancel_outlined,
-                    color: statusColor,
-                    size: 35,
-                  ),
-                  title: Text(
-                    cubicle['name']!,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.unimetBlue,
-                      fontSize: 18,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text('Ubicación: ${cubicle['location']}'),
-                      Text('Capacidad: ${cubicle['capacity']}'),
-                    ],
-                  ),
-                  trailing: Chip(
-                    label: Text(
-                      isAvailable ? 'Disponible' : 'Ocupado',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    backgroundColor: statusColor,
-                  ),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Ver detalles del mapa para ${cubicle['name']}',
-                        ),
-                        backgroundColor: AppColors.unimetBlue,
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-      ],
     );
   }
 }
