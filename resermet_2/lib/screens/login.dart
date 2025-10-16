@@ -44,14 +44,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ Usuario no registrado.'),
+            content: Text(' Usuario no registrado.'),
             backgroundColor: Colors.red,
           ),
         );
       } else if (user.emailConfirmedAt == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ Debes confirmar tu correo antes de iniciar sesión.'),
+            content: Text(' Debes confirmar tu correo antes de iniciar sesión.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (e.message.contains('Invalid login credentials') ||
           e.message.contains('Email not confirmed')) {
-        errorMessage = '❌ Credenciales incorrectas o correo no confirmado.';
+        errorMessage = ' Credenciales incorrectas o correo no confirmado.';
       } else {
         errorMessage = 'Error: ${e.message}';
       }
@@ -102,13 +102,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Iniciar Sesión Resermet')),
-      // 💡 Cambio visual: Usar SingleChildScrollView para evitar overflow y centrar
+      // Cambio visual: Usar SingleChildScrollView para evitar overflow y centrar
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Form(
             key: _formKey,
-            // 💡 Nuevo: Tarjeta para agrupar el formulario
+            //  Nuevo: Tarjeta para agrupar el formulario
             child: Card(
               elevation: 8,
               shape: RoundedRectangleBorder(

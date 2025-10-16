@@ -53,7 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (response.user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Registro exitoso! Revisa tu correo UNIMET para confirmar.'),
+            content: Text(' Registro exitoso! Revisa tu correo UNIMET para confirmar.'),
             backgroundColor: Colors.green,
           ),
         );
