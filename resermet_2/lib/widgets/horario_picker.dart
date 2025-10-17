@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:resermet_2/utils/app_colors.dart';
 
 class HorarioPicker extends StatefulWidget {
   final TimeOfDay? horaInicial;
   final ValueChanged<TimeOfDay> onHoraSeleccionada;
   final String titulo;
   final String textoBoton;
+  final Color? colorTitulo;
 
   const HorarioPicker({
     Key? key,
@@ -13,6 +15,7 @@ class HorarioPicker extends StatefulWidget {
     required this.onHoraSeleccionada,
     this.titulo = 'Seleccionar Horario',
     this.textoBoton = 'Seleccionar Hora',
+    this.colorTitulo,
   }) : super(key: key);
 
   @override
@@ -24,6 +27,7 @@ class HorarioPicker extends StatefulWidget {
     required ValueChanged<TimeOfDay> onHoraSeleccionada,
     TimeOfDay? horaInicial,
     String titulo = 'Seleccionar Horario',
+    Color? colorTitulo,
   }) async {
     await showCupertinoModalPopup(
       context: context,
@@ -35,6 +39,7 @@ class HorarioPicker extends StatefulWidget {
           onHoraSeleccionada: onHoraSeleccionada,
           titulo: titulo,
           textoBoton: 'Confirmar',
+          colorTitulo: colorTitulo,
         ),
       ),
     );
@@ -47,16 +52,17 @@ class _HorarioPickerState extends State<HorarioPicker> {
 
   // Generar lista de horas (7am a 5pm)
   List<int> get horas => List.generate(11, (index) => index + 7);
-  
-  // Generar lista de minutos (0, 15, 30, 45)
-  List<int> get minutos => [0, 15, 30, 45];
+
+  // Generar lista de minutos (0, 5, 10, ..., 55)
+  List<int> get minutos => [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
   @override
   void initState() {
     super.initState();
-    
+
     // Inicializar con hora proporcionada o por defecto (7:00 AM)
-    final horaInicial = widget.horaInicial ?? const TimeOfDay(hour: 7, minute: 0);
+    final horaInicial =
+        widget.horaInicial ?? const TimeOfDay(hour: 7, minute: 0);
     _horaSeleccionada = _limitarHora(horaInicial.hour);
     _minutoSeleccionado = _limitarMinuto(horaInicial.minute);
   }
@@ -94,7 +100,9 @@ class _HorarioPickerState extends State<HorarioPicker> {
 
   String get horaCompleta {
     String periodo = _horaSeleccionada < 12 ? 'AM' : 'PM';
-    int horaDisplay = _horaSeleccionada > 12 ? _horaSeleccionada - 12 : _horaSeleccionada;
+    int horaDisplay = _horaSeleccionada > 12
+        ? _horaSeleccionada - 12
+        : _horaSeleccionada;
     return '$horaDisplay:${formatearMinuto(_minutoSeleccionado)} $periodo';
   }
 
@@ -124,6 +132,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.unimetBlue,
                 ),
               ),
               Text(
@@ -137,7 +146,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
             ],
           ),
         ),
-        
+
         // Picker de horas y minutos
         Expanded(
           child: Row(
@@ -164,7 +173,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
                   }).toList(),
                 ),
               ),
-              
+
               // Separador
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
@@ -173,7 +182,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
-              
+
               // Picker de Minutos
               Expanded(
                 child: CupertinoPicker(
@@ -199,15 +208,13 @@ class _HorarioPickerState extends State<HorarioPicker> {
             ],
           ),
         ),
-        
+
         // Botones de acción
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: CupertinoColors.systemGrey6,
-            border: Border(
-              top: BorderSide(color: CupertinoColors.systemGrey4),
-            ),
+            border: Border(top: BorderSide(color: CupertinoColors.systemGrey4)),
           ),
           child: Row(
             children: [
