@@ -491,6 +491,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
+                            readOnly: true,
                             onTap: () => _selectDate(context),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
