@@ -120,143 +120,147 @@ class _HorarioPickerState extends State<HorarioPicker> {
     final Color titleColor = widget.colorTitulo ?? CupertinoColors.systemGrey;
     final Color horaColor =
         widget.colorHoraSeleccionada ?? CupertinoColors.systemBlue;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Header con título
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemGrey6,
-            border: Border(
-              bottom: BorderSide(color: CupertinoColors.systemGrey4),
+    return Scaffold(
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header con título
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemGrey6,
+              border: Border(
+                bottom: BorderSide(color: CupertinoColors.systemGrey4),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.titulo,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: titleColor,
+                  ),
+                ),
+                Text(
+                  horaCompleta,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: horaColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                widget.titulo,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: titleColor,
-                ),
-              ),
-              Text(
-                horaCompleta,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: horaColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
 
-        // Picker de horas y minutos
-        Expanded(
-          child: Row(
-            children: [
-              // Picker de Horas
-              Expanded(
-                child: CupertinoPicker(
-                  scrollController: FixedExtentScrollController(
-                    initialItem: horas.indexOf(_horaSeleccionada),
-                  ),
-                  itemExtent: 40,
-                  onSelectedItemChanged: (int index) {
-                    setState(() {
-                      _horaSeleccionada = horas[index];
-                    });
-                  },
-                  children: horas.map((hora) {
-                    return Center(
-                      child: Text(
-                        formatearHora(hora),
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              // Separador
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text(
-                  ':',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+          // Picker de horas y minutos
+          Expanded(
+            child: Row(
+              children: [
+                // Picker de Horas
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController: FixedExtentScrollController(
+                      initialItem: horas.indexOf(_horaSeleccionada),
+                    ),
+                    itemExtent: 40,
+                    onSelectedItemChanged: (int index) {
+                      setState(() {
+                        _horaSeleccionada = horas[index];
+                      });
+                    },
+                    children: horas.map((hora) {
+                      return Center(
+                        child: Text(
+                          formatearHora(hora),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-              ),
 
-              // Picker de Minutos
-              Expanded(
-                child: CupertinoPicker(
-                  scrollController: FixedExtentScrollController(
-                    initialItem: minutos.indexOf(_minutoSeleccionado),
-                  ),
-                  itemExtent: 40,
-                  onSelectedItemChanged: (int index) {
-                    setState(() {
-                      _minutoSeleccionado = minutos[index];
-                    });
-                  },
-                  children: minutos.map((minuto) {
-                    return Center(
-                      child: Text(
-                        formatearMinuto(minuto),
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Botones de acción
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemGrey6,
-            border: Border(top: BorderSide(color: CupertinoColors.systemGrey4)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: CupertinoButton(
-                  color: CupertinoColors.systemGrey5,
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Cancelar'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: CupertinoButton(
-                  color: AppColors.unimetBlueSecondary,
-                  onPressed: () {
-                    widget.onHoraSeleccionada(timeOfDaySeleccionado);
-                    Navigator.of(context).pop();
-                  },
+                // Separador
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
                   child: Text(
-                    widget.textoBoton,
-                    style: TextStyle(color: Colors.white),
+                    ':',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-            ],
+
+                // Picker de Minutos
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController: FixedExtentScrollController(
+                      initialItem: minutos.indexOf(_minutoSeleccionado),
+                    ),
+                    itemExtent: 40,
+                    onSelectedItemChanged: (int index) {
+                      setState(() {
+                        _minutoSeleccionado = minutos[index];
+                      });
+                    },
+                    children: minutos.map((minuto) {
+                      return Center(
+                        child: Text(
+                          formatearMinuto(minuto),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+
+          // Botones de acción
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemGrey6,
+              border: Border(
+                top: BorderSide(color: CupertinoColors.systemGrey4),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: CupertinoButton(
+                    color: CupertinoColors.systemGrey5,
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CupertinoButton(
+                    color: AppColors.unimetBlueSecondary,
+                    onPressed: () {
+                      widget.onHoraSeleccionada(timeOfDaySeleccionado);
+                      Navigator.of(context).pop();
+                    },
+                    child: Text(
+                      widget.textoBoton,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
