@@ -19,19 +19,16 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       ConsolaService(); // Instanciar servicio
 
   // Controladores para los campos de texto
-  // ✅ ELIMINADO: final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
   // Variables para consolas reales
   List<Consola> _consolasDisponibles = [];
   Consola? _consolaSeleccionada;
-  // ✅ ELIMINADO: DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
   String? _selectedGame;
 
-  // ✅ AGREGADO: Fecha automática
   DateTime get _fechaActual => DateTime.now();
   String get _fechaFormateada =>
       "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
@@ -83,15 +80,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
   @override
   void dispose() {
-    // ✅ ELIMINADO: _dateController.dispose();
     _timeController.dispose();
     _purposeController.dispose();
     super.dispose();
   }
 
-  // ✅ ELIMINADO: Método _selectDate completo
-
-  // ✅ MÉTODO NUEVO: Actualizar duraciones disponibles según la hora
   void _actualizarDuracionesDisponibles() {
     if (_selectedTime == null) return;
 
@@ -141,7 +134,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
           _selectedTime = picked;
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
         });
-        // ✅ LLAMAR AL MÉTODO PARA ACTUALIZAR DURACIONES
+        // LLAMAR AL MÉTODO PARA ACTUALIZAR DURACIONES
         _actualizarDuracionesDisponibles();
       },
     );
@@ -161,7 +154,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       return;
     }
 
-    // ✅ MODIFICADO: Solo validar hora y duración (fecha es automática)
     if (_selectedTime == null || _selectedDuration == null) {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
@@ -179,7 +171,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     });
 
     try {
-      // ✅ MODIFICADO: Usar _fechaActual automáticamente
       final fechaInicio = DateTime(
         _fechaActual.year,
         _fechaActual.month,
@@ -244,7 +235,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Has reservado ${_consolaSeleccionada!.nombre}'),
-              Text('Fecha: $_fechaFormateada'), // ✅ MODIFICADO
+              Text('Fecha: $_fechaFormateada'),
               Text('Hora: ${_timeController.text}'),
               if (_selectedGame != null) Text('Juego: $_selectedGame'),
             ],
@@ -515,7 +506,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           ),
                           const SizedBox(height: 20),
 
-                          // ✅ MODIFICADO: Campo de fecha automática
                           TextFormField(
                             initialValue: _fechaFormateada,
                             decoration: InputDecoration(

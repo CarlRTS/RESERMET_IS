@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _telefonoController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -117,13 +117,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-
     } on AuthException catch (_) {
       // Mostrar el mismo mensaje aunque haya excepción de correo no confirmado
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            '✅ Registro exitoso! Verifica tu correo para activar la cuenta.',
+            'Registro exitoso! Verifica tu correo para activar la cuenta.',
           ),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 3),
@@ -133,7 +132,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -390,7 +388,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           onPressed: () {
                             setState(() {
                               _obscureConfirmPassword =
-                              !_obscureConfirmPassword;
+                                  !_obscureConfirmPassword;
                             });
                           },
                         ),
@@ -421,9 +419,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
-                        'CREAR CUENTA',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                              'CREAR CUENTA',
+                              style: TextStyle(fontSize: 18),
+                            ),
                     ),
                   ],
                 ),
@@ -435,4 +433,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-

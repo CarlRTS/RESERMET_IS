@@ -240,12 +240,12 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     // Cada vez que un cubículo se actualiza (estado cambia), se recarga la lista.
     _sub = _client
         .from('cubiculo')
-    // Usa primaryKey: ['id_articulo'] para un canal más eficiente
+        // Usa primaryKey: ['id_articulo'] para un canal más eficiente
         .stream(primaryKey: ['id_articulo'])
         .listen((_) {
-      // Cuando la base de datos notifica un cambio, recargar los datos
-      _fetchCubicles();
-    });
+          // Cuando la base de datos notifica un cambio, recargar los datos
+          _fetchCubicles();
+        });
   }
 
   // 💡 IMPORTANTE: Cancelar la suscripción al destruir el widget
@@ -264,7 +264,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       final cubicles = await _cubiculoService.getCubiculos();
       setState(() {
         // Muestra los cubículos que no están 'en_mantenimiento'
-        _cubicles = cubicles.where((c) => c.estado != 'en_mantenimiento').toList();
+        _cubicles = cubicles
+            .where((c) => c.estado != 'en_mantenimiento')
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -289,7 +291,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         context,
         MaterialPageRoute(
           // Pasa el objeto Cubiculo a la pantalla de reserva
-          builder: (context) => ReservationFormCubiculo()
+          builder: (context) => ReservationFormCubiculo(),
         ),
       );
     } else {
@@ -346,7 +348,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(_error, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                  Text(
+                    _error,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                   const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: _fetchCubicles,
@@ -355,70 +361,72 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 ],
               ),
             )
-          // ✅ Lista de cubículos
+          // Lista de cubículos
           else if (_cubicles.isEmpty)
-              const Center(
-                child: Text('No hay cubículos disponibles o registrados.'),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _cubicles.length,
-                  itemBuilder: (context, index) {
-                    final cubicle = _cubicles[index];
-                    final isAvailable = cubicle.estado == 'disponible';
-                    final statusColor = _getStatusColor(cubicle.estado);
+            const Center(
+              child: Text('No hay cubículos disponibles o registrados.'),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: _cubicles.length,
+                itemBuilder: (context, index) {
+                  final cubicle = _cubicles[index];
+                  final isAvailable = cubicle.estado == 'disponible';
+                  final statusColor = _getStatusColor(cubicle.estado);
 
-                    return Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        // Borde sutil para indicar disponibilidad
-                        side: isAvailable ? BorderSide(color: Colors.green.shade100, width: 2) : BorderSide.none,
+                  return Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      // Borde sutil para indicar disponibilidad
+                      side: isAvailable
+                          ? BorderSide(color: Colors.green.shade100, width: 2)
+                          : BorderSide.none,
+                    ),
+                    margin: const EdgeInsets.only(bottom: 15),
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.meeting_room,
+                        color: isAvailable ? AppColors.unimetBlue : Colors.grey,
+                        size: 35,
                       ),
-                      margin: const EdgeInsets.only(bottom: 15),
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.meeting_room,
-                          color: isAvailable ? AppColors.unimetBlue : Colors.grey,
-                          size: 35,
+                      title: Text(
+                        cubicle.nombre,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.unimetBlue,
+                          fontSize: 18,
                         ),
-                        title: Text(
-                          cubicle.nombre,
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text('Ubicación: ${cubicle.ubicacion}'),
+                          Text('Capacidad: ${cubicle.capacidad} personas'),
+                        ],
+                      ),
+                      trailing: Chip(
+                        label: Text(
+                          cubicle
+                              .estado, // Mostrar el estado tal como viene de la DB
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: AppColors.unimetBlue,
-                            fontSize: 18,
+                            color: Colors.white,
                           ),
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text('Ubicación: ${cubicle.ubicacion}'),
-                            Text('Capacidad: ${cubicle.capacidad} personas'),
-                          ],
-                        ),
-                        trailing: Chip(
-                          label: Text(
-                            cubicle
-                                .estado, // Mostrar el estado tal como viene de la DB
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          backgroundColor: statusColor,
-                        ),
-                        // Al tocar, si está disponible, llama a la función de reserva
-                        /*onTap: isAvailable
+                        backgroundColor: statusColor,
+                      ),
+                      // Al tocar, si está disponible, llama a la función de reserva
+                      /*onTap: isAvailable
                             ? () => _handleReservationTap(context, cubicle)
                             : null, // Si está ocupado, no es clickeable*/
-                      ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
+            ),
           const SizedBox(height: 10),
         ],
       ),
