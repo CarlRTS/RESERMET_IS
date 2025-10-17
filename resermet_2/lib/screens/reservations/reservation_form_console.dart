@@ -31,7 +31,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   String? _selectedDuration;
   String? _selectedGame;
 
-  // ✅ VARIABLE NUEVA: Lista dinámica de duraciones disponibles
+  //Lista dinámica de duraciones disponibles
   List<String> _duracionesDisponibles = [
     '30 min',
     '1 hora',
@@ -108,17 +108,18 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     final int totalMinutos = _selectedTime!.hour * 60 + _selectedTime!.minute;
 
     // Aplicar reglas de restricción
-    if (totalMinutos >= 16 * 60) {
+
+    if (totalMinutos > 16 * 60) {
       // 4:00 PM o después
       setState(() {
         _duracionesDisponibles = ['30 min'];
       });
-    } else if (totalMinutos >= 15 * 60 + 30) {
+    } else if (totalMinutos > 15 * 60 + 30) {
       // 3:30 PM o después
       setState(() {
         _duracionesDisponibles = ['30 min', '1 hora'];
       });
-    } else if (totalMinutos >= 15 * 60) {
+    } else if (totalMinutos > 15 * 60) {
       // 3:00 PM o después
       setState(() {
         _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas'];
@@ -134,23 +135,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       setState(() {
         _selectedDuration = null;
       });
-    }
-  }
-
-  // ✅ MÉTODO NUEVO: Obtener mensaje de restricción
-  String _obtenerMensajeRestriccion() {
-    if (_selectedTime == null) return '';
-
-    final int totalMinutos = _selectedTime!.hour * 60 + _selectedTime!.minute;
-
-    if (totalMinutos >= 16 * 60) {
-      return 'Máximo 30 minutos permitidos después de las 4:00 PM';
-    } else if (totalMinutos >= 15 * 60 + 30) {
-      return 'Máximo 1 hora permitida después de las 3:30 PM';
-    } else if (totalMinutos >= 15 * 60) {
-      return 'Máximo 1.5 horas permitidas después de las 3:00 PM';
-    } else {
-      return 'Hasta 2 horas permitidas';
     }
   }
 
@@ -591,40 +575,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
                           const SizedBox(height: 16),
 
-                          // ✅ WIDGET NUEVO: Mensaje informativo de restricciones
-                          if (_selectedTime != null)
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.blue.shade100),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    color: Colors.blue.shade600,
-                                    size: 16,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _obtenerMensajeRestriccion(),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blue.shade800,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
                           if (_selectedTime != null) const SizedBox(height: 8),
 
-                          // ✅ MODIFICADO: Dropdown de duración (ahora usa lista dinámica)
+                          // Dropdown de duración (usa lista dinámica)
                           DropdownButtonFormField<String>(
                             value: _selectedDuration,
                             decoration: InputDecoration(
@@ -636,7 +589,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            // ✅ CAMBIADO: Usar _duracionesDisponibles en lugar de lista fija
+                            // Usa _duracionesDisponibles en lugar de lista fija
                             items: _duracionesDisponibles.map((duracion) {
                               return DropdownMenuItem(
                                 value: duracion,
