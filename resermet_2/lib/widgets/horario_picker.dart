@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:resermet_2/utils/app_colors.dart';
 
 class HorarioPicker extends StatefulWidget {
   final TimeOfDay? horaInicial;
@@ -8,6 +7,7 @@ class HorarioPicker extends StatefulWidget {
   final String titulo;
   final String textoBoton;
   final Color? colorTitulo;
+  final Color? colorHoraSeleccionada;
 
   const HorarioPicker({
     Key? key,
@@ -16,6 +16,7 @@ class HorarioPicker extends StatefulWidget {
     this.titulo = 'Seleccionar Horario',
     this.textoBoton = 'Seleccionar Hora',
     this.colorTitulo,
+    this.colorHoraSeleccionada,
   }) : super(key: key);
 
   @override
@@ -28,6 +29,7 @@ class HorarioPicker extends StatefulWidget {
     TimeOfDay? horaInicial,
     String titulo = 'Seleccionar Horario',
     Color? colorTitulo,
+    Color? colorHoraSeleccionada,
   }) async {
     await showCupertinoModalPopup(
       context: context,
@@ -40,6 +42,7 @@ class HorarioPicker extends StatefulWidget {
           titulo: titulo,
           textoBoton: 'Confirmar',
           colorTitulo: colorTitulo,
+          colorHoraSeleccionada: colorHoraSeleccionada,
         ),
       ),
     );
@@ -112,6 +115,10 @@ class _HorarioPickerState extends State<HorarioPicker> {
 
   @override
   Widget build(BuildContext context) {
+    // Calcular ambos colores
+    final Color titleColor = widget.colorTitulo ?? CupertinoColors.systemGrey;
+    final Color horaColor =
+        widget.colorHoraSeleccionada ?? CupertinoColors.systemBlue;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -129,17 +136,17 @@ class _HorarioPickerState extends State<HorarioPicker> {
             children: [
               Text(
                 widget.titulo,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.unimetBlue,
+                  color: titleColor,
                 ),
               ),
               Text(
                 horaCompleta,
                 style: TextStyle(
                   fontSize: 16,
-                  color: CupertinoColors.systemBlue,
+                  color: horaColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),

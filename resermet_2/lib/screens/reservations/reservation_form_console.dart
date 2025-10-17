@@ -100,6 +100,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       horaInicial: _selectedTime ?? TimeOfDay.now(),
       titulo: 'Seleccionar Hora',
       colorTitulo: AppColors.unimetBlue,
+      colorHoraSeleccionada: AppColors.unimetBlue,
       onHoraSeleccionada: (picked) {
         setState(() {
           _selectedTime = picked;
