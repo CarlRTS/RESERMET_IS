@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:resermet_2/models/consola.dart';
 import 'package:resermet_2/services/consola_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
+import 'package:resermet_2/widgets/horario_picker.dart';
+import 'package:resermet_2/widgets/horario_picker_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormConsole extends StatefulWidget {
@@ -93,17 +95,17 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
   // Método para seleccionar hora
   Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
+    HorarioPicker.mostrarPicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      horaInicial: _selectedTime ?? TimeOfDay.now(),
+      titulo: 'Seleccionar Hora',
+      onHoraSeleccionada: (picked) {
+        setState(() {
+          _selectedTime = picked;
+          _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
+        });
+      },
     );
-
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-        _timeController.text = picked.format(context);
-      });
-    }
   }
 
   // Método para mostrar errores
