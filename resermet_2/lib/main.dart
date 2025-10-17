@@ -76,12 +76,12 @@ class AuthGate extends StatelessWidget {
         final AuthState authState = snapshot.data!;
         final Session? session = authState.session;
 
-        // ✅ Si hay una sesión activa → MainScreen
+        // Si hay una sesión activa → MainScreen
         if (session != null) {
           return const MainScreen();
         }
 
-        // 🚪 Si no hay sesión (o después de un logout) → LoginScreen
+        // Si no hay sesión (o después de un logout) → LoginScreen
         return const LoginScreen();
       },
     );
