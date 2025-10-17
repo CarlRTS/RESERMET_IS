@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(' Usuario no registrado.'),
+            content: Text('Usuario no registrado.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -52,15 +52,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              ' Debes confirmar tu correo antes de iniciar sesión.',
-            ),
+                'Debes confirmar tu correo antes de iniciar sesión.'),
             backgroundColor: Colors.orange,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(' Bienvenido ${user.email}!'),
+            content: Text('Bienvenido ${user.email}!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -70,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (e.message.contains('Invalid login credentials') ||
           e.message.contains('Email not confirmed')) {
-        errorMessage = ' Credenciales incorrectas o correo no confirmado.';
+        errorMessage = 'Credenciales incorrectas o correo no confirmado.';
       } else {
         errorMessage = 'Error: ${e.message}';
       }
@@ -106,118 +105,126 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(20.0),
           child: Form(
             key: _formKey,
-            child: Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(30.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.school_outlined,
-                      size: 90,
-                      color: AppColors.unimetBlue,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Resermet - UNIMET',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+            child: AutofillGroup(
+              child: Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(30.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.school_outlined,
+                        size: 90,
                         color: AppColors.unimetBlue,
                       ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Campo Correo
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Correo UNIMET',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Resermet - UNIMET',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.unimetBlue,
                         ),
                       ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty)
-                          return 'Ingrese su correo UNIMET';
-                        final correo = value.toLowerCase();
-                        if (!correo.endsWith('@correo.unimet.edu.ve') &&
-                            !correo.endsWith('@unimet.edu.ve'))
-                          return 'Use su correo institucional';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 30),
 
-                    // Campo Contraseña
-                    TextFormField(
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Contraseña',
-                        prefixIcon: const Icon(Icons.lock),
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                      //  Correo
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Correo UNIMET',
+                          prefixIcon: Icon(Icons.email),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                            BorderRadius.all(Radius.circular(10)),
+                          ),
                         ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureText
-                                ? Icons.visibility
-                                : Icons.visibility_off,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [
+                          AutofillHints.username,
+                          AutofillHints.email
+                        ],
+                        validator: (value) {
+                          if (value == null || value.isEmpty)
+                            return 'Ingrese su correo UNIMET';
+                          final correo = value.toLowerCase();
+                          if (!correo.endsWith('@correo.unimet.edu.ve') &&
+                              !correo.endsWith('@unimet.edu.ve'))
+                            return 'Use su correo institucional';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      //  Contraseña
+                      TextFormField(
+                        controller: _passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña',
+                          prefixIcon: const Icon(Icons.lock),
+                          border: const OutlineInputBorder(
+                            borderRadius:
+                            BorderRadius.all(Radius.circular(10)),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureText
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: AppColors.unimetOrange,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureText = !_obscureText;
+                              });
+                            },
+                          ),
+                        ),
+                        obscureText: _obscureText,
+                        autofillHints: const [AutofillHints.password],
+                        validator: (value) {
+                          if (value == null || value.length < 6)
+                            return 'Ingrese una contraseña válida';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 30),
+
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _loginUser,
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                          backgroundColor: AppColors.unimetBlue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                            color: Colors.white)
+                            : const Text(
+                          'INICIAR SESIÓN',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      TextButton(
+                        onPressed: _goToRegister,
+                        child: Text(
+                          '¿No tienes cuenta? Regístrate aquí',
+                          style: TextStyle(
+                            fontSize: 16,
                             color: AppColors.unimetOrange,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscureText = !_obscureText;
-                            });
-                          },
                         ),
                       ),
-                      obscureText: _obscureText,
-                      validator: (value) {
-                        if (value == null || value.length < 6)
-                          return 'Ingrese una contraseña válida';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Botón Login
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _loginUser,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        backgroundColor: AppColors.unimetBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                        'INICIAR SESIÓN',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Botón Registro
-                    TextButton(
-                      onPressed: _goToRegister,
-                      child: Text(
-                        '¿No tienes cuenta? Regístrate aquí',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.unimetOrange,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
