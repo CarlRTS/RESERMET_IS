@@ -54,8 +54,8 @@ class _HorarioPickerState extends State<HorarioPicker> {
   late int _horaSeleccionada;
   late int _minutoSeleccionado;
 
-  // Generar lista de horas (7am a 5pm)
-  List<int> get horas => List.generate(11, (index) => index + 7);
+  // Generar lista de horas (7am a 4pm)
+  List<int> get horas => List.generate(10, (index) => index + 7);
 
   // Generar lista de minutos (0, 5, 10, ..., 55)
   List<int> get minutos => [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -71,19 +71,25 @@ class _HorarioPickerState extends State<HorarioPicker> {
     _minutoSeleccionado = _limitarMinuto(horaInicial.minute);
   }
 
-  // Limitar hora al rango 7-17 (7am - 5pm)
+  // Limitar hora al rango 7-16 (7am - 4pm)
   int _limitarHora(int hora) {
     if (hora < 7) return 7;
-    if (hora > 17) return 17;
+    if (hora > 16) return 16;
     return hora;
   }
 
   // Limitar minuto a los valores disponibles (0, 15, 30, 45)
   int _limitarMinuto(int minuto) {
     if (minuto <= 0) return 0;
+    if (minuto <= 5) return 5;
+    if (minuto <= 10) return 10;
     if (minuto <= 15) return 15;
+    if (minuto <= 20) return 20;
+    if (minuto <= 25) return 25;
     if (minuto <= 30) return 30;
     if (minuto <= 45) return 45;
+    if (minuto <= 50) return 50;
+    if (minuto <= 55) return 55;
     return 0;
   }
 
