@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:resermet_2/utils/app_colors.dart';
 
 class HorarioPicker extends StatefulWidget {
   final TimeOfDay? horaInicial;
@@ -186,7 +187,11 @@ class _HorarioPickerState extends State<HorarioPicker> {
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Text(
                   ':',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
               ),
 
@@ -227,6 +232,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
             children: [
               Expanded(
                 child: CupertinoButton(
+                  color: CupertinoColors.systemGrey5,
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
@@ -236,12 +242,15 @@ class _HorarioPickerState extends State<HorarioPicker> {
               const SizedBox(width: 8),
               Expanded(
                 child: CupertinoButton(
-                  color: CupertinoColors.systemBlue,
+                  color: AppColors.unimetBlueSecondary,
                   onPressed: () {
                     widget.onHoraSeleccionada(timeOfDaySeleccionado);
                     Navigator.of(context).pop();
                   },
-                  child: Text(widget.textoBoton),
+                  child: Text(
+                    widget.textoBoton,
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ],
