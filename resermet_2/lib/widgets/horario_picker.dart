@@ -57,8 +57,31 @@ class _HorarioPickerState extends State<HorarioPicker> {
   // Generar lista de horas (7am a 4pm)
   List<int> get horas => List.generate(10, (index) => index + 7);
 
-  // Generar lista de minutos (0, 5, 10, ..., 55)
-  List<int> get minutos => [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  // Lista completa de minutos disponibles
+  List<int> get minutosCompletos => [
+    0,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55,
+  ];
+
+  // Minutos disponibles según la hora seleccionada
+  List<int> get minutosDisponibles {
+    // Si es las 4:00 PM (hora 16), solo mostrar minutos hasta 30
+    if (_horaSeleccionada == 16) {
+      return [0, 5, 10, 15, 20, 25, 30]; // ← Solo hasta 30 min
+    }
+    // Para otras horas, mostrar todos los minutos
+    return minutosCompletos;
+  }
 
   @override
   void initState() {
@@ -206,15 +229,17 @@ class _HorarioPickerState extends State<HorarioPicker> {
                 Expanded(
                   child: CupertinoPicker(
                     scrollController: FixedExtentScrollController(
-                      initialItem: minutos.indexOf(_minutoSeleccionado),
+                      initialItem: minutosDisponibles.indexOf(
+                        _minutoSeleccionado,
+                      ),
                     ),
                     itemExtent: 40,
                     onSelectedItemChanged: (int index) {
                       setState(() {
-                        _minutoSeleccionado = minutos[index];
+                        _minutoSeleccionado = minutosDisponibles[index];
                       });
                     },
-                    children: minutos.map((minuto) {
+                    children: minutosDisponibles.map((minuto) {
                       return Center(
                         child: Text(
                           formatearMinuto(minuto),
