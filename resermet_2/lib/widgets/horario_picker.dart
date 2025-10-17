@@ -9,6 +9,7 @@ class HorarioPicker extends StatefulWidget {
   final String textoBoton;
   final Color? colorTitulo;
   final Color? colorHoraSeleccionada;
+  final Color? colorSeparador;
 
   const HorarioPicker({
     Key? key,
@@ -18,6 +19,7 @@ class HorarioPicker extends StatefulWidget {
     this.textoBoton = 'Seleccionar Hora',
     this.colorTitulo,
     this.colorHoraSeleccionada,
+    this.colorSeparador,
   }) : super(key: key);
 
   @override
@@ -31,6 +33,7 @@ class HorarioPicker extends StatefulWidget {
     String titulo = 'Seleccionar Horario',
     Color? colorTitulo,
     Color? colorHoraSeleccionada,
+    Color? colorSeparador,
   }) async {
     await showCupertinoModalPopup(
       context: context,
@@ -44,6 +47,7 @@ class HorarioPicker extends StatefulWidget {
           textoBoton: 'Confirmar',
           colorTitulo: colorTitulo,
           colorHoraSeleccionada: colorHoraSeleccionada,
+          colorSeparador: colorSeparador,
         ),
       ),
     );
@@ -101,19 +105,40 @@ class _HorarioPickerState extends State<HorarioPicker> {
     return hora;
   }
 
-  // Limitar minuto a los valores disponibles (0, 15, 30, 45)
+  // Limitar minuto a los valores disponibles según la hora
   int _limitarMinuto(int minuto) {
-    if (minuto <= 0) return 0;
-    if (minuto <= 5) return 5;
-    if (minuto <= 10) return 10;
-    if (minuto <= 15) return 15;
-    if (minuto <= 20) return 20;
-    if (minuto <= 25) return 25;
-    if (minuto <= 30) return 30;
-    if (minuto <= 45) return 45;
-    if (minuto <= 50) return 50;
-    if (minuto <= 55) return 55;
-    return 0;
+    final minutosValidos = minutosDisponibles;
+
+    // Encontrar el minuto válido más cercano
+    for (int minutoValido in minutosValidos) {
+      if (minuto <= minutoValido) {
+        return minutoValido;
+      }
+    }
+
+    // Si no encuentra, usar el último minuto válido
+    return minutosValidos.last;
+  }
+
+  // Actualizar minutos cuando cambia la hora
+  void _actualizarMinutosAlCambiarHora() {
+    final minutosValidos = minutosDisponibles;
+
+    // Si el minuto actual no está en los disponibles, ajustarlo al más cercano
+    if (!minutosValidos.contains(_minutoSeleccionado)) {
+      // Encontrar el minuto válido más cercano
+      int minutoMasCercano = minutosValidos.first;
+      for (int minutoValido in minutosValidos) {
+        if ((minutoValido - _minutoSeleccionado).abs() <
+            (minutoMasCercano - _minutoSeleccionado).abs()) {
+          minutoMasCercano = minutoValido;
+        }
+      }
+
+      setState(() {
+        _minutoSeleccionado = minutoMasCercano;
+      });
+    }
   }
 
   // Formatear hora para mostrar (AM/PM)
@@ -145,10 +170,35 @@ class _HorarioPickerState extends State<HorarioPicker> {
 
   @override
   Widget build(BuildContext context) {
-    // Calcular ambos colores
-    final Color titleColor = widget.colorTitulo ?? CupertinoColors.systemGrey;
-    final Color horaColor =
+    // Pre-calcular todos los estilos para evitar warnings
+    final Color effectiveTitleColor =
+        widget.colorTitulo ?? CupertinoColors.systemGrey;
+    final Color effectiveHoraColor =
         widget.colorHoraSeleccionada ?? CupertinoColors.systemBlue;
+    final Color effectiveSeparadorColor =
+        widget.colorSeparador ?? effectiveTitleColor;
+
+    // Pre-definir todos los TextStyles
+    final TextStyle titleStyle = TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      color: effectiveTitleColor,
+    );
+
+    final TextStyle horaStyle = TextStyle(
+      fontSize: 16,
+      color: effectiveHoraColor,
+      fontWeight: FontWeight.w600,
+    );
+
+    final TextStyle separadorStyle = TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: effectiveSeparadorColor,
+    );
+
+    final TextStyle pickerTextStyle = const TextStyle(fontSize: 20);
+
     return Scaffold(
       body: Column(
         mainAxisSize: MainAxisSize.min,
@@ -156,7 +206,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
           // Header con título
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: CupertinoColors.systemGrey6,
               border: Border(
                 bottom: BorderSide(color: CupertinoColors.systemGrey4),
@@ -165,22 +215,8 @@ class _HorarioPickerState extends State<HorarioPicker> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  widget.titulo,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: titleColor,
-                  ),
-                ),
-                Text(
-                  horaCompleta,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: horaColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(widget.titulo, style: titleStyle),
+                Text(horaCompleta, style: horaStyle),
               ],
             ),
           ),
@@ -199,13 +235,15 @@ class _HorarioPickerState extends State<HorarioPicker> {
                     onSelectedItemChanged: (int index) {
                       setState(() {
                         _horaSeleccionada = horas[index];
+                        // Actualizar minutos automáticamente al cambiar hora
+                        _actualizarMinutosAlCambiarHora();
                       });
                     },
                     children: horas.map((hora) {
                       return Center(
                         child: Text(
                           formatearHora(hora),
-                          style: const TextStyle(fontSize: 20),
+                          style: pickerTextStyle,
                         ),
                       );
                     }).toList(),
@@ -213,19 +251,12 @@ class _HorarioPickerState extends State<HorarioPicker> {
                 ),
 
                 // Separador
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    ':',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text(':', style: separadorStyle),
                 ),
 
-                // Picker de Minutos
+                // Picker de Minutos - AHORA USAR minutosDisponibles
                 Expanded(
                   child: CupertinoPicker(
                     scrollController: FixedExtentScrollController(
@@ -243,7 +274,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
                       return Center(
                         child: Text(
                           formatearMinuto(minuto),
-                          style: const TextStyle(fontSize: 20),
+                          style: pickerTextStyle,
                         ),
                       );
                     }).toList(),
@@ -256,7 +287,7 @@ class _HorarioPickerState extends State<HorarioPicker> {
           // Botones de acción
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: CupertinoColors.systemGrey6,
               border: Border(
                 top: BorderSide(color: CupertinoColors.systemGrey4),
@@ -281,8 +312,8 @@ class _HorarioPickerState extends State<HorarioPicker> {
                       widget.onHoraSeleccionada(timeOfDaySeleccionado);
                       Navigator.of(context).pop();
                     },
-                    child: Text(
-                      widget.textoBoton,
+                    child: const Text(
+                      'Confirmar',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),

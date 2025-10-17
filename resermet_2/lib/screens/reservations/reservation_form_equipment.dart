@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:resermet_2/models/equipo_deportivo.dart';
 import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
-import 'package:resermet_2/widgets/horario_picker.dart'; // ✅ AGREGADO
-import 'package:resermet_2/widgets/horario_picker_helper.dart'; // ✅ AGREGADO
+import 'package:resermet_2/widgets/horario_picker.dart';
+import 'package:resermet_2/widgets/horario_picker_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormEquipment extends StatefulWidget {
@@ -28,7 +28,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
 
-  // ✅ AGREGADO: Lista dinámica de duraciones disponibles
+  //Lista dinámica de duraciones disponibles
   List<String> _duracionesDisponibles = [
     '30 min',
     '1 hora',
@@ -36,7 +36,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     '2 horas',
   ];
 
-  // ✅ AGREGADO: Fecha automática
+  //Fecha automática
   DateTime get _fechaActual => DateTime.now();
   String get _fechaFormateada =>
       "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
@@ -85,7 +85,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     super.dispose();
   }
 
-  // ✅ MÉTODO NUEVO: Actualizar duraciones disponibles según la hora
+  //Actualizar duraciones disponibles según la hora
   void _actualizarDuracionesDisponibles() {
     if (_selectedTime == null) return;
 
@@ -121,7 +121,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     }
   }
 
-  // ✅ MODIFICADO: Método para seleccionar hora con HorarioPicker
+  //Método para seleccionar hora con HorarioPicker
   Future<void> _selectTime(BuildContext context) async {
     HorarioPicker.mostrarPicker(
       context: context,
@@ -134,7 +134,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
           _selectedTime = picked;
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
         });
-        // ✅ LLAMAR AL MÉTODO PARA ACTUALIZAR DURACIONES
+        // LLAMAR AL MÉTODO PARA ACTUALIZAR DURACIONES
         _actualizarDuracionesDisponibles();
       },
     );
@@ -515,7 +515,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                           const SizedBox(height: 16),
 
-                          // ✅ MODIFICADO: Campo de hora con HorarioPicker
+                          // Campo de hora con HorarioPicker
                           TextFormField(
                             controller: _timeController,
                             decoration: InputDecoration(
@@ -528,7 +528,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            readOnly: true, // ✅ AGREGADO: Solo lectura
+                            readOnly: true, //Solo lectura
                             onTap: () => _selectTime(context),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -540,7 +540,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                           const SizedBox(height: 16),
 
-                          // ✅ MODIFICADO: Dropdown de duración (ahora usa lista dinámica)
+                          // Dropdown de duración (ahora usa lista dinámica)
                           DropdownButtonFormField<String>(
                             value: _selectedDuration,
                             decoration: InputDecoration(
@@ -552,7 +552,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            // ✅ CAMBIADO: Usar _duracionesDisponibles en lugar de lista fija
+                            //  Usar _duracionesDisponibles en lugar de lista fija
                             items: _duracionesDisponibles.map((duracion) {
                               return DropdownMenuItem(
                                 value: duracion,
