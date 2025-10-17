@@ -19,17 +19,22 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       ConsolaService(); // Instanciar servicio
 
   // Controladores para los campos de texto
-  final TextEditingController _dateController = TextEditingController();
+  // ✅ ELIMINADO: final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
   // Variables para consolas reales
   List<Consola> _consolasDisponibles = [];
   Consola? _consolaSeleccionada;
-  DateTime? _selectedDate;
+  // ✅ ELIMINADO: DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
   String? _selectedGame;
+
+  // ✅ AGREGADO: Fecha automática
+  DateTime get _fechaActual => DateTime.now();
+  String get _fechaFormateada =>
+      "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
 
   //Lista dinámica de duraciones disponibles
   List<String> _duracionesDisponibles = [
@@ -78,28 +83,13 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
   @override
   void dispose() {
-    _dateController.dispose();
+    // ✅ ELIMINADO: _dateController.dispose();
     _timeController.dispose();
     _purposeController.dispose();
     super.dispose();
   }
 
-  // Método para seleccionar fecha
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-    );
-
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _dateController.text = "${picked.day}/${picked.month}/${picked.year}";
-      });
-    }
-  }
+  // ✅ ELIMINADO: Método _selectDate completo
 
   // ✅ MÉTODO NUEVO: Actualizar duraciones disponibles según la hora
   void _actualizarDuracionesDisponibles() {
@@ -171,10 +161,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       return;
     }
 
-    if (_selectedDate == null ||
-        _selectedTime == null ||
-        _selectedDuration == null) {
-      _mostrarError('Por favor completa todos los campos de fecha y hora');
+    // ✅ MODIFICADO: Solo validar hora y duración (fecha es automática)
+    if (_selectedTime == null || _selectedDuration == null) {
+      _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
 
@@ -190,10 +179,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     });
 
     try {
+      // ✅ MODIFICADO: Usar _fechaActual automáticamente
       final fechaInicio = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
+        _fechaActual.year,
+        _fechaActual.month,
+        _fechaActual.day,
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
@@ -254,7 +244,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Has reservado ${_consolaSeleccionada!.nombre}'),
-              Text('Fecha: ${_dateController.text}'),
+              Text('Fecha: $_fechaFormateada'), // ✅ MODIFICADO
               Text('Hora: ${_timeController.text}'),
               if (_selectedGame != null) Text('Juego: $_selectedGame'),
             ],
@@ -525,27 +515,20 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Campo de fecha
+                          // ✅ MODIFICADO: Campo de fecha automática
                           TextFormField(
-                            controller: _dateController,
+                            initialValue: _fechaFormateada,
                             decoration: InputDecoration(
                               labelText: 'Fecha de reserva',
-                              hintText: 'Selecciona la fecha',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              suffixIcon: const Icon(Icons.calendar_today),
+                              prefixIcon: const Icon(Icons.calendar_today),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: Colors.grey.shade100,
                             ),
                             readOnly: true,
-                            onTap: () => _selectDate(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una fecha';
-                              }
-                              return null;
-                            },
+                            enabled: false, // Totalmente no editable
                           ),
 
                           const SizedBox(height: 16),
