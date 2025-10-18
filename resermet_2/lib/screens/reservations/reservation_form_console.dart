@@ -4,7 +4,7 @@ import 'package:resermet_2/services/consola_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
-import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
+import 'package:resermet_2/widgets/toastification.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormConsole extends StatefulWidget {
@@ -146,7 +146,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       return;
     }
 
-    // ✅ Mostrar toast de carga
+    // Mostrar toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
@@ -180,7 +180,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // ✅ Cerrar toast de carga y mostrar éxito
+      // Cerrar toast de carga y mostrar éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
@@ -192,7 +192,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error
+      // Cerrar toast de carga y mostrar error
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
@@ -202,7 +202,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error genérico
+      // Cerrar toast de carga y mostrar error genérico
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
