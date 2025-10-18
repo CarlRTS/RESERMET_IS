@@ -4,7 +4,7 @@ import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
-import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
+import 'package:resermet_2/widgets/toastification.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormEquipment extends StatefulWidget {
@@ -149,7 +149,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       return;
     }
 
-    // ✅ Mostrar toast de carga
+    // Mostrar toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
@@ -183,7 +183,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // ✅ Cerrar toast de carga y mostrar éxito
+      // Cerrar toast de carga y mostrar éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
@@ -195,7 +195,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error
+      // Cerrar toast de carga y mostrar error
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
@@ -205,7 +205,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error genérico
+      // Cerrar toast de carga y mostrar error genérico
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,

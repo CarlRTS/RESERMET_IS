@@ -3,7 +3,7 @@ import 'package:resermet_2/utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 
 class ReservationToastService {
-  // ✅ RESERVA EXITOSA
+  // RESERVA EXITOSA
   static void showReservationSuccess(
     BuildContext context,
     String cubiculoNombre,
@@ -124,7 +124,7 @@ class ReservationToastService {
     );
   }
 
-  // ✅ RESERVA CANCELADA
+  // RESERVA CANCELADA
   static void showCancellationSuccess(BuildContext context, String cubiculo) {
     toastification.show(
       context: context,

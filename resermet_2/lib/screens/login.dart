@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
 import '../utils/app_colors.dart';
+import '../widgets/toastification_log.dart'; // Nueva importación
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,7 +26,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginUser() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Si la validación falla (campos vacíos o inválidos)
+      LoginToastService.showLoginError(context);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -42,47 +47,27 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
 
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuario no registrado.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        LoginToastService.showInvalidCredentials(context);
       } else if (user.emailConfirmedAt == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Debes confirmar tu correo antes de iniciar sesión.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        LoginToastService.showEmailNotVerified(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Bienvenido ${user.email}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        LoginToastService.showLoginSuccess(context);
       }
     } on AuthException catch (e) {
-      String errorMessage;
-
-      if (e.message.contains('Invalid login credentials') ||
-          e.message.contains('Email not confirmed')) {
-        errorMessage = 'Credenciales incorrectas o correo no confirmado.';
+      if (e.message.contains('Invalid login credentials')) {
+        LoginToastService.showInvalidCredentials(context);
+      } else if (e.message.contains('Email not confirmed')) {
+        LoginToastService.showEmailNotVerified(context);
       } else {
-        errorMessage = 'Error: ${e.message}';
+        LoginToastService.showLoginError(
+          context,
+          message: 'Error: ${e.message}',
+        );
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.red,
-        ),
+      LoginToastService.showLoginError(
+        context,
+        message: 'Error inesperado: $e',
       );
     } finally {
       setState(() => _isLoading = false);
@@ -139,22 +124,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'Correo UNIMET',
                           prefixIcon: Icon(Icons.email),
                           border: OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.all(Radius.circular(10)),
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
                           ),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         autofillHints: const [
                           AutofillHints.username,
-                          AutofillHints.email
+                          AutofillHints.email,
                         ],
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Ingrese su correo UNIMET';
+                          }
                           final correo = value.toLowerCase();
                           if (!correo.endsWith('@correo.unimet.edu.ve') &&
-                              !correo.endsWith('@unimet.edu.ve'))
+                              !correo.endsWith('@unimet.edu.ve')) {
                             return 'Use su correo institucional';
+                          }
                           return null;
                         },
                       ),
@@ -167,8 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'Contraseña',
                           prefixIcon: const Icon(Icons.lock),
                           border: const OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.all(Radius.circular(10)),
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -187,8 +172,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: _obscureText,
                         autofillHints: const [AutofillHints.password],
                         validator: (value) {
-                          if (value == null || value.length < 6)
+                          if (value == null || value.length < 6) {
                             return 'Ingrese una contraseña válida';
+                          }
                           return null;
                         },
                       ),
@@ -205,11 +191,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: _isLoading
                             ? const CircularProgressIndicator(
-                            color: Colors.white)
+                                color: Colors.white,
+                              )
                             : const Text(
-                          'INICIAR SESIÓN',
-                          style: TextStyle(fontSize: 18),
-                        ),
+                                'INICIAR SESIÓN',
+                                style: TextStyle(fontSize: 18),
+                              ),
                       ),
                       const SizedBox(height: 20),
 
