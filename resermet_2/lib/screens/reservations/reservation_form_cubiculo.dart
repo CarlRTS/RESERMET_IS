@@ -36,8 +36,52 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
   bool _isLoading = true;
   bool _isSubmitting = false;
 
-  // Opciones de duración
-  final List<String> _durations = ['30 min', '1 hora', '1.5 horas', '2 horas'];
+  // Todas las opciones de duración posibles (máximo 2 horas)
+  final List<String> _allDurations = [
+    '30 min',
+    '1 hora',
+    '1.5 horas',
+    '2 horas',
+  ];
+
+  // Duraciónes disponibles (se actualizan según la hora seleccionada)
+  List<String> get _durationsAvailable {
+    if (_selectedTime == null) return _allDurations;
+
+    final horaSeleccionada = _selectedTime!.hour;
+    final minutoSeleccionado = _selectedTime!.minute;
+
+    // Calcular minutos totales desde las 7:00 AM
+    final minutosDesdeInicio = (horaSeleccionada - 7) * 60 + minutoSeleccionado;
+
+    // Horario cierra a las 5:00 PM (10 horas desde las 7:00 AM = 600 minutos)
+    const minutosMaximos = 600; // 10 horas * 60 minutos
+
+    // Calcular minutos disponibles
+    final minutosDisponibles = minutosMaximos - minutosDesdeInicio;
+
+    // Filtrar duraciones según minutos disponibles (máximo 2 horas = 120 minutos)
+    return _allDurations.where((duracion) {
+      final minutosDuracion = _duracionAMinutos(duracion);
+      return minutosDuracion <= minutosDisponibles;
+    }).toList();
+  }
+
+  // Método para convertir duración a minutos
+  int _duracionAMinutos(String duracion) {
+    switch (duracion) {
+      case '30 min':
+        return 30;
+      case '1 hora':
+        return 60;
+      case '1.5 horas':
+        return 90;
+      case '2 horas':
+        return 120;
+      default:
+        return 60;
+    }
+  }
 
   @override
   void initState() {
@@ -75,7 +119,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     }
   }
 
-  // MODIFICADO: Usando HorarioPicker personalizado
+  // MODIFICADO: Usando HorarioPicker personalizado con actualización de duraciones
   Future<void> _selectTime() async {
     await HorarioPicker.mostrarPicker(
       context: context,
@@ -84,20 +128,31 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
         setState(() {
           _selectedTime = selectedTime;
           _timeController.text = selectedTime.format(context);
+
+          // Actualizar la duración seleccionada si no es válida
+          if (!_durationsAvailable.contains(_selectedDuration)) {
+            if (_durationsAvailable.isNotEmpty) {
+              _selectedDuration = _durationsAvailable.first;
+            } else {
+              _selectedDuration = null;
+            }
+          }
         });
       },
       horaInicial: _selectedTime,
       titulo: 'Seleccionar Hora de Inicio',
     );
-
-    // No necesitas hacer nada más aquí porque el callback ya maneja la actualización
   }
 
   // --- Lógica de Envío ---
 
   Future<void> _submitReservation() async {
-    if (!_formKey.currentState!.validate() || _cubiculoSeleccionado == null)
+    if (!_formKey.currentState!.validate() ||
+        _cubiculoSeleccionado == null ||
+        _selectedTime == null ||
+        _selectedDuration == null) {
       return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -164,6 +219,17 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+  }
+
+  // Método para obtener el texto del label de duración
+  String get _duracionLabelText {
+    if (_selectedTime == null) return 'Duración (Máx. 2 horas)';
+
+    final maxDuracion = _durationsAvailable.isNotEmpty
+        ? _durationsAvailable.last
+        : 'No disponible';
+
+    return 'Duración (Máx. $maxDuracion)';
   }
 
   @override
@@ -246,15 +312,19 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 4. Duración
+                      // 4. Duración (ACTUALIZADO: Dinámico según hora seleccionada)
                       DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(
-                          labelText: 'Duración (Máx. 2 horas)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.timelapse),
+                        decoration: InputDecoration(
+                          labelText: _duracionLabelText,
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.timelapse),
                         ),
-                        value: _selectedDuration,
-                        items: _durations.map((String duration) {
+                        value: _durationsAvailable.contains(_selectedDuration)
+                            ? _selectedDuration
+                            : (_durationsAvailable.isNotEmpty
+                                  ? _durationsAvailable.first
+                                  : null),
+                        items: _durationsAvailable.map((String duration) {
                           return DropdownMenuItem<String>(
                             value: duration,
                             child: Text(duration),
@@ -294,7 +364,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.blue.shade100),
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
@@ -317,7 +387,8 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                             SizedBox(height: 8),
                             Text(
                               '• La reserva estará pendiente de confirmación.\n'
-                              '• El tiempo máximo de reserva es de 3 horas.\n'
+                              '• El tiempo máximo de reserva es de 2 horas.\n'
+                              '• Horario disponible: 7:00 AM - 5:00 PM\n'
                               '• Debes presentar tu carnet al ocupar el cubículo.',
                               style: TextStyle(
                                 fontSize: 12,
