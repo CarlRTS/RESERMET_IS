@@ -15,14 +15,13 @@ class ReservationFormConsole extends StatefulWidget {
 
 class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   final _formKey = GlobalKey<FormState>();
-  final ConsolaService _consolaService =
-      ConsolaService(); // Instanciar servicio
+  final ConsolaService _consolaService = ConsolaService();
 
-  // Controladores para los campos de texto
+  // Controladores
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
-  // Variables para consolas reales
+  // Estado
   List<Consola> _consolasDisponibles = [];
   Consola? _consolaSeleccionada;
   TimeOfDay? _selectedTime;
@@ -33,7 +32,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   String get _fechaFormateada =>
       "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
 
-  //Lista dinámica de duraciones disponibles
+  // Duraciones dinámicas (se actualizan según hora)
   List<String> _duracionesDisponibles = [
     '30 min',
     '1 hora',
@@ -50,30 +49,24 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     _cargarConsolasDisponibles();
   }
 
-  // Método para cargar consolas desde la base de datos
   Future<void> _cargarConsolasDisponibles() async {
     try {
       final consolas = await _consolaService.getConsolas();
 
-      // Filtrar consolas disponibles (cantidadDisponible > 0)
-      final consolasDisponibles = consolas
-          .where((consola) => consola.cantidadDisponible > 0)
-          .toList();
+      final consolasDisponibles =
+          consolas.where((c) => c.cantidadDisponible > 0).toList();
 
       setState(() {
         _consolasDisponibles = consolasDisponibles;
         _isLoading = false;
-
-        // Seleccionar la primera consola disponible por defecto
         if (_consolasDisponibles.isNotEmpty) {
-          _consolaSeleccionada = _consolasDisponibles[0];
+          _consolaSeleccionada = _consolasDisponibles.first;
         }
       });
     } catch (e) {
+      // ignore: avoid_print
       print('Error cargando consolas: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       _mostrarError('Error al cargar las consolas disponibles');
     }
   }
@@ -90,38 +83,27 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
     final int totalMinutos = _selectedTime!.hour * 60 + _selectedTime!.minute;
 
-    // Aplicar reglas de restricción
-
+    // Reglas de restricción por hora (ajústalas si cambian los horarios del centro)
     if (totalMinutos > 16 * 60) {
       // 4:00 PM o después
-      setState(() {
-        _duracionesDisponibles = ['30 min'];
-      });
+      _duracionesDisponibles = ['30 min'];
     } else if (totalMinutos > 15 * 60 + 30) {
       // 3:30 PM o después
-      setState(() {
-        _duracionesDisponibles = ['30 min', '1 hora'];
-      });
+      _duracionesDisponibles = ['30 min', '1 hora'];
     } else if (totalMinutos > 15 * 60) {
       // 3:00 PM o después
-      setState(() {
-        _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas'];
-      });
+      _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas'];
     } else {
-      setState(() {
-        _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas', '2 horas'];
-      });
+      _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas', '2 horas'];
     }
 
-    // Si la duración actual no está disponible, resetearla
+    // Si la duración seleccionada quedó inválida, resetearla
     if (!_duracionesDisponibles.contains(_selectedDuration)) {
-      setState(() {
-        _selectedDuration = null;
-      });
+      _selectedDuration = null;
     }
+    setState(() {});
   }
 
-  // Método para seleccionar hora
   Future<void> _selectTime(BuildContext context) async {
     HorarioPicker.mostrarPicker(
       context: context,
@@ -134,44 +116,39 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
           _selectedTime = picked;
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
         });
-        // LLAMAR AL MÉTODO PARA ACTUALIZAR DURACIONES
         _actualizarDuracionesDisponibles();
       },
     );
   }
 
-  // Método para mostrar errores
   void _mostrarError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
     );
   }
 
-  // Método para crear reserva en la base de datos
+  // ====== CREAR RESERVA (UTC, sin 'rango', sin tocar articulo.estado) ======
   Future<void> _crearReserva() async {
     if (_consolaSeleccionada == null) {
       _mostrarError('Por favor selecciona una consola');
       return;
     }
-
     if (_selectedTime == null || _selectedDuration == null) {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
 
-    // OBTENER EL USUARIO ACTUAL
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       _mostrarError('Debes iniciar sesión para hacer una reserva');
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(() => _isSubmitting = true);
 
     try {
-      final fechaInicio = DateTime(
+      // 1) Construir INICIO local con la fecha de hoy + hora elegida
+      final inicioLocal = DateTime(
         _fechaActual.year,
         _fechaActual.month,
         _fechaActual.day,
@@ -179,35 +156,36 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         _selectedTime!.minute,
       );
 
-      final fechaFin = _calcularFechaFin(fechaInicio, _selectedDuration!);
+      // 2) Calcular FIN local según la duración
+      final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // Crear objeto de reserva
+      // 3) Convertir ambos a UTC antes de guardar
+      final inicioIso = inicioLocal.toUtc().toIso8601String();
+      final finIso = finLocal.toUtc().toIso8601String();
+
+      // 4) Insert — SIN 'rango' (columna GENERATED) y con fecha_reserva (UTC YYYY-MM-DD)
       final reservaData = {
         'id_articulo': _consolaSeleccionada!.idObjeto,
         'id_usuario': user.id,
-        'fecha_reserva': DateTime.now().toIso8601String().split('T')[0],
-        'inicio': fechaInicio.toIso8601String(),
-        'fin': fechaFin.toIso8601String(),
+        'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
+        'inicio': inicioIso,
+        'fin': finIso,
         'compromiso_estudiante': _purposeController.text,
         'estado': 'activa',
       };
 
-      // Insertar en la base de datos
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // Mostrar confirmación
       _mostrarConfirmacion();
+    } on PostgrestException catch (e) {
+      _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      print('Error creando reserva: $e');
       _mostrarError('Error al crear la reserva: $e');
     } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  // Método para calcular fecha fin basado en la duración
   DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
     switch (duracion) {
       case '30 min':
@@ -223,7 +201,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // Método para mostrar confirmación
   void _mostrarConfirmacion() {
     showDialog(
       context: context,
@@ -282,7 +259,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título
                   const Text(
                     'Reserva tu Consola',
                     style: TextStyle(
@@ -311,11 +287,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         children: [
                           const Row(
                             children: [
-                              Icon(
-                                Icons.sports_esports,
-                                color: Colors.green,
-                                size: 24,
-                              ),
+                              Icon(Icons.sports_esports, color: Colors.green, size: 24),
                               SizedBox(width: 8),
                               Text(
                                 'Seleccionar Consola',
@@ -352,30 +324,15 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 return DropdownMenuItem<Consola>(
                                   value: consola,
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(
-                                        consola.nombre,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Modelo: ${consola.modelo}', // ← CAMBIADO: modelo en lugar de plataforma
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Disponibles: ${consola.cantidadDisponible}', // ← AGREGADO: cantidad disponible
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.green.shade600,
-                                        ),
-                                      ),
+                                      Text(consola.nombre,
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      Text('Modelo: ${consola.modelo}',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                      Text('Disponibles: ${consola.cantidadDisponible}',
+                                          style: TextStyle(fontSize: 12, color: Colors.green.shade600)),
                                     ],
                                   ),
                                 );
@@ -386,12 +343,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   _selectedGame = null;
                                 });
                               },
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'Por favor selecciona una consola';
-                                }
-                                return null;
-                              },
+                              validator: (value) =>
+                                  value == null ? 'Por favor selecciona una consola' : null,
                             ),
                         ],
                       ),
@@ -412,14 +365,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '📋 Información de la Consola',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.blue,
-                              ),
-                            ),
+                            const Text('📋 Información de la Consola',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
                             const SizedBox(height: 12),
                             ListTile(
                               leading: Container(
@@ -428,43 +376,26 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(
-                                  Icons.sports_esports,
-                                  color: Colors.blue,
-                                ),
+                                child: const Icon(Icons.sports_esports, color: Colors.blue),
                               ),
-                              title: Text(
-                                _consolaSeleccionada!.nombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
+                              title: Text(_consolaSeleccionada!.nombre,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Modelo: ${_consolaSeleccionada!.modelo}',
-                                  ), // ← CAMBIADO: modelo
+                                  Text('Modelo: ${_consolaSeleccionada!.modelo}'),
                                   Text(
                                     'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color:
-                                          _consolaSeleccionada!
-                                                  .cantidadDisponible >
-                                              0
+                                      color: _consolaSeleccionada!.cantidadDisponible > 0
                                           ? Colors.green.shade600
                                           : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  Text(
-                                    'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
+                                  Text('Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                                 ],
                               ),
                             ),
@@ -488,11 +419,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         children: [
                           const Row(
                             children: [
-                              Icon(
-                                Icons.calendar_today,
-                                color: Colors.orange,
-                                size: 24,
-                              ),
+                              Icon(Icons.calendar_today, color: Colors.orange, size: 24),
                               SizedBox(width: 8),
                               Text(
                                 'Detalles de la Reserva',
@@ -506,6 +433,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           ),
                           const SizedBox(height: 20),
 
+                          // Fecha hoy (solo lectura)
                           TextFormField(
                             initialValue: _fechaFormateada,
                             decoration: InputDecoration(
@@ -518,12 +446,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade100,
                             ),
                             readOnly: true,
-                            enabled: false, // Totalmente no editable
+                            enabled: false,
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Campo de hora
+                          // Hora de inicio (picker)
                           TextFormField(
                             controller: _timeController,
                             decoration: InputDecoration(
@@ -538,19 +465,14 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             ),
                             readOnly: true,
                             onTap: () => _selectTime(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una hora';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
                           ),
-
                           const SizedBox(height: 16),
 
                           if (_selectedTime != null) const SizedBox(height: 8),
 
-                          // Dropdown de duración (usa lista dinámica)
+                          // Duración (dinámica según la hora)
                           DropdownButtonFormField<String>(
                             value: _selectedDuration,
                             decoration: InputDecoration(
@@ -562,31 +484,19 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            // Usa _duracionesDisponibles en lugar de lista fija
-                            items: _duracionesDisponibles.map((duracion) {
-                              return DropdownMenuItem(
-                                value: duracion,
-                                child: Text(duracion),
-                              );
-                            }).toList(),
-                            onChanged: (newValue) {
-                              setState(() {
-                                _selectedDuration = newValue;
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una duración';
-                              }
-                              return null;
-                            },
+                            items: _duracionesDisponibles
+                                .map((duracion) => DropdownMenuItem(
+                                      value: duracion,
+                                      child: Text(duracion),
+                                    ))
+                                .toList(),
+                            onChanged: (newValue) => setState(() => _selectedDuration = newValue),
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Dropdown para juego (opcional) - Del código original
-                          // Nota: Para conectar esto a la base de datos, hay que implementar una tabla de juegos
-                          // Por ahora lo dejamos como campo de texto libre
+                          // Juego opcional (UI actual)
                           DropdownButtonFormField<String>(
                             value: _selectedGame,
                             decoration: InputDecoration(
@@ -600,43 +510,25 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: const [
-                              DropdownMenuItem(
-                                value: null,
-                                child: Text('Ningún juego específico'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'FIFA 24',
-                                child: Text('FIFA 24'),
-                              ),
+                              DropdownMenuItem(value: null, child: Text('Ningún juego específico')),
+                              DropdownMenuItem(value: 'FIFA 24', child: Text('FIFA 24')),
                               DropdownMenuItem(
                                 value: 'Call of Duty: Modern Warfare III',
                                 child: Text('Call of Duty: Modern Warfare III'),
                               ),
-                              DropdownMenuItem(
-                                value: 'Spider-Man 2',
-                                child: Text('Spider-Man 2'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Otro juego',
-                                child: Text('Otro juego'),
-                              ),
+                              DropdownMenuItem(value: 'Spider-Man 2', child: Text('Spider-Man 2')),
+                              DropdownMenuItem(value: 'Otro juego', child: Text('Otro juego')),
                             ],
-                            onChanged: (newValue) {
-                              setState(() {
-                                _selectedGame = newValue;
-                              });
-                            },
+                            onChanged: (newValue) => setState(() => _selectedGame = newValue),
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Campo de propósito
+                          // Propósito
                           TextFormField(
                             controller: _purposeController,
                             decoration: InputDecoration(
                               labelText: 'Propósito de uso',
-                              hintText:
-                                  'Describe para qué usarás la consola...',
+                              hintText: 'Describe para qué usarás la consola...',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -645,12 +537,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             maxLines: 3,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor describe el propósito de uso';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor describe el propósito de uso' : null,
                           ),
                         ],
                       ),
@@ -664,14 +552,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _isSubmitting || _consolasDisponibles.isEmpty
-                          ? null
-                          : _crearReserva,
+                      onPressed:
+                          _isSubmitting || _consolasDisponibles.isEmpty ? null : _crearReserva,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isSubmitting || _consolasDisponibles.isEmpty
-                            ? Colors.grey
-                            : Colors.green,
+                            _isSubmitting || _consolasDisponibles.isEmpty ? Colors.grey : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
