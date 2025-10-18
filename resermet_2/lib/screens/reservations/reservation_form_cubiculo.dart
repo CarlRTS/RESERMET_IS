@@ -104,22 +104,78 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     }
   }
 
-  // --- Lógica de Envío (Placeholder) ---
+  // --- Helper: calcular fecha fin desde la duración seleccionada ---
+  DateTime _calcularFechaFin(DateTime inicio, String duracion) {
+    switch (duracion) {
+      case '1 hora':
+        return inicio.add(const Duration(hours: 1));
+      case '1.5 horas':
+        return inicio.add(const Duration(minutes: 90));
+      case '2 horas':
+        return inicio.add(const Duration(hours: 2));
+      case '3 horas':
+        return inicio.add(const Duration(hours: 3));
+      default:
+        return inicio.add(const Duration(hours: 1));
+    }
+  }
 
+  // --- Envío REAL (inserta en BD en UTC y marca artículo prestado) ---
   Future<void> _submitReservation() async {
-    if (!_formKey.currentState!.validate() || _cubiculoSeleccionado == null) return;
+    // Validaciones de UI
+    if (!_formKey.currentState!.validate() || _cubiculoSeleccionado == null) {
+      return;
+    }
+
+    // Usuario autenticado
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _showSnackbar('Debes iniciar sesión para reservar.', Colors.red);
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
-
     try {
+      // 1) Construir INICIO en hora local con la fecha y hora seleccionadas
+      final inicioLocal = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
 
-      await Future.delayed(const Duration(seconds: 2));
+      // 2) Calcular FIN en local según duración
+      final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
+      // 3) Convertir AMBOS a UTC antes de guardar
+      final inicioIso = inicioLocal.toUtc().toIso8601String();
+      final finIso = finLocal.toUtc().toIso8601String();
 
-      _showSnackbar('Reserva de ${_cubiculoSeleccionado!.nombre} enviada para aprobación.', Colors.green);
-      if (mounted) Navigator.of(context).pop();
+      // 4) Payload SIN 'rango' (columna GENERATED en BD)
+      final payload = {
+        'id_articulo': _cubiculoSeleccionado!.idObjeto,
+        'id_usuario': user.id,
+        'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
+        'inicio': inicioIso, // UTC
+        'fin': finIso,       // UTC
+        'compromiso_estudiante': _purposeController.text,
+        'estado': 'activa',
+      };
 
+      // 5) Insertar en la tabla 'reserva'
+      await Supabase.instance.client.from('reserva').insert(payload);
+
+      // 6) (Opcional/Recomendado) Marcar el artículo como prestado
+      await Supabase.instance.client
+          .from('articulo')
+          .update({'estado': 'prestado'})
+          .eq('id_articulo', _cubiculoSeleccionado!.idObjeto);
+
+      // 7) Éxito
+      _showSnackbar('Reserva de ${_cubiculoSeleccionado!.nombre} creada con éxito.', Colors.green);
+      if (mounted) Navigator.of(context).pop(true);
     } on PostgrestException catch (e) {
       _showSnackbar('Error de Supabase: ${e.message}', Colors.red);
     } catch (e) {
@@ -150,176 +206,176 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Formulario de Reserva de Cubículo',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 15),
-
-                // 1. Selector de Cubículo
-                DropdownButtonFormField<Cubiculo>(
-                  decoration: const InputDecoration(
-                    labelText: 'Cubículo a Reservar',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.meeting_room),
-                  ),
-                  value: _cubiculoSeleccionado,
-                  hint: const Text('Selecciona un cubículo'),
-                  items: _cubiculosDisponibles.map((Cubiculo cubiculo) {
-                    return DropdownMenuItem<Cubiculo>(
-                      value: cubiculo,
-                      child: Text('${cubiculo.nombre} (Cap: ${cubiculo.capacidad} pers.)'),
-                    );
-                  }).toList(),
-                  onChanged: (Cubiculo? newValue) {
-                    setState(() {
-                      _cubiculoSeleccionado = newValue;
-                    });
-                  },
-                  validator: (value) => value == null ? 'Selecciona un cubículo.' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // 2. Campo de Fecha (con selector)
-                TextFormField(
-                  controller: _dateController,
-                  readOnly: true,
-                  onTap: _selectDate,
-                  decoration: const InputDecoration(
-                    labelText: 'Fecha de Reserva',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  validator: (value) => value!.isEmpty ? 'Selecciona una fecha.' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // 3. Campo de Hora (con selector)
-                TextFormField(
-                  controller: _timeController,
-                  readOnly: true,
-                  onTap: _selectTime,
-                  decoration: const InputDecoration(
-                    labelText: 'Hora de Inicio',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.access_time),
-                  ),
-                  validator: (value) => value!.isEmpty ? 'Selecciona una hora.' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // 4. Duración
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Duración (Máx. 3 horas)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.timelapse),
-                  ),
-                  value: _selectedDuration,
-                  items: _durations.map((String duration) {
-                    return DropdownMenuItem<String>(
-                      value: duration,
-                      child: Text(duration),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedDuration = newValue;
-                    });
-                  },
-                  validator: (value) => value == null ? 'Selecciona una duración.' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // 5. Propósito de la Reserva
-                TextFormField(
-                  controller: _purposeController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Propósito de la Reserva (Opcional)',
-                    hintText: 'Ej: Estudio en grupo, trabajo de tesis...',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Padding(
-                      padding: EdgeInsets.only(bottom: 50.0),
-                      child: Icon(Icons.lightbulb_outline),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 25),
-
-                // Información importante
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.lightBlue.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue.shade100),
-                  ),
-                  child: const Column(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info, color: Colors.lightBlue, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Información importante',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.unimetBlue,
+                      const Text(
+                        'Formulario de Reserva de Cubículo',
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 15),
+
+                      // 1. Selector de Cubículo
+                      DropdownButtonFormField<Cubiculo>(
+                        decoration: const InputDecoration(
+                          labelText: 'Cubículo a Reservar',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.meeting_room),
+                        ),
+                        value: _cubiculoSeleccionado,
+                        hint: const Text('Selecciona un cubículo'),
+                        items: _cubiculosDisponibles.map((Cubiculo cubiculo) {
+                          return DropdownMenuItem<Cubiculo>(
+                            value: cubiculo,
+                            child: Text('${cubiculo.nombre} (Cap: ${cubiculo.capacidad} pers.)'),
+                          );
+                        }).toList(),
+                        onChanged: (Cubiculo? newValue) {
+                          setState(() {
+                            _cubiculoSeleccionado = newValue;
+                          });
+                        },
+                        validator: (value) => value == null ? 'Selecciona un cubículo.' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 2. Campo de Fecha (con selector)
+                      TextFormField(
+                        controller: _dateController,
+                        readOnly: true,
+                        onTap: _selectDate,
+                        decoration: const InputDecoration(
+                          labelText: 'Fecha de Reserva',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        validator: (value) => value!.isEmpty ? 'Selecciona una fecha.' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 3. Campo de Hora (con selector)
+                      TextFormField(
+                        controller: _timeController,
+                        readOnly: true,
+                        onTap: _selectTime,
+                        decoration: const InputDecoration(
+                          labelText: 'Hora de Inicio',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.access_time),
+                        ),
+                        validator: (value) => value!.isEmpty ? 'Selecciona una hora.' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 4. Duración
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Duración (Máx. 3 horas)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timelapse),
+                        ),
+                        value: _selectedDuration,
+                        items: _durations.map((String duration) {
+                          return DropdownMenuItem<String>(
+                            value: duration,
+                            child: Text(duration),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedDuration = newValue;
+                          });
+                        },
+                        validator: (value) => value == null ? 'Selecciona una duración.' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 5. Propósito de la Reserva
+                      TextFormField(
+                        controller: _purposeController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Propósito de la Reserva (Opcional)',
+                          hintText: 'Ej: Estudio en grupo, trabajo de tesis...',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.only(bottom: 50.0),
+                            child: Icon(Icons.lightbulb_outline),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+
+                      // Información importante
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.lightBlue.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info, color: Colors.lightBlue, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Información importante',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.unimetBlue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              '• La reserva estará pendiente de confirmación.\n'
+                              '• El tiempo máximo de reserva es de 3 horas.\n'
+                              '• Debes presentar tu carnet al ocupar el cubículo.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+
+                      // Botón de Confirmación
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : _submitReservation,
+                          icon: _isSubmitting
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Icon(Icons.check_circle_outline),
+                          label: Text(
+                            _isSubmitting ? 'Procesando...' : 'Solicitar Reserva',
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.unimetBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        '• La reserva estará pendiente de confirmación.\n'
-                            '• El tiempo máximo de reserva es de 3 horas.\n'
-                            '• Debes presentar tu carnet al ocupar el cubículo.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
-                const SizedBox(height: 25),
-
-                // Botón de Confirmación
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _submitReservation,
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                    )
-                        : const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      _isSubmitting ? 'Procesando...' : 'Solicitar Reserva',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.unimetBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }

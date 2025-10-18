@@ -13,15 +13,12 @@ class ReservationFormConsole extends StatefulWidget {
 
 class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   final _formKey = GlobalKey<FormState>();
-  final ConsolaService _consolaService =
-      ConsolaService(); // Instanciar servicio
+  final ConsolaService _consolaService = ConsolaService();
 
-  // Controladores para los campos de texto
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
-  // Variables para consolas reales
   List<Consola> _consolasDisponibles = [];
   Consola? _consolaSeleccionada;
   DateTime? _selectedDate;
@@ -38,30 +35,21 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     _cargarConsolasDisponibles();
   }
 
-  // Método para cargar consolas desde la base de datos
   Future<void> _cargarConsolasDisponibles() async {
     try {
       final consolas = await _consolaService.getConsolas();
-
-      // Filtrar consolas disponibles (cantidadDisponible > 0)
-      final consolasDisponibles = consolas
-          .where((consola) => consola.cantidadDisponible > 0)
-          .toList();
+      final consolasDisponibles =
+          consolas.where((c) => c.cantidadDisponible > 0).toList();
 
       setState(() {
         _consolasDisponibles = consolasDisponibles;
         _isLoading = false;
-
-        // Seleccionar la primera consola disponible por defecto
         if (_consolasDisponibles.isNotEmpty) {
           _consolaSeleccionada = _consolasDisponibles[0];
         }
       });
     } catch (e) {
-      print('Error cargando consolas: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       _mostrarError('Error al cargar las consolas disponibles');
     }
   }
@@ -74,7 +62,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     super.dispose();
   }
 
-  // Método para seleccionar fecha
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -82,7 +69,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 30)),
     );
-
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
@@ -91,13 +77,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // Método para seleccionar hora
   Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-
+    final TimeOfDay? picked =
+        await showTimePicker(context: context, initialTime: TimeOfDay.now());
     if (picked != null) {
       setState(() {
         _selectedTime = picked;
@@ -106,40 +88,34 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // Método para mostrar errores
   void _mostrarError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
     );
   }
 
-  // Método para crear reserva en la base de datos
+  // ---- CREA RESERVA (UTC) ----
   Future<void> _crearReserva() async {
     if (_consolaSeleccionada == null) {
       _mostrarError('Por favor selecciona una consola');
       return;
     }
-
-    if (_selectedDate == null ||
-        _selectedTime == null ||
-        _selectedDuration == null) {
+    if (_selectedDate == null || _selectedTime == null || _selectedDuration == null) {
       _mostrarError('Por favor completa todos los campos de fecha y hora');
       return;
     }
 
-    // OBTENER EL USUARIO ACTUAL
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       _mostrarError('Debes iniciar sesión para hacer una reserva');
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(() => _isSubmitting = true);
 
     try {
-      final fechaInicio = DateTime(
+      // 1) INICIO local
+      final inicioLocal = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
         _selectedDate!.day,
@@ -147,35 +123,42 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         _selectedTime!.minute,
       );
 
-      final fechaFin = _calcularFechaFin(fechaInicio, _selectedDuration!);
+      // 2) FIN local en base a duración
+      final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // Crear objeto de reserva
-      final reservaData = {
+      // 3) Convertir ambos a UTC para guardar correctamente
+      final inicioIso = inicioLocal.toUtc().toIso8601String();
+      final finIso = finLocal.toUtc().toIso8601String();
+
+      // 4) INSERT — sin 'rango' (es columna GENERATED)
+      final payload = {
         'id_articulo': _consolaSeleccionada!.idObjeto,
         'id_usuario': user.id,
-        'fecha_reserva': DateTime.now().toIso8601String().split('T')[0],
-        'inicio': fechaInicio.toIso8601String(),
-        'fin': fechaFin.toIso8601String(),
+        'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
+        'inicio': inicioIso,
+        'fin': finIso,
         'compromiso_estudiante': _purposeController.text,
         'estado': 'activa',
       };
 
-      // Insertar en la base de datos
-      await Supabase.instance.client.from('reserva').insert(reservaData);
+      await Supabase.instance.client.from('reserva').insert(payload);
 
-      // Mostrar confirmación
+      // (opcional) Marcar artículo como prestado
+      await Supabase.instance.client
+          .from('articulo')
+          .update({'estado': 'prestado'})
+          .eq('id_articulo', _consolaSeleccionada!.idObjeto);
+
       _mostrarConfirmacion();
+    } on PostgrestException catch (e) {
+      _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      print('Error creando reserva: $e');
       _mostrarError('Error al crear la reserva: $e');
     } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  // Método para calcular fecha fin basado en la duración
   DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
     switch (duracion) {
       case '30 min':
@@ -191,7 +174,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // Método para mostrar confirmación
   void _mostrarConfirmacion() {
     showDialog(
       context: context,
@@ -212,7 +194,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Regresar a pantalla anterior
+                Navigator.of(context).pop();
               },
               child: const Text('Aceptar'),
             ),
@@ -250,7 +232,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título
                   const Text(
                     'Reserva tu Consola',
                     style: TextStyle(
@@ -266,7 +247,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                   ),
                   const SizedBox(height: 30),
 
-                  // Tarjeta de selección de consola
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(
@@ -279,11 +259,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         children: [
                           const Row(
                             children: [
-                              Icon(
-                                Icons.sports_esports,
-                                color: Colors.green,
-                                size: 24,
-                              ),
+                              Icon(Icons.sports_esports, color: Colors.green, size: 24),
                               SizedBox(width: 8),
                               Text(
                                 'Seleccionar Consola',
@@ -300,10 +276,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           if (_isLoading)
                             const Center(child: CircularProgressIndicator())
                           else if (_consolasDisponibles.isEmpty)
-                            const Text(
-                              'No hay consolas disponibles en este momento',
-                              style: TextStyle(color: Colors.grey),
-                            )
+                            const Text('No hay consolas disponibles en este momento',
+                                style: TextStyle(color: Colors.grey))
                           else
                             DropdownButtonFormField<Consola>(
                               value: _consolaSeleccionada,
@@ -320,30 +294,15 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 return DropdownMenuItem<Consola>(
                                   value: consola,
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(
-                                        consola.nombre,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Modelo: ${consola.modelo}', // ← CAMBIADO: modelo en lugar de plataforma
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Disponibles: ${consola.cantidadDisponible}', // ← AGREGADO: cantidad disponible
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.green.shade600,
-                                        ),
-                                      ),
+                                      Text(consola.nombre,
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      Text('Modelo: ${consola.modelo}',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                      Text('Disponibles: ${consola.cantidadDisponible}',
+                                          style: TextStyle(fontSize: 12, color: Colors.green.shade600)),
                                     ],
                                   ),
                                 );
@@ -354,12 +313,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   _selectedGame = null;
                                 });
                               },
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'Por favor selecciona una consola';
-                                }
-                                return null;
-                              },
+                              validator: (value) =>
+                                  value == null ? 'Por favor selecciona una consola' : null,
                             ),
                         ],
                       ),
@@ -368,7 +323,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
                   const SizedBox(height: 20),
 
-                  // Información de la consola seleccionada
                   if (_consolaSeleccionada != null) ...[
                     Card(
                       elevation: 3,
@@ -380,14 +334,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '📋 Información de la Consola',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.blue,
-                              ),
-                            ),
+                            const Text('📋 Información de la Consola',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
                             const SizedBox(height: 12),
                             ListTile(
                               leading: Container(
@@ -396,43 +345,26 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(
-                                  Icons.sports_esports,
-                                  color: Colors.blue,
-                                ),
+                                child: const Icon(Icons.sports_esports, color: Colors.blue),
                               ),
-                              title: Text(
-                                _consolaSeleccionada!.nombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
+                              title: Text(_consolaSeleccionada!.nombre,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Modelo: ${_consolaSeleccionada!.modelo}',
-                                  ), // ← CAMBIADO: modelo
+                                  Text('Modelo: ${_consolaSeleccionada!.modelo}'),
                                   Text(
                                     'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color:
-                                          _consolaSeleccionada!
-                                                  .cantidadDisponible >
-                                              0
+                                      color: _consolaSeleccionada!.cantidadDisponible > 0
                                           ? Colors.green.shade600
                                           : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  Text(
-                                    'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
+                                  Text('Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                                 ],
                               ),
                             ),
@@ -443,7 +375,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Campos del formulario
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(
@@ -456,11 +387,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         children: [
                           const Row(
                             children: [
-                              Icon(
-                                Icons.calendar_today,
-                                color: Colors.orange,
-                                size: 24,
-                              ),
+                              Icon(Icons.calendar_today, color: Colors.orange, size: 24),
                               SizedBox(width: 8),
                               Text(
                                 'Detalles de la Reserva',
@@ -474,9 +401,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Campo de fecha
                           TextFormField(
                             controller: _dateController,
+                            readOnly: true,
                             decoration: InputDecoration(
                               labelText: 'Fecha de reserva',
                               hintText: 'Selecciona la fecha',
@@ -488,19 +415,14 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             onTap: () => _selectDate(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una fecha';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una fecha' : null,
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Campo de hora
                           TextFormField(
                             controller: _timeController,
+                            readOnly: true,
                             decoration: InputDecoration(
                               labelText: 'Hora de inicio',
                               hintText: 'Selecciona la hora',
@@ -512,17 +434,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             onTap: () => _selectTime(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una hora';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Dropdown de duración
                           DropdownButtonFormField<String>(
                             value: _selectedDuration,
                             decoration: InputDecoration(
@@ -535,41 +451,17 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: const [
-                              DropdownMenuItem(
-                                value: '30 min',
-                                child: Text('30 minutos'),
-                              ),
-                              DropdownMenuItem(
-                                value: '1 hora',
-                                child: Text('1 hora'),
-                              ),
-                              DropdownMenuItem(
-                                value: '1.5 horas',
-                                child: Text('1.5 horas'),
-                              ),
-                              DropdownMenuItem(
-                                value: '2 horas',
-                                child: Text('2 horas'),
-                              ),
+                              DropdownMenuItem(value: '30 min', child: Text('30 minutos')),
+                              DropdownMenuItem(value: '1 hora', child: Text('1 hora')),
+                              DropdownMenuItem(value: '1.5 horas', child: Text('1.5 horas')),
+                              DropdownMenuItem(value: '2 horas', child: Text('2 horas')),
                             ],
-                            onChanged: (newValue) {
-                              setState(() {
-                                _selectedDuration = newValue;
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una duración';
-                              }
-                              return null;
-                            },
+                            onChanged: (newValue) => setState(() => _selectedDuration = newValue),
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Dropdown para juego (opcional) - Mantenido de tu código original
-                          // Nota: Para conectar esto a la base de datos, necesitarías una tabla de juegos
-                          // Por ahora lo dejamos como campo de texto libre
                           DropdownButtonFormField<String>(
                             value: _selectedGame,
                             decoration: InputDecoration(
@@ -583,43 +475,23 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: const [
+                              DropdownMenuItem(value: null, child: Text('Ningún juego específico')),
+                              DropdownMenuItem(value: 'FIFA 24', child: Text('FIFA 24')),
                               DropdownMenuItem(
-                                value: null,
-                                child: Text('Ningún juego específico'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'FIFA 24',
-                                child: Text('FIFA 24'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Call of Duty: Modern Warfare III',
-                                child: Text('Call of Duty: Modern Warfare III'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Spider-Man 2',
-                                child: Text('Spider-Man 2'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Otro juego',
-                                child: Text('Otro juego'),
-                              ),
+                                  value: 'Call of Duty: Modern Warfare III',
+                                  child: Text('Call of Duty: Modern Warfare III')),
+                              DropdownMenuItem(value: 'Spider-Man 2', child: Text('Spider-Man 2')),
+                              DropdownMenuItem(value: 'Otro juego', child: Text('Otro juego')),
                             ],
-                            onChanged: (newValue) {
-                              setState(() {
-                                _selectedGame = newValue;
-                              });
-                            },
+                            onChanged: (newValue) => setState(() => _selectedGame = newValue),
                           ),
-
                           const SizedBox(height: 16),
 
-                          // Campo de propósito
                           TextFormField(
                             controller: _purposeController,
                             decoration: InputDecoration(
                               labelText: 'Propósito de uso',
-                              hintText:
-                                  'Describe para qué usarás la consola...',
+                              hintText: 'Describe para qué usarás la consola...',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -628,12 +500,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             maxLines: 3,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor describe el propósito de uso';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor describe el propósito de uso' : null,
                           ),
                         ],
                       ),
@@ -642,19 +510,15 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
                   const SizedBox(height: 30),
 
-                  // Botón de confirmación
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _isSubmitting || _consolasDisponibles.isEmpty
-                          ? null
-                          : _crearReserva,
+                      onPressed:
+                          _isSubmitting || _consolasDisponibles.isEmpty ? null : _crearReserva,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isSubmitting || _consolasDisponibles.isEmpty
-                            ? Colors.grey
-                            : Colors.green,
+                            _isSubmitting || _consolasDisponibles.isEmpty ? Colors.grey : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -682,7 +546,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
                   const SizedBox(height: 20),
 
-                  // Información adicional
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),

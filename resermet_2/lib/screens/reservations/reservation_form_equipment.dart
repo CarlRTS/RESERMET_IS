@@ -4,7 +4,6 @@ import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-
 class ReservationFormEquipment extends StatefulWidget {
   const ReservationFormEquipment({super.key});
 
@@ -21,7 +20,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
-
 
   // Variables para equipos deportivos reales
   List<EquipoDeportivo> _equiposDisponibles = [];
@@ -45,9 +43,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       final equipos = await _equipoService.getEquiposDeportivos();
 
       // Filtrar equipos disponibles (cantidad_disponible > 0)
-      final equiposDisponibles = equipos
-          .where((equipo) => equipo.cantidadDisponible > 0)
-          .toList();
+      final equiposDisponibles =
+          equipos.where((equipo) => equipo.cantidadDisponible > 0).toList();
 
       setState(() {
         _equiposDisponibles = equiposDisponibles;
@@ -59,6 +56,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         }
       });
     } catch (e) {
+      // ignore: avoid_print
       print('Error cargando equipos: $e');
       setState(() {
         _isLoading = false;
@@ -94,10 +92,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   // Método para seleccionar hora
   Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
+    final TimeOfDay? picked =
+        await showTimePicker(context: context, initialTime: TimeOfDay.now());
 
     if (picked != null) {
       setState(() {
@@ -114,17 +110,22 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     );
   }
 
-  // Método para crear reserva en la base de datos
+  // ================== CREAR RESERVA (UTC) ==================
   Future<void> _crearReserva() async {
     if (_equipoSeleccionado == null) {
       _mostrarError('Por favor selecciona un equipo');
       return;
     }
 
-    if (_selectedDate == null ||
-        _selectedTime == null ||
-        _selectedDuration == null) {
+    if (_selectedDate == null || _selectedTime == null || _selectedDuration == null) {
       _mostrarError('Por favor completa todos los campos de fecha y hora');
+      return;
+    }
+
+    // Usuario actual
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _mostrarError('Debes iniciar sesión para hacer una reserva');
       return;
     }
 
@@ -133,8 +134,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     });
 
     try {
-      // Calcular fecha y hora de inicio y fin
-      final fechaInicio = DateTime(
+      // 1) Construir INICIO en hora local
+      final inicioLocal = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
         _selectedDate!.day,
@@ -142,27 +143,38 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         _selectedTime!.minute,
       );
 
-      // Calcular fecha fin basado en la duración seleccionada
-      final fechaFin = _calcularFechaFin(fechaInicio, _selectedDuration!);
+      // 2) Calcular FIN en local a partir de la duración
+      final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // Crear objeto de reserva
+      // 3) Convertir AMBOS a UTC para guardar correctamente
+      final inicioIso = inicioLocal.toUtc().toIso8601String();
+      final finIso = finLocal.toUtc().toIso8601String();
+
+      // 4) Construir payload (SIN 'rango' porque es columna GENERATED)
       final reservaData = {
         'id_articulo': _equipoSeleccionado!.idObjeto,
-        'id_usuario': Supabase.instance.client.auth.currentUser?.id,
-        'fecha_reserva': DateTime.now().toIso8601String().split('T')[0],
-        'inicio': fechaInicio.toIso8601String(),
-        'fin': fechaFin.toIso8601String(),
+        'id_usuario': user.id,
+        'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
+        'inicio': inicioIso, // UTC
+        'fin': finIso,       // UTC
         'compromiso_estudiante': _purposeController.text,
         'estado': 'activa',
       };
 
-      print('Intentando insertar reserva con datos: $reservaData');
-
+      // 5) Insert en la tabla reserva
       await Supabase.instance.client.from('reserva').insert(reservaData);
-      // Mostrar confirmación
+
+      // 6) (Opcional/Recomendado) marcar el artículo como prestado
+      await Supabase.instance.client
+          .from('articulo')
+          .update({'estado': 'prestado'})
+          .eq('id_articulo', _equipoSeleccionado!.idObjeto);
+
+      // 7) Confirmación
       _mostrarConfirmacion();
+    } on PostgrestException catch (e) {
+      _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      print('Error creando reserva: $e');
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       setState(() {
@@ -217,7 +229,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       appBar: AppBar(
         title: const Text(
           'Reservar Equipo Deportivo',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: AppColors.unimetOrange,
         elevation: 0,
@@ -401,16 +413,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Tipo: ${_equipoSeleccionado!.tipoEquipo}',
-                                  ),
+                                  Text('Tipo: ${_equipoSeleccionado!.tipoEquipo}'),
                                   Text(
                                     'Disponibles: ${_equipoSeleccionado!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color:
-                                          _equipoSeleccionado!
-                                                  .cantidadDisponible >
-                                              0
+                                      color: _equipoSeleccionado!.cantidadDisponible > 0
                                           ? Colors.green.shade600
                                           : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
@@ -447,11 +454,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         children: [
                           const Row(
                             children: [
-                              Icon(
-                                Icons.calendar_today,
-                                color: Colors.orange,
-                                size: 24,
-                              ),
+                              Icon(Icons.calendar_today, color: Colors.orange, size: 24),
                               SizedBox(width: 8),
                               Text(
                                 'Detalles de la Reserva',
@@ -479,12 +482,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               fillColor: Colors.grey.shade50,
                             ),
                             onTap: () => _selectDate(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una fecha';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una fecha' : null,
                           ),
 
                           const SizedBox(height: 16),
@@ -503,12 +502,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               fillColor: Colors.grey.shade50,
                             ),
                             onTap: () => _selectTime(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una hora';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
                           ),
 
                           const SizedBox(height: 16),
@@ -526,34 +521,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: const [
-                              DropdownMenuItem(
-                                value: '30 min',
-                                child: Text('30 minutos'),
-                              ),
-                              DropdownMenuItem(
-                                value: '1 hora',
-                                child: Text('1 hora'),
-                              ),
-                              DropdownMenuItem(
-                                value: '1.5 horas',
-                                child: Text('1.5 horas'),
-                              ),
-                              DropdownMenuItem(
-                                value: '2 horas',
-                                child: Text('2 horas'),
-                              ),
+                              DropdownMenuItem(value: '30 min', child: Text('30 minutos')),
+                              DropdownMenuItem(value: '1 hora', child: Text('1 hora')),
+                              DropdownMenuItem(value: '1.5 horas', child: Text('1.5 horas')),
+                              DropdownMenuItem(value: '2 horas', child: Text('2 horas')),
                             ],
-                            onChanged: (newValue) {
-                              setState(() {
-                                _selectedDuration = newValue;
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una duración';
-                              }
-                              return null;
-                            },
+                            onChanged: (newValue) => setState(() => _selectedDuration = newValue),
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
                           ),
 
                           const SizedBox(height: 16),
@@ -561,24 +536,16 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           // Campo de propósito
                           TextFormField(
                             controller: _purposeController,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Actividad o deporte',
-                              hintText:
-                                  'Describe la actividad o deporte para el que usarás el equipo...',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.description),
+                              hintText: 'Describe la actividad o deporte para el que usarás el equipo...',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.description),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
                             ),
                             maxLines: 3,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor describe la actividad';
-                              }
-                              return null;
-                            },
+                            validator: (value) =>
+                                (value == null || value.isEmpty) ? 'Por favor describe la actividad' : null,
                           ),
                         ],
                       ),
@@ -597,9 +564,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           : _crearReserva,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isSubmitting || _equiposDisponibles.isEmpty
-                            ? Colors.grey
-                            : Colors.green,
+                            _isSubmitting || _equiposDisponibles.isEmpty ? Colors.grey : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

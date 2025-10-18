@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import 'cubiculos_list_screen.dart';
 import 'consolas_list_screen.dart';
-import 'equipos_list_screen.dart'; // ← NUEVO IMPORT
+import 'equipos_list_screen.dart';
+import 'reservas_activas_screen.dart'; // 👈 NUEVO IMPORT
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -24,7 +25,14 @@ class AdminHomeScreen extends StatelessWidget {
   void _navigateToEquiposDeportivos(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const EquiposListScreen()), // ← ACTUALIZADO
+      MaterialPageRoute(builder: (context) => const EquiposListScreen()),
+    );
+  }
+
+  void _navigateToReservasActivas(BuildContext context) { // 👈 NUEVO MÉTODO
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ReservasActivasScreen()),
     );
   }
 
@@ -39,59 +47,73 @@ class AdminHomeScreen extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Gestión de Recursos',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0033A0),
+        child: SingleChildScrollView( // por si se agregan más tarjetas
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Gestión de Recursos',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0033A0),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Selecciona el tipo de recurso que deseas gestionar',
-              style: TextStyle(fontSize: 16, color: Colors.black87),
-            ),
-            const SizedBox(height: 30),
-            
-            // Tarjeta Cubículos
-            _buildManagementCard(
-              context,
-              title: 'Cubículos de Estudio',
-              subtitle: 'Gestionar espacios individuales o grupales',
-              icon: Icons.meeting_room,
-              color: const Color(0xFF0033A0),
-              onTap: () => _navigateToCubiculos(context),
-              available: true,
-            ),
-            const SizedBox(height: 20),
-            
-            // Tarjeta Consolas
-            _buildManagementCard(
-              context,
-              title: 'Consolas y Juegos',
-              subtitle: 'Gestionar equipos del Centro de Diseño Digital',
-              icon: Icons.gamepad,
-              color: Colors.green,
-              onTap: () => _navigateToConsolas(context),
-              available: true,
-            ),
-            const SizedBox(height: 20),
-            
-            // Tarjeta Equipos Deportivos
-            _buildManagementCard(
-              context,
-              title: 'Equipos Deportivos',
-              subtitle: 'Gestionar material deportivo y equipos',
-              icon: Icons.sports_baseball,
-              color: Colors.orange,
-              onTap: () => _navigateToEquiposDeportivos(context),
-              available: true, // ← CAMBIADO A true
-            ),
-          ],
+              const SizedBox(height: 10),
+              const Text(
+                'Selecciona el apartado que deseas gestionar',
+                style: TextStyle(fontSize: 16, color: Colors.black87),
+              ),
+              const SizedBox(height: 30),
+
+              // 👇 NUEVA TARJETA – Reservas activas (Admin)
+              _buildManagementCard(
+                context,
+                title: 'Reservas activas',
+                subtitle: 'Ver tiempo restante y finalizar/liberar',
+                icon: Icons.schedule,
+                color: Colors.purple,
+                onTap: () => _navigateToReservasActivas(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              // Tarjeta Cubículos
+              _buildManagementCard(
+                context,
+                title: 'Cubículos de Estudio',
+                subtitle: 'Gestionar espacios individuales o grupales',
+                icon: Icons.meeting_room,
+                color: const Color(0xFF0033A0),
+                onTap: () => _navigateToCubiculos(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              // Tarjeta Consolas
+              _buildManagementCard(
+                context,
+                title: 'Consolas y Juegos',
+                subtitle: 'Gestionar equipos del Centro de Diseño Digital',
+                icon: Icons.gamepad,
+                color: Colors.green,
+                onTap: () => _navigateToConsolas(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              // Tarjeta Equipos Deportivos
+              _buildManagementCard(
+                context,
+                title: 'Equipos Deportivos',
+                subtitle: 'Gestionar material deportivo y equipos',
+                icon: Icons.sports_baseball,
+                color: Colors.orange,
+                onTap: () => _navigateToEquiposDeportivos(context),
+                available: true,
+              ),
+            ],
+          ),
         ),
       ),
     );
