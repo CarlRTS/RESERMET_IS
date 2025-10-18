@@ -4,6 +4,7 @@ import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
+import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormEquipment extends StatefulWidget {
@@ -54,8 +55,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     try {
       final equipos = await _equipoService.getEquiposDeportivos();
 
-      final equiposDisponibles =
-          equipos.where((equipo) => equipo.cantidadDisponible > 0).toList();
+      final equiposDisponibles = equipos
+          .where((equipo) => equipo.cantidadDisponible > 0)
+          .toList();
 
       setState(() {
         _equiposDisponibles = equiposDisponibles;
@@ -129,7 +131,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     );
   }
 
-  // ====== CREAR RESERVA (UTC, sin 'rango', sin tocar articulo.estado) ======
+  // ====== CREAR RESERVA CON TOASTS ======
   Future<void> _crearReserva() async {
     if (_equipoSeleccionado == null) {
       _mostrarError('Por favor selecciona un equipo');
@@ -147,6 +149,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       return;
     }
 
+    // ✅ Mostrar toast de carga
+    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
     try {
@@ -179,10 +183,36 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      _mostrarConfirmacion();
+      // ✅ Cerrar toast de carga y mostrar éxito
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationSuccess(
+        context,
+        _equipoSeleccionado!.nombre,
+      );
+
+      // Esperar un poco para que el usuario vea el toast de éxito
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
+      // ✅ Cerrar toast de carga y mostrar error
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error de conexión con la base de datos',
+      );
+
+      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
+      // ✅ Cerrar toast de carga y mostrar error genérico
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error inesperado al procesar la reserva',
+      );
+
+      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -205,28 +235,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     }
   }
 
-  void _mostrarConfirmacion() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Reserva Confirmada'),
-          content: Text(
-            'Has reservado ${_equipoSeleccionado?.nombre} para el $_fechaFormateada a las ${_timeController.text}',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Regresar a pantalla anterior
-              },
-              child: const Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // ❌ ELIMINADO: _mostrarConfirmacion() - Ahora usamos toasts
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +327,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                prefixIcon: const Icon(Icons.sports_tennis_sharp),
+                                prefixIcon: const Icon(
+                                  Icons.sports_tennis_sharp,
+                                ),
                                 filled: true,
                                 fillColor: Colors.grey.shade50,
                               ),
@@ -326,20 +337,29 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 return DropdownMenuItem<EquipoDeportivo>(
                                   value: equipo,
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
                                         equipo.nombre,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       Text(
                                         'Tipo: ${equipo.tipoEquipo}',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
                                       ),
                                       Text(
                                         'Disponibles: ${equipo.cantidadDisponible}',
-                                        style: TextStyle(fontSize: 12, color: Colors.green.shade600),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.green.shade600,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -348,8 +368,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               onChanged: (newValue) => setState(() {
                                 _equipoSeleccionado = newValue;
                               }),
-                              validator: (value) =>
-                                  value == null ? 'Por favor selecciona un equipo' : null,
+                              validator: (value) => value == null
+                                  ? 'Por favor selecciona un equipo'
+                                  : null,
                             ),
                         ],
                       ),
@@ -386,8 +407,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   color: Colors.red.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child:
-                                    const Icon(Icons.sports_tennis_sharp, color: Colors.lightBlue),
+                                child: const Icon(
+                                  Icons.sports_tennis_sharp,
+                                  color: Colors.lightBlue,
+                                ),
                               ),
                               title: Text(
                                 _equipoSeleccionado!.nombre,
@@ -399,11 +422,16 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Tipo: ${_equipoSeleccionado!.tipoEquipo}'),
+                                  Text(
+                                    'Tipo: ${_equipoSeleccionado!.tipoEquipo}',
+                                  ),
                                   Text(
                                     'Disponibles: ${_equipoSeleccionado!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color: _equipoSeleccionado!.cantidadDisponible > 0
+                                      color:
+                                          _equipoSeleccionado!
+                                                  .cantidadDisponible >
+                                              0
                                           ? Colors.green.shade600
                                           : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
@@ -412,7 +440,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   if (_equipoSeleccionado!.cantidadTotal > 0)
                                     Text(
                                       'Total en inventario: ${_equipoSeleccionado!.cantidadTotal}',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
                                     ),
                                 ],
                               ),
@@ -437,7 +468,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.calendar_today, color: Colors.orange, size: 24),
+                              Icon(
+                                Icons.calendar_today,
+                                color: Colors.orange,
+                                size: 24,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'Detalles de la Reserva',
@@ -485,7 +520,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             readOnly: true,
                             onTap: () => _selectTime(context),
                             validator: (value) =>
-                                (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
+                                (value == null || value.isEmpty)
+                                ? 'Por favor selecciona una hora'
+                                : null,
                           ),
 
                           const SizedBox(height: 16),
@@ -503,12 +540,19 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: _duracionesDisponibles
-                                .map((duracion) =>
-                                    DropdownMenuItem(value: duracion, child: Text(duracion)))
+                                .map(
+                                  (duracion) => DropdownMenuItem(
+                                    value: duracion,
+                                    child: Text(duracion),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (newValue) => setState(() => _selectedDuration = newValue),
+                            onChanged: (newValue) =>
+                                setState(() => _selectedDuration = newValue),
                             validator: (value) =>
-                                (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
+                                (value == null || value.isEmpty)
+                                ? 'Por favor selecciona una duración'
+                                : null,
                           ),
 
                           const SizedBox(height: 16),
@@ -518,7 +562,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             controller: _purposeController,
                             decoration: InputDecoration(
                               labelText: 'Actividad o deporte',
-                              hintText: 'Describe la actividad o deporte para el que usarás el equipo...',
+                              hintText:
+                                  'Describe la actividad o deporte para el que usarás el equipo...',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -528,7 +573,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             ),
                             maxLines: 3,
                             validator: (value) =>
-                                (value == null || value.isEmpty) ? 'Por favor describe la actividad' : null,
+                                (value == null || value.isEmpty)
+                                ? 'Por favor describe la actividad'
+                                : null,
                           ),
                         ],
                       ),
@@ -542,11 +589,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed:
-                          _isSubmitting || _equiposDisponibles.isEmpty ? null : _crearReserva,
+                      onPressed: _isSubmitting || _equiposDisponibles.isEmpty
+                          ? null
+                          : _crearReserva,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isSubmitting || _equiposDisponibles.isEmpty ? Colors.grey : Colors.green,
+                            _isSubmitting || _equiposDisponibles.isEmpty
+                            ? Colors.grey
+                            : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

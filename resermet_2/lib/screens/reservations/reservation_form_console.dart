@@ -4,6 +4,7 @@ import 'package:resermet_2/services/consola_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
+import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormConsole extends StatefulWidget {
@@ -53,8 +54,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     try {
       final consolas = await _consolaService.getConsolas();
 
-      final consolasDisponibles =
-          consolas.where((c) => c.cantidadDisponible > 0).toList();
+      final consolasDisponibles = consolas
+          .where((c) => c.cantidadDisponible > 0)
+          .toList();
 
       setState(() {
         _consolasDisponibles = consolasDisponibles;
@@ -127,7 +129,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     );
   }
 
-  // ====== CREAR RESERVA (UTC, sin 'rango', sin tocar articulo.estado) ======
+  // ====== CREAR RESERVA CON TOASTS ======
   Future<void> _crearReserva() async {
     if (_consolaSeleccionada == null) {
       _mostrarError('Por favor selecciona una consola');
@@ -144,6 +146,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       return;
     }
 
+    // ✅ Mostrar toast de carga
+    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
     try {
@@ -176,10 +180,36 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      _mostrarConfirmacion();
+      // ✅ Cerrar toast de carga y mostrar éxito
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationSuccess(
+        context,
+        _consolaSeleccionada!.nombre,
+      );
+
+      // Esperar un poco para que el usuario vea el toast de éxito
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
+      // ✅ Cerrar toast de carga y mostrar error
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error de conexión con la base de datos',
+      );
+
+      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
+      // ✅ Cerrar toast de carga y mostrar error genérico
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error inesperado al procesar la reserva',
+      );
+
+      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -201,35 +231,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  void _mostrarConfirmacion() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Reserva Confirmada'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Has reservado ${_consolaSeleccionada!.nombre}'),
-              Text('Fecha: $_fechaFormateada'),
-              Text('Hora: ${_timeController.text}'),
-              if (_selectedGame != null) Text('Juego: $_selectedGame'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Regresar a pantalla anterior
-              },
-              child: const Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // ❌ ELIMINADO: _mostrarConfirmacion() - Ahora usamos toasts
 
   @override
   Widget build(BuildContext context) {
@@ -287,7 +289,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.sports_esports, color: Colors.green, size: 24),
+                              Icon(
+                                Icons.sports_esports,
+                                color: Colors.green,
+                                size: 24,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'Seleccionar Consola',
@@ -324,15 +330,30 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 return DropdownMenuItem<Consola>(
                                   value: consola,
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(consola.nombre,
-                                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      Text('Modelo: ${consola.modelo}',
-                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                                      Text('Disponibles: ${consola.cantidadDisponible}',
-                                          style: TextStyle(fontSize: 12, color: Colors.green.shade600)),
+                                      Text(
+                                        consola.nombre,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Modelo: ${consola.modelo}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Disponibles: ${consola.cantidadDisponible}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.green.shade600,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 );
@@ -343,8 +364,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   _selectedGame = null;
                                 });
                               },
-                              validator: (value) =>
-                                  value == null ? 'Por favor selecciona una consola' : null,
+                              validator: (value) => value == null
+                                  ? 'Por favor selecciona una consola'
+                                  : null,
                             ),
                         ],
                       ),
@@ -365,9 +387,14 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('📋 Información de la Consola',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
+                            const Text(
+                              '📋 Información de la Consola',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.blue,
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             ListTile(
                               leading: Container(
@@ -376,26 +403,43 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(Icons.sports_esports, color: Colors.blue),
+                                child: const Icon(
+                                  Icons.sports_esports,
+                                  color: Colors.blue,
+                                ),
                               ),
-                              title: Text(_consolaSeleccionada!.nombre,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                              title: Text(
+                                _consolaSeleccionada!.nombre,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Modelo: ${_consolaSeleccionada!.modelo}'),
+                                  Text(
+                                    'Modelo: ${_consolaSeleccionada!.modelo}',
+                                  ),
                                   Text(
                                     'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
                                     style: TextStyle(
-                                      color: _consolaSeleccionada!.cantidadDisponible > 0
+                                      color:
+                                          _consolaSeleccionada!
+                                                  .cantidadDisponible >
+                                              0
                                           ? Colors.green.shade600
                                           : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  Text('Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                  Text(
+                                    'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -419,7 +463,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.calendar_today, color: Colors.orange, size: 24),
+                              Icon(
+                                Icons.calendar_today,
+                                color: Colors.orange,
+                                size: 24,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'Detalles de la Reserva',
@@ -466,7 +514,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             readOnly: true,
                             onTap: () => _selectTime(context),
                             validator: (value) =>
-                                (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
+                                (value == null || value.isEmpty)
+                                ? 'Por favor selecciona una hora'
+                                : null,
                           ),
                           const SizedBox(height: 16),
 
@@ -485,14 +535,19 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: _duracionesDisponibles
-                                .map((duracion) => DropdownMenuItem(
-                                      value: duracion,
-                                      child: Text(duracion),
-                                    ))
+                                .map(
+                                  (duracion) => DropdownMenuItem(
+                                    value: duracion,
+                                    child: Text(duracion),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (newValue) => setState(() => _selectedDuration = newValue),
+                            onChanged: (newValue) =>
+                                setState(() => _selectedDuration = newValue),
                             validator: (value) =>
-                                (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
+                                (value == null || value.isEmpty)
+                                ? 'Por favor selecciona una duración'
+                                : null,
                           ),
                           const SizedBox(height: 16),
 
@@ -510,16 +565,29 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               fillColor: Colors.grey.shade50,
                             ),
                             items: const [
-                              DropdownMenuItem(value: null, child: Text('Ningún juego específico')),
-                              DropdownMenuItem(value: 'FIFA 24', child: Text('FIFA 24')),
+                              DropdownMenuItem(
+                                value: null,
+                                child: Text('Ningún juego específico'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'FIFA 24',
+                                child: Text('FIFA 24'),
+                              ),
                               DropdownMenuItem(
                                 value: 'Call of Duty: Modern Warfare III',
                                 child: Text('Call of Duty: Modern Warfare III'),
                               ),
-                              DropdownMenuItem(value: 'Spider-Man 2', child: Text('Spider-Man 2')),
-                              DropdownMenuItem(value: 'Otro juego', child: Text('Otro juego')),
+                              DropdownMenuItem(
+                                value: 'Spider-Man 2',
+                                child: Text('Spider-Man 2'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Otro juego',
+                                child: Text('Otro juego'),
+                              ),
                             ],
-                            onChanged: (newValue) => setState(() => _selectedGame = newValue),
+                            onChanged: (newValue) =>
+                                setState(() => _selectedGame = newValue),
                           ),
                           const SizedBox(height: 16),
 
@@ -528,7 +596,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             controller: _purposeController,
                             decoration: InputDecoration(
                               labelText: 'Propósito de uso',
-                              hintText: 'Describe para qué usarás la consola...',
+                              hintText:
+                                  'Describe para qué usarás la consola...',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -538,7 +607,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             ),
                             maxLines: 3,
                             validator: (value) =>
-                                (value == null || value.isEmpty) ? 'Por favor describe el propósito de uso' : null,
+                                (value == null || value.isEmpty)
+                                ? 'Por favor describe el propósito de uso'
+                                : null,
                           ),
                         ],
                       ),
@@ -552,11 +623,14 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed:
-                          _isSubmitting || _consolasDisponibles.isEmpty ? null : _crearReserva,
+                      onPressed: _isSubmitting || _consolasDisponibles.isEmpty
+                          ? null
+                          : _crearReserva,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isSubmitting || _consolasDisponibles.isEmpty ? Colors.grey : Colors.green,
+                            _isSubmitting || _consolasDisponibles.isEmpty
+                            ? Colors.grey
+                            : Colors.green,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
