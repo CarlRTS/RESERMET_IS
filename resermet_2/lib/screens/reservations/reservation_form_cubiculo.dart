@@ -3,6 +3,7 @@ import 'package:resermet_2/models/cubiculo.dart';
 import 'package:resermet_2/services/cubiculo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:resermet_2/widgets/horario_picker.dart';
 
 class ReservationFormCubiculo extends StatefulWidget {
   const ReservationFormCubiculo({super.key});
@@ -36,7 +37,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
   bool _isSubmitting = false;
 
   // Opciones de duración
-  final List<String> _durations = ['1 hora', '1.5 horas', '2 horas', '3 horas'];
+  final List<String> _durations = ['30 min', '1 hora', '1.5 horas', '2 horas'];
 
   @override
   void initState() {
@@ -74,23 +75,25 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     }
   }
 
+  // MODIFICADO: Usando HorarioPicker personalizado
   Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
+    await HorarioPicker.mostrarPicker(
       context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-      helpText: 'Selecciona la hora de inicio',
-      confirmText: 'Aceptar',
-      cancelText: 'Cancelar',
+      onHoraSeleccionada: (TimeOfDay selectedTime) {
+        // Esta función se ejecuta cuando se confirma la selección
+        setState(() {
+          _selectedTime = selectedTime;
+          _timeController.text = selectedTime.format(context);
+        });
+      },
+      horaInicial: _selectedTime,
+      titulo: 'Seleccionar Hora de Inicio',
     );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-        _timeController.text = picked.format(context);
-      });
-    }
+
+    // No necesitas hacer nada más aquí porque el callback ya maneja la actualización
   }
 
-  // --- Lógica de Envío (Placeholder) ---
+  // --- Lógica de Envío ---
 
   Future<void> _submitReservation() async {
     if (!_formKey.currentState!.validate() || _cubiculoSeleccionado == null)
@@ -142,14 +145,14 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
   // Método para calcular fecha fin
   DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
     switch (duracion) {
+      case '30 min':
+        return fechaInicio.add(const Duration(minutes: 30));
       case '1 hora':
         return fechaInicio.add(const Duration(hours: 1));
       case '1.5 horas':
         return fechaInicio.add(const Duration(minutes: 90));
       case '2 horas':
         return fechaInicio.add(const Duration(hours: 2));
-      case '3 horas':
-        return fechaInicio.add(const Duration(hours: 3));
       default:
         return fechaInicio.add(const Duration(hours: 1));
     }
@@ -228,7 +231,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 3. Campo de Hora (con selector)
+                      // 3. Campo de Hora (con HorarioPicker personalizado)
                       TextFormField(
                         controller: _timeController,
                         readOnly: true,
@@ -246,7 +249,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                       // 4. Duración
                       DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
-                          labelText: 'Duración (Máx. 3 horas)',
+                          labelText: 'Duración (Máx. 2 horas)',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.timelapse),
                         ),
