@@ -4,7 +4,7 @@ import 'package:resermet_2/services/cubiculo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
-import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
+import 'package:resermet_2/widgets/toastification.dart';
 
 class ReservationFormCubiculo extends StatefulWidget {
   const ReservationFormCubiculo({super.key});
@@ -145,7 +145,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       return;
     }
 
-    // ✅ Mostrar toast de carga
+    //Mostrar toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
@@ -179,7 +179,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // ✅ Cerrar toast de carga y mostrar éxito
+      // Cerrar toast de carga y mostrar éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
@@ -191,7 +191,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
 
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error
+      // Cerrar toast de carga y mostrar error
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
@@ -201,7 +201,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       // También mantener el snackbar original para debugging
       _showSnackbar('Error de Supabase: ${e.message}', Colors.red);
     } catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error genérico
+      // Cerrar toast de carga y mostrar error genérico
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
