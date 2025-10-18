@@ -24,7 +24,9 @@ class AdminHomeScreen extends StatelessWidget {
   void _navigateToEquiposDeportivos(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const EquiposListScreen()), // ← ACTUALIZADO
+      MaterialPageRoute(
+        builder: (context) => const EquiposListScreen(),
+      ), // ← ACTUALIZADO
     );
   }
 
@@ -56,7 +58,7 @@ class AdminHomeScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16, color: Colors.black87),
             ),
             const SizedBox(height: 30),
-            
+
             // Tarjeta Cubículos
             _buildManagementCard(
               context,
@@ -68,7 +70,7 @@ class AdminHomeScreen extends StatelessWidget {
               available: true,
             ),
             const SizedBox(height: 20),
-            
+
             // Tarjeta Consolas
             _buildManagementCard(
               context,
@@ -80,7 +82,7 @@ class AdminHomeScreen extends StatelessWidget {
               available: true,
             ),
             const SizedBox(height: 20),
-            
+
             // Tarjeta Equipos Deportivos
             _buildManagementCard(
               context,
@@ -108,9 +110,7 @@ class AdminHomeScreen extends StatelessWidget {
   }) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         contentPadding: const EdgeInsets.all(20),
         leading: Container(

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:resermet_2/models/equipo_deportivo.dart';
 import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
+import 'package:resermet_2/widgets/horario_picker.dart';
+import 'package:resermet_2/widgets/horario_picker_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 
 class ReservationFormEquipment extends StatefulWidget {
   const ReservationFormEquipment({super.key});
@@ -18,17 +19,27 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   final EquipoDeportivoService _equipoService = EquipoDeportivoService();
 
   // Controladores para los campos de texto
-  final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
-
 
   // Variables para equipos deportivos reales
   List<EquipoDeportivo> _equiposDisponibles = [];
   EquipoDeportivo? _equipoSeleccionado;
-  DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
+
+  //Lista dinámica de duraciones disponibles
+  List<String> _duracionesDisponibles = [
+    '30 min',
+    '1 hora',
+    '1.5 horas',
+    '2 horas',
+  ];
+
+  //Fecha automática
+  DateTime get _fechaActual => DateTime.now();
+  String get _fechaFormateada =>
+      "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
 
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -69,42 +80,64 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   @override
   void dispose() {
-    _dateController.dispose();
     _timeController.dispose();
     _purposeController.dispose();
     super.dispose();
   }
 
-  // Método para seleccionar fecha
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-    );
+  //Actualizar duraciones disponibles según la hora
+  void _actualizarDuracionesDisponibles() {
+    if (_selectedTime == null) return;
 
-    if (picked != null && picked != _selectedDate) {
+    final int totalMinutos = _selectedTime!.hour * 60 + _selectedTime!.minute;
+
+    // Aplicar reglas de restricción
+    if (totalMinutos > 16 * 60) {
+      // 4:00 PM o después
       setState(() {
-        _selectedDate = picked;
-        _dateController.text = "${picked.day}/${picked.month}/${picked.year}";
+        _duracionesDisponibles = ['30 min'];
+      });
+    } else if (totalMinutos > 15 * 60 + 30) {
+      // 3:30 PM o después
+      setState(() {
+        _duracionesDisponibles = ['30 min', '1 hora'];
+      });
+    } else if (totalMinutos > 15 * 60) {
+      // 3:00 PM o después
+      setState(() {
+        _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas'];
+      });
+    } else {
+      setState(() {
+        _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas', '2 horas'];
+      });
+    }
+
+    // Si la duración actual no está disponible, resetearla
+    if (!_duracionesDisponibles.contains(_selectedDuration)) {
+      setState(() {
+        _selectedDuration = null;
       });
     }
   }
 
-  // Método para seleccionar hora
+  //Método para seleccionar hora con HorarioPicker
   Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
+    HorarioPicker.mostrarPicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      horaInicial: _selectedTime ?? TimeOfDay.now(),
+      titulo: 'Seleccionar Hora',
+      colorTitulo: AppColors.unimetBlue,
+      colorHoraSeleccionada: AppColors.unimetBlue,
+      onHoraSeleccionada: (picked) {
+        setState(() {
+          _selectedTime = picked;
+          _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
+        });
+        // LLAMAR AL MÉTODO PARA ACTUALIZAR DURACIONES
+        _actualizarDuracionesDisponibles();
+      },
     );
-
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-        _timeController.text = picked.format(context);
-      });
-    }
   }
 
   // Método para mostrar errores
@@ -121,10 +154,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       return;
     }
 
-    if (_selectedDate == null ||
-        _selectedTime == null ||
-        _selectedDuration == null) {
-      _mostrarError('Por favor completa todos los campos de fecha y hora');
+    // Solo validar hora y duración (fecha es automática)
+    if (_selectedTime == null || _selectedDuration == null) {
+      _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
 
@@ -133,11 +165,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     });
 
     try {
-      // Calcular fecha y hora de inicio y fin
+      // Usar _fechaActual automáticamente
       final fechaInicio = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
+        _fechaActual.year,
+        _fechaActual.month,
+        _fechaActual.day,
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
@@ -195,7 +227,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         return AlertDialog(
           title: const Text('Reserva Confirmada'),
           content: Text(
-            'Has reservado ${_equipoSeleccionado?.nombre} para el ${_dateController.text} a las ${_timeController.text}',
+            'Has reservado ${_equipoSeleccionado?.nombre} para el $_fechaFormateada a las ${_timeController.text}',
           ),
           actions: [
             TextButton(
@@ -465,31 +497,25 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Campo de fecha
+                          // Campo de fecha automática
                           TextFormField(
-                            controller: _dateController,
+                            initialValue: _fechaFormateada,
                             decoration: InputDecoration(
                               labelText: 'Fecha de reserva',
-                              hintText: 'Selecciona la fecha',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              suffixIcon: const Icon(Icons.calendar_today),
+                              prefixIcon: const Icon(Icons.calendar_today),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: Colors.grey.shade100,
                             ),
-                            onTap: () => _selectDate(context),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor selecciona una fecha';
-                              }
-                              return null;
-                            },
+                            readOnly: true,
+                            enabled: false, // Totalmente no editable
                           ),
 
                           const SizedBox(height: 16),
 
-                          // Campo de hora
+                          // Campo de hora con HorarioPicker
                           TextFormField(
                             controller: _timeController,
                             decoration: InputDecoration(
@@ -502,6 +528,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
+                            readOnly: true, //Solo lectura
                             onTap: () => _selectTime(context),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -513,7 +540,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                           const SizedBox(height: 16),
 
-                          // Dropdown de duración
+                          // Dropdown de duración (ahora usa lista dinámica)
                           DropdownButtonFormField<String>(
                             value: _selectedDuration,
                             decoration: InputDecoration(
@@ -525,24 +552,13 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: '30 min',
-                                child: Text('30 minutos'),
-                              ),
-                              DropdownMenuItem(
-                                value: '1 hora',
-                                child: Text('1 hora'),
-                              ),
-                              DropdownMenuItem(
-                                value: '1.5 horas',
-                                child: Text('1.5 horas'),
-                              ),
-                              DropdownMenuItem(
-                                value: '2 horas',
-                                child: Text('2 horas'),
-                              ),
-                            ],
+                            //  Usar _duracionesDisponibles en lugar de lista fija
+                            items: _duracionesDisponibles.map((duracion) {
+                              return DropdownMenuItem(
+                                value: duracion,
+                                child: Text(duracion),
+                              );
+                            }).toList(),
                             onChanged: (newValue) {
                               setState(() {
                                 _selectedDuration = newValue;
