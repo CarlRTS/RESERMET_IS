@@ -231,7 +231,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // ❌ ELIMINADO: _mostrarConfirmacion() - Ahora usamos toasts
+
 
   @override
   Widget build(BuildContext context) {
