@@ -4,6 +4,7 @@ import 'package:resermet_2/services/cubiculo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
+import 'package:resermet_2/widgets/toastification.dart';
 
 class ReservationFormCubiculo extends StatefulWidget {
   const ReservationFormCubiculo({super.key});
@@ -154,10 +155,10 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       return;
     }
 
+    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
     try {
-      // Usar _fechaActual automáticamente
       final fechaInicio = DateTime(
         _fechaActual.year,
         _fechaActual.month,
@@ -166,10 +167,8 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
         _selectedTime!.minute,
       );
 
-      // Calcular fecha fin basado en la duración seleccionada
       final fechaFin = _calcularFechaFin(fechaInicio, _selectedDuration!);
 
-      // Crear objeto de reserva
       final reservaData = {
         'id_articulo': _cubiculoSeleccionado!.idObjeto,
         'id_usuario': Supabase.instance.client.auth.currentUser?.id,
@@ -180,18 +179,29 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
         'estado': 'activa',
       };
 
-      // Insertar en la base de datos
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      _showSnackbar(
-        'Reserva de ${_cubiculoSeleccionado!.nombre} enviada para aprobación.',
-        Colors.green,
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationSuccess(
+        context,
+        _cubiculoSeleccionado!.nombre,
       );
+
+      await Future.delayed(const Duration(seconds: 2));
+
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      _showSnackbar('Error de Supabase: ${e.message}', Colors.red);
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error de conexión: ${e.message}',
+      );
     } catch (e) {
-      _showSnackbar('Error al procesar reserva: $e', Colors.red);
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error: ${e.toString()}',
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

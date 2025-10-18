@@ -10,8 +10,8 @@ class ReservationToastService {
     toastification.show(
       context: context,
       type: ToastificationType.success,
-      style: ToastificationStyle.flatColored,
-      title: const Text('Reserva Confirmada 🎉'),
+      style: ToastificationStyle.fillColored,
+      title: const Text('Reserva Confirmada'),
       description: Text('Cubículo "$cubiculoNombre" reservado exitosamente'),
       autoCloseDuration: const Duration(seconds: 5),
       showProgressBar: true,
