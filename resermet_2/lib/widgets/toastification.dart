@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:resermet_2/utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 
 class ReservationToastService {
@@ -16,10 +17,15 @@ class ReservationToastService {
       autoCloseDuration: const Duration(seconds: 5),
       showProgressBar: true,
       borderRadius: BorderRadius.circular(12),
-      primaryColor: Colors.green,
+      primaryColor: AppColors.toastificationGreen,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       alignment: Alignment.topRight,
       animationDuration: const Duration(milliseconds: 300),
+      icon: const Icon(
+        Icons.check_circle_outline,
+        color: Colors.white,
+        size: 24,
+      ),
     );
   }
 

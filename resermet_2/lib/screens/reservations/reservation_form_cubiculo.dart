@@ -4,6 +4,7 @@ import 'package:resermet_2/services/cubiculo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
+import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
 
 class ReservationFormCubiculo extends StatefulWidget {
   const ReservationFormCubiculo({super.key});
@@ -93,8 +94,9 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     try {
       final cubiculos = await _cubiculoService.getCubiculos();
       setState(() {
-        _cubiculosDisponibles =
-            cubiculos.where((c) => c.estado == 'disponible').toList();
+        _cubiculosDisponibles = cubiculos
+            .where((c) => c.estado == 'disponible')
+            .toList();
         _isLoading = false;
         if (_cubiculosDisponibles.isNotEmpty) {
           _cubiculoSeleccionado = _cubiculosDisponibles.first;
@@ -117,8 +119,9 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
 
           // Asegurar que la duración elegida siga siendo válida
           if (!_durationsAvailable.contains(_selectedDuration)) {
-            _selectedDuration =
-                _durationsAvailable.isNotEmpty ? _durationsAvailable.first : null;
+            _selectedDuration = _durationsAvailable.isNotEmpty
+                ? _durationsAvailable.first
+                : null;
           }
         });
       },
@@ -127,7 +130,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     );
   }
 
-  // ====== ENVIAR RESERVA (UTC, sin 'rango', sin tocar articulo.estado) ======
+  // ====== ENVIAR RESERVA CON TOASTS ======
   Future<void> _submitReservation() async {
     if (!_formKey.currentState!.validate() ||
         _cubiculoSeleccionado == null ||
@@ -142,6 +145,8 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       return;
     }
 
+    // ✅ Mostrar toast de carga
+    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
     try {
@@ -174,14 +179,36 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      _showSnackbar(
-        'Reserva de ${_cubiculoSeleccionado!.nombre} enviada.',
-        Colors.green,
+      // ✅ Cerrar toast de carga y mostrar éxito
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationSuccess(
+        context,
+        _cubiculoSeleccionado!.nombre,
       );
+
+      // Esperar un poco para que el usuario vea el toast de éxito
+      await Future.delayed(const Duration(seconds: 2));
+
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
+      // ✅ Cerrar toast de carga y mostrar error
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error de conexión con la base de datos',
+      );
+
+      // También mantener el snackbar original para debugging
       _showSnackbar('Error de Supabase: ${e.message}', Colors.red);
     } catch (e) {
+      // ✅ Cerrar toast de carga y mostrar error genérico
+      ReservationToastService.dismissAll();
+      ReservationToastService.showReservationError(
+        context,
+        'Error inesperado al procesar la reserva',
+      );
+
+      // También mantener el snackbar original para debugging
       _showSnackbar('Error al procesar reserva: $e', Colors.red);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -204,16 +231,18 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
   }
 
   void _showSnackbar(String message, Color color) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   String get _duracionLabelText {
     if (_selectedTime == null) return 'Duración (Máx. 2 horas)';
-    final maxDuracion =
-        _durationsAvailable.isNotEmpty ? _durationsAvailable.last : 'No disponible';
+    final maxDuracion = _durationsAvailable.isNotEmpty
+        ? _durationsAvailable.last
+        : 'No disponible';
     return 'Duración (Máx. $maxDuracion)';
-    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +261,10 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                     children: [
                       const Text(
                         'Formulario de Reserva de Cubículo',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 15),
 
@@ -299,8 +331,8 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                         value: _durationsAvailable.contains(_selectedDuration)
                             ? _selectedDuration
                             : (_durationsAvailable.isNotEmpty
-                                ? _durationsAvailable.first
-                                : null),
+                                  ? _durationsAvailable.first
+                                  : null),
                         items: _durationsAvailable.map((String duration) {
                           return DropdownMenuItem<String>(
                             value: duration,
@@ -344,7 +376,11 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.info, color: Colors.lightBlue, size: 20),
+                                Icon(
+                                  Icons.info,
+                                  color: Colors.lightBlue,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Información importante',
@@ -361,7 +397,10 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                               '• El tiempo máximo de reserva es de 2 horas.\n'
                               '• Horario disponible: 7:00 AM - 5:00 PM\n'
                               '• Debes presentar tu carnet al ocupar el cubículo.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
@@ -384,7 +423,9 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                                 )
                               : const Icon(Icons.check_circle_outline),
                           label: Text(
-                            _isSubmitting ? 'Procesando...' : 'Solicitar Reserva',
+                            _isSubmitting
+                                ? 'Procesando...'
+                                : 'Solicitar Reserva',
                             style: const TextStyle(fontSize: 18),
                           ),
                           style: ElevatedButton.styleFrom(
