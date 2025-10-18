@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_colors.dart';
+import '../widgets/toastification_log.dart'; // Nueva importación
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,7 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _telefonoController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -59,7 +60,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _registrarUsuarioCompleto() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Si la validación falla (campos vacíos o inválidos)
+      LoginToastService.showRegistrationError(context);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -101,37 +106,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
 
-      // Mensaje de verificación de correo
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Registro exitoso! Verifica tu correo para activar la cuenta.',
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      // Toast de registro exitoso
+      LoginToastService.showRegistrationSuccess(context);
 
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.of(context).pop();
-    } on AuthException catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Registro exitoso! Verifica tu correo para activar la cuenta.',
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) Navigator.of(context).pop();
+    } on AuthException catch (e) {
+      // Manejo específico de errores de autenticación
+      if (e.message.contains('User already registered')) {
+        LoginToastService.showRegistrationError(
+          context,
+          message: 'Este correo ya está registrado',
+        );
+      } else {
+        // Si es otro error de Auth, mostramos registro exitoso (por el flujo de verificación)
+        LoginToastService.showRegistrationSuccess(context);
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) Navigator.of(context).pop();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.red,
-        ),
+      // Error inesperado
+      LoginToastService.showRegistrationError(
+        context,
+        message: 'Error inesperado: $e',
       );
     } finally {
       setState(() => _isLoading = false);
@@ -212,8 +209,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (value == null || value.isEmpty) {
                             return 'El nombre es obligatorio';
                           }
-                          if (!RegExp(r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$")
-                              .hasMatch(value)) {
+                          if (!RegExp(
+                            r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$",
+                          ).hasMatch(value)) {
                             return 'Solo se permiten letras (incluye acentos y ñ)';
                           }
                           return null;
@@ -235,8 +233,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (value == null || value.isEmpty) {
                             return 'El apellido es obligatorio';
                           }
-                          if (!RegExp(r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$")
-                              .hasMatch(value)) {
+                          if (!RegExp(
+                            r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$",
+                          ).hasMatch(value)) {
                             return 'Solo se permiten letras (incluye acentos y ñ)';
                           }
                           return null;
@@ -308,8 +307,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             labelText: 'Carrera',
                             prefixIcon: Icon(Icons.school),
                             border: OutlineInputBorder(
-                              borderRadius:
-                              BorderRadius.all(Radius.circular(10)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
                             ),
                           ),
                           items: _carreras.map((carrera) {
@@ -334,8 +334,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           labelText: 'Contraseña (mín. 6 chars)',
                           prefixIcon: const Icon(Icons.lock),
                           border: const OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.all(Radius.circular(10)),
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -369,8 +368,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           labelText: 'Confirmar Contraseña',
                           prefixIcon: const Icon(Icons.lock_reset),
                           border: const OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.all(Radius.circular(10)),
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
                           ),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -382,7 +380,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () {
                               setState(() {
                                 _obscureConfirmPassword =
-                                !_obscureConfirmPassword;
+                                    !_obscureConfirmPassword;
                               });
                             },
                           ),
@@ -402,7 +400,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                       //  Botón Registrar
                       ElevatedButton(
-                        onPressed: _isLoading ? null : _registrarUsuarioCompleto,
+                        onPressed: _isLoading
+                            ? null
+                            : _registrarUsuarioCompleto,
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size.fromHeight(50),
                           backgroundColor: AppColors.unimetBlue,
@@ -412,11 +412,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         child: _isLoading
                             ? const CircularProgressIndicator(
-                            color: Colors.white)
+                                color: Colors.white,
+                              )
                             : const Text(
-                          'CREAR CUENTA',
-                          style: TextStyle(fontSize: 18),
-                        ),
+                                'CREAR CUENTA',
+                                style: TextStyle(fontSize: 18),
+                              ),
                       ),
                     ],
                   ),
@@ -429,5 +430,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-
-
