@@ -23,12 +23,13 @@ class Reserva {
   factory Reserva.fromSupabase(Map<String, dynamic> json, Articulo articulo) {
     return Reserva(
       idReserva: json['id_reserva'] as int,
-      userId: json['user_id'] as String,
+      userId: json['id_usuario'] as String,
       articulo: articulo,
-      // Convertir a DateTime y asegurar que está en zona horaria local
-      fechaInicio: DateTime.parse(json['fecha_inicio'] as String).toLocal(),
-      fechaFin: DateTime.parse(json['fecha_fin'] as String).toLocal(),
-      proposito: json['proposito'] as String,
+
+      fechaInicio: DateTime.parse(json['inicio'] as String).toLocal(),
+      fechaFin: DateTime.parse(json['fin'] as String).toLocal(),
+
+      proposito: json['compromiso_estudiante'] as String,
       estado: json['estado'] as String,
     );
   }
@@ -37,11 +38,10 @@ class Reserva {
   Map<String, dynamic> toJson() {
     return {
       'id_articulo': articulo.idObjeto,
-      'user_id': userId,
-      // Usar toUtc() para asegurar que la fecha se guarda correctamente en la base de datos (PostgreSQL/Supabase)
-      'fecha_inicio': fechaInicio.toUtc().toIso8601String(),
-      'fecha_fin': fechaFin.toUtc().toIso8601String(),
-      'proposito': proposito,
+      'id_usuario': userId,
+      'inicio': fechaInicio.toUtc().toIso8601String(),
+      'fin': fechaFin.toUtc().toIso8601String(),
+      'compromiso_estudiante': proposito,
       'estado': estado,
     };
   }

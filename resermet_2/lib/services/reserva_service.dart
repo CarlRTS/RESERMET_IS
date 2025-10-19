@@ -44,7 +44,8 @@ class ReservaService with BaseService {
   // API de usuario
   // -------------------------------------------------
 
-  /// Devuelve las reservas del usuario autenticado con el Articulo cargado.
+  /// Devuelve las reservas de todo el sistema.
+  /// ⚠️ ADVERTENCIA: Devuelve TODAS las reservas (sin filtro de usuario).
   Future<List<Reserva>> getMyReservations() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return [];
@@ -53,7 +54,7 @@ class ReservaService with BaseService {
       final response = await supabase
           .from('reserva')
           .select('*')
-          .eq('id_usuario', userId) // columna en BD
+      // Filtro removido para la planificación global
           .order('inicio', ascending: false);
 
       final List<Reserva> reservas = [];
@@ -92,6 +93,36 @@ class ReservaService with BaseService {
     }
   }
 
+  //  NUEVA FUNCIÓN PARA OBTENER EL CONTEO DE RESERVAS ACTIVAS EN UN RANGO
+  // Devuelve el número de reservas activas para un artículo que se solapan
+  // con el rango de tiempo (inicio/fin) proporcionado.
+  Future<int> getActiveReservationsCount({
+    required int idArticulo,
+    required DateTime inicio,
+    required DateTime fin,
+  }) async {
+    try {
+      final inicioIso = inicio.toUtc().toIso8601String();
+      final finIso = fin.toUtc().toIso8601String();
+
+      final response = await supabase
+          .from('reserva')
+          .select('id_reserva')
+          .eq('id_articulo', idArticulo)
+          .eq('estado', 'activa')
+          .lt('inicio', finIso)
+          .gt('fin', inicioIso);
+
+      return (response as List).length;
+    } on PostgrestException catch (e) {
+      print('Error de BD al calcular las reservas activas: ${e.message}');
+      rethrow;
+    } catch (e) {
+      print('Error al calcular las reservas activas: $e');
+      rethrow;
+    }
+  }
+
   // -------------------------------------------------
   // API de administración
   // -------------------------------------------------
@@ -102,9 +133,9 @@ class ReservaService with BaseService {
     final data = await supabase
         .from('reserva')
         .select(
-          // incluye nombre del artículo por relación supabase
-          'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
-        )
+      // incluye nombre del artículo por relación supabase
+      'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
+    )
         .eq('estado', 'activa')
         .order('fin', ascending: true);
 
