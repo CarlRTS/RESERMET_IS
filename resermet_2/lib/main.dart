@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart'; // ← Contiene MainScreen
 import 'screens/login.dart'; // ← Tu pantalla de login
-import 'utils/app_colors.dart';
+import 'package:resermet_2/ui/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,32 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'RESERMET',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: AppColors.unimetBlue,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.unimetBlue,
-          primary: AppColors.unimetBlue,
-          secondary: AppColors.unimetOrange,
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.unimetOrange,
-          foregroundColor: Colors.white,
-          centerTitle: true,
-          elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.unimetBlue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
       home: const AuthGate(), // 👈 Maneja si hay sesión o no
     );
   }

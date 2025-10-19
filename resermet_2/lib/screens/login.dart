@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
-import '../utils/app_colors.dart';
+import 'package:resermet_2/ui/theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,6 +32,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final supabase = Supabase.instance.client;
+    final cs = Theme.of(context).colorScheme;
+
+    void _showSnack(String msg, {Color? bg}) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: bg));
+    }
 
     try {
       final response = await supabase.auth.signInWithPassword(
@@ -42,48 +49,24 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
 
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuario no registrado.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnack('Usuario no registrado.', bg: cs.error);
       } else if (user.emailConfirmedAt == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Debes confirmar tu correo antes de iniciar sesión.'),
-            backgroundColor: Colors.orange,
-          ),
+        _showSnack(
+          'Debes confirmar tu correo antes de iniciar sesión.',
+          bg: cs.tertiary,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Bienvenido ${user.email}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        _showSnack('¡Bienvenido ${user.email}!', bg: cs.primary);
       }
     } on AuthException catch (e) {
-      String errorMessage;
-
-      if (e.message.contains('Invalid login credentials') ||
-          e.message.contains('Email not confirmed')) {
-        errorMessage = 'Credenciales incorrectas o correo no confirmado.';
-      } else {
-        errorMessage = 'Error: ${e.message}';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-      );
+      final msg =
+          (e.message.contains('Invalid login credentials') ||
+              e.message.contains('Email not confirmed'))
+          ? 'Credenciales incorrectas o correo no confirmado.'
+          : 'Error: ${e.message}';
+      _showSnack(msg, bg: cs.error);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Error inesperado: $e', bg: cs.error);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -98,132 +81,179 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Iniciar Sesión Resermet')),
-      body: Center(
+      // Fondo con degradado
+      body: Container(
+        decoration: BoxDecoration(color: UnimetPalette.base),
+        alignment: Alignment.center,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: AutofillGroup(
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(30.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.school_outlined,
-                        size: 90,
-                        color: AppColors.unimetBlue,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Resermet - UNIMET',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.unimetBlue,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-
-                      //  Correo
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo UNIMET',
-                          prefixIcon: Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.all(Radius.circular(10)),
-                          ),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [
-                          AutofillHints.username,
-                          AutofillHints.email
-                        ],
-                        validator: (value) {
-                          if (value == null || value.isEmpty)
-                            return 'Ingrese su correo UNIMET';
-                          final correo = value.toLowerCase();
-                          if (!correo.endsWith('@correo.unimet.edu.ve') &&
-                              !correo.endsWith('@unimet.edu.ve'))
-                            return 'Use su correo institucional';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      //  Contraseña
-                      TextFormField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                          labelText: 'Contraseña',
-                          prefixIcon: const Icon(Icons.lock),
-                          border: const OutlineInputBorder(
-                            borderRadius:
-                            BorderRadius.all(Radius.circular(10)),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureText
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: AppColors.unimetOrange,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: AutofillGroup(
+                  child: Card(
+                    elevation: 1.5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: cs.outlineVariant),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Header
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: cs.primary.withOpacity(0.10),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: cs.primary.withOpacity(0.25),
+                              ),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureText = !_obscureText;
-                              });
+                            child: Icon(
+                              Icons.school_outlined,
+                              size: 36,
+                              color: cs.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Resermet · UNIMET',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ingresa con tu correo institucional',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: cs.onSurface.withOpacity(.75),
+                                ),
+                          ),
+                          const SizedBox(height: 22),
+
+                          //  Correo
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: const InputDecoration(
+                              labelText: 'Correo Institucional',
+                              prefixIcon: Icon(Icons.email),
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [
+                              AutofillHints.username,
+                              AutofillHints.email,
+                            ],
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Ingrese su correo institucional';
+                              final correo = value.toLowerCase();
+                              if (!correo.endsWith('@correo.unimet.edu.ve') &&
+                                  !correo.endsWith('@unimet.edu.ve')) {
+                                return 'Use su correo institucional';
+                              }
+                              return null;
                             },
                           ),
-                        ),
-                        obscureText: _obscureText,
-                        autofillHints: const [AutofillHints.password],
-                        validator: (value) {
-                          if (value == null || value.length < 6)
-                            return 'Ingrese una contraseña válida';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 30),
+                          const SizedBox(height: 14),
 
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _loginUser,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                          backgroundColor: AppColors.unimetBlue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          //  Contraseña
+                          TextFormField(
+                            controller: _passwordController,
+                            decoration: InputDecoration(
+                              labelText: 'Contraseña',
+                              prefixIcon: const Icon(Icons.lock),
+                              suffixIcon: GestureDetector(
+                                onTap: () => setState(
+                                  () => _obscureText = !_obscureText,
+                                ),
+                                child: Icon(
+                                  _obscureText
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: cs.primary,
+                                ),
+                              ),
+                            ),
+                            obscureText: _obscureText,
+                            autofillHints: const [AutofillHints.password],
+                            validator: (value) {
+                              if (value == null || value.length < 6)
+                                return 'Ingrese una contraseña válida';
+                              return null;
+                            },
                           ),
-                        ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(
-                            color: Colors.white)
-                            : const Text(
-                          'INICIAR SESIÓN',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                          const SizedBox(height: 20),
+                          // CTA
+                          FilledButton(
+                            onPressed: _isLoading ? null : _loginUser,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(50),
+                              shape: const StadiumBorder(),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('INICIAR SESIÓN'),
+                          ),
+                          const SizedBox(height: 12),
 
-                      TextButton(
-                        onPressed: _goToRegister,
-                        child: Text(
-                          '¿No tienes cuenta? Regístrate aquí',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.unimetOrange,
+                          // Enlace a registro (naranja/acento)
+                          TextButton(
+                            onPressed: _goToRegister,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: RichText(
+                              text: TextSpan(
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.copyWith(fontSize: 15),
+                                children: const [
+                                  TextSpan(
+                                    text: '¿No tienes cuenta?',
+                                    style: TextStyle(
+                                      color: UnimetPalette.primary,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: ' Regístrate aquí',
+                                    style: TextStyle(
+                                      color: UnimetPalette.accent,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+
+                          // Espaciado inferior
+                          SizedBox(height: tokens.paddingMD.bottom),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),

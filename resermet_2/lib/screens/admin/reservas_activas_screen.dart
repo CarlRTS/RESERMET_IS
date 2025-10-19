@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:resermet_2/services/reserva_service.dart';
-import 'package:resermet_2/utils/app_colors.dart';
+import 'package:resermet_2/ui/theme/app_theme.dart';
 
 class ReservasActivasScreen extends StatefulWidget {
   const ReservasActivasScreen({super.key});
@@ -67,8 +67,14 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
           '¿Confirmas finalizar esta reserva? Esta acción marcará la reserva como "finalizada".',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Finalizar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Finalizar'),
+          ),
         ],
       ),
     );
@@ -79,14 +85,20 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
       await _reservaService.finalizarReserva(idReserva: idReserva);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reserva finalizada'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Reserva finalizada'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
       await _fetch();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al finalizar: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error al finalizar: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -165,7 +177,7 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.unimetBlue,
+                      color: UnimetPalette.primary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -230,16 +242,21 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(n > 0
-              ? 'Se finalizaron $n reservas vencidas.'
-              : 'No hay reservas vencidas por finalizar.'),
+          content: Text(
+            n > 0
+                ? 'Se finalizaron $n reservas vencidas.'
+                : 'No hay reservas vencidas por finalizar.',
+          ),
         ),
       );
       await _fetch();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sincronizando vencidas: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error sincronizando vencidas: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -251,63 +268,73 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reservas activas'),
-        backgroundColor: AppColors.unimetBlue,
+        backgroundColor: UnimetPalette.primary,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             tooltip: 'Sincronizar vencidas',
             onPressed: _syncVencidas,
-            icon: const Icon(Icons.sync)),
+            icon: const Icon(Icons.sync),
+          ),
           IconButton(
             tooltip: 'Recargar',
             onPressed: _fetch,
-            icon: const Icon(Icons.refresh)),
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 40,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(_errorMsg ?? 'Error'),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _fetch,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _fetch,
+              child: _reservas.isEmpty
+                  ? ListView(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                        const SizedBox(height: 80),
+                        Icon(
+                          Icons.inbox_outlined,
+                          size: 56,
+                          color: theme.disabledColor,
+                        ),
                         const SizedBox(height: 8),
-                        Text(_errorMsg ?? 'Error'),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: _fetch,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Reintentar'),
+                        Center(
+                          child: Text(
+                            'No hay reservas activas',
+                            style: TextStyle(color: theme.disabledColor),
+                          ),
                         ),
                       ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _reservas.length,
+                      itemBuilder: (_, i) => _buildReservaCard(_reservas[i]),
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _fetch,
-                  child: _reservas.isEmpty
-                      ? ListView(
-                          children: [
-                            const SizedBox(height: 80),
-                            Icon(Icons.inbox_outlined, size: 56, color: theme.disabledColor),
-                            const SizedBox(height: 8),
-                            Center(
-                              child: Text(
-                                'No hay reservas activas',
-                                style: TextStyle(color: theme.disabledColor),
-                              ),
-                            ),
-                          ],
-                        )
-                      : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: _reservas.length,
-                          itemBuilder: (_, i) => _buildReservaCard(_reservas[i]),
-                        ),
-                ),
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _fetch,
         icon: const Icon(Icons.refresh),
