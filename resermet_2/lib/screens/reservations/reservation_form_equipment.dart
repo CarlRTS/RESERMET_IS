@@ -4,8 +4,9 @@ import 'package:resermet_2/services/equipo_deportivo_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
-import 'package:resermet_2/widgets/toastification.dart'; // ✅ Import agregado
+import 'package:resermet_2/widgets/toastification.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:resermet_2/services/reserva_service.dart';
 
 class ReservationFormEquipment extends StatefulWidget {
   const ReservationFormEquipment({super.key});
@@ -18,6 +19,7 @@ class ReservationFormEquipment extends StatefulWidget {
 class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   final _formKey = GlobalKey<FormState>();
   final EquipoDeportivoService _equipoService = EquipoDeportivoService();
+  final ReservaService _reservaService = ReservaService();
 
   // Controladores
   final TextEditingController _timeController = TextEditingController();
@@ -28,6 +30,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   EquipoDeportivo? _equipoSeleccionado;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
+
+  // 💡 NUEVOS ESTADOS DE DISPONIBILIDAD
+  int _activeReservations = 0;
+  int _stockTotal = 0;
+  // -------------------------------------
 
   // Duraciones dinámicas
   List<String> _duracionesDisponibles = [
@@ -51,6 +58,60 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     _cargarEquiposDisponibles();
   }
 
+  //  LÓGICA DE MARCAR FRANJAS HORARIAS (Stock Disponible, Pocos en Existencia, No Disponible)
+  (Color, String) get _stockStatus {
+    if (_equipoSeleccionado == null || _selectedTime == null || _selectedDuration == null) {
+      return (Colors.grey, 'Selecciona hora y duración para verificar la disponibilidad');
+    }
+
+    final int available = _stockTotal - _activeReservations;
+
+    // Regla: Pocos en existencia (Amarillo) si queda menos del 30% del stock total
+    final int lowStockThreshold = (_stockTotal * 0.3).ceil();
+
+    if (available <= 0) {
+      // Rojo: No disponible
+      return (Colors.red, 'No disponible - 0 unidades restantes');
+    } else if (available <= lowStockThreshold) {
+      // Amarillo: Pocos en existencia
+      return (Colors.orange, 'Baja disponibilidad - $available unidades restantes');
+    } else {
+      // Verde: Disponible
+      return (Colors.green, 'Disponible - $available unidades restantes');
+    }
+  }
+
+  // 💡 NUEVO MÉTODO PARA CALCULAR LA DISPONIBILIDAD (ACTUALIZA _activeReservations)
+  void _calculateAvailability() async {
+    if (_equipoSeleccionado == null || _selectedTime == null || _selectedDuration == null) {
+      setState(() {
+        _activeReservations = 0;
+        _stockTotal = _equipoSeleccionado?.cantidadTotal ?? 0;
+      });
+      return;
+    }
+
+    final inicioLocal = DateTime(
+      _fechaActual.year,
+      _fechaActual.month,
+      _fechaActual.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+    final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
+
+    final count = await _reservaService.getActiveReservationsCount(
+      idArticulo: _equipoSeleccionado!.idObjeto,
+      inicio: inicioLocal,
+      fin: finLocal,
+    );
+
+    setState(() {
+      _activeReservations = count;
+      _stockTotal = _equipoSeleccionado!.cantidadTotal;
+    });
+  }
+
   Future<void> _cargarEquiposDisponibles() async {
     try {
       final equipos = await _equipoService.getEquiposDeportivos();
@@ -65,6 +126,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
         if (_equiposDisponibles.isNotEmpty) {
           _equipoSeleccionado = _equiposDisponibles[0];
+          _stockTotal = _equipoSeleccionado!.cantidadTotal; // Inicializar stock
         }
       });
     } catch (e) {
@@ -89,13 +151,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     final int totalMinutos = _selectedTime!.hour * 60 + _selectedTime!.minute;
 
     if (totalMinutos > 16 * 60) {
-      // 4:00 PM o después
       _duracionesDisponibles = ['30 min'];
     } else if (totalMinutos > 15 * 60 + 30) {
-      // 3:30 PM o después
       _duracionesDisponibles = ['30 min', '1 hora'];
     } else if (totalMinutos > 15 * 60) {
-      // 3:00 PM o después
       _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas'];
     } else {
       _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas', '2 horas'];
@@ -121,6 +180,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
         });
         _actualizarDuracionesDisponibles();
+        _calculateAvailability(); // 💡 CALCULAR AL SELECCIONAR HORA
       },
     );
   }
@@ -131,7 +191,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     );
   }
 
-  // ====== CREAR RESERVA CON TOASTS ======
+  // ====== CREAR RESERVA CON VALIDACIÓN DE CONFLICTO AÑADIDA ======
   Future<void> _crearReserva() async {
     if (_equipoSeleccionado == null) {
       _mostrarError('Por favor selecciona un equipo');
@@ -149,7 +209,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       return;
     }
 
-    // ✅ Mostrar toast de carga
+    // Mostrar toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
@@ -166,11 +226,29 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       // 2) FIN local según duración
       final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // 3) Convertir ambos a UTC
+      // 💡 3) VALIDAR DISPONIBILIDAD DE STOCK (usando la lógica de la UI)
+      final conflictoCount = await _reservaService.getActiveReservationsCount(
+        idArticulo: _equipoSeleccionado!.idObjeto,
+        inicio: inicioLocal,
+        fin: finLocal,
+      );
+
+      if (conflictoCount >= _equipoSeleccionado!.cantidadTotal) {
+        ReservationToastService.dismissAll();
+        ReservationToastService.showReservationError(
+          context,
+          'El Equipo Deportivo "${_equipoSeleccionado!.nombre}" no tiene unidades disponibles en ese horario.',
+        );
+        if (mounted) setState(() => _isSubmitting = false);
+        return; // Detener el proceso
+      }
+      // ----------------------------------------------------
+
+      // 4) Convertir ambos a UTC
       final inicioIso = inicioLocal.toUtc().toIso8601String();
       final finIso = finLocal.toUtc().toIso8601String();
 
-      // 4) Insert SIN 'rango' (GENERATED) y con fecha_reserva UTC YYYY-MM-DD
+      // 5) Insert SIN 'rango' (GENERATED) y con fecha_reserva UTC YYYY-MM-DD
       final reservaData = {
         'id_articulo': _equipoSeleccionado!.idObjeto,
         'id_usuario': user.id,
@@ -183,7 +261,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // ✅ Cerrar toast de carga y mostrar éxito
+      // Cerrar toast de carga y mostrar éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
@@ -195,24 +273,22 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error
+      // Cerrar toast de carga y mostrar error
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
         'Error de conexión con la base de datos',
       );
 
-      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      // ✅ Cerrar toast de carga y mostrar error genérico
+      // Cerrar toast de carga y mostrar error genérico
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
         'Error inesperado al procesar la reserva',
       );
 
-      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -235,10 +311,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     }
   }
 
-  // ❌ ELIMINADO: _mostrarConfirmacion() - Ahora usamos toasts
-
   @override
   Widget build(BuildContext context) {
+    // Obtener el status para la UI
+    final status = _stockStatus;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -313,6 +390,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           const SizedBox(height: 16),
 
                           if (_isLoading)
+                          // 💡 INDICADOR DE CARGA: Muestra el indicador mientras se cargan los equipos
                             const Center(child: CircularProgressIndicator())
                           else if (_equiposDisponibles.isEmpty)
                             const Text(
@@ -338,7 +416,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   value: equipo,
                                   child: Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
@@ -354,6 +432,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                           color: Colors.grey.shade600,
                                         ),
                                       ),
+                                      // 💡 Muestra el número exacto de unidades disponibles
                                       Text(
                                         'Disponibles: ${equipo.cantidadDisponible}',
                                         style: TextStyle(
@@ -365,9 +444,13 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   ),
                                 );
                               }).toList(),
-                              onChanged: (newValue) => setState(() {
-                                _equipoSeleccionado = newValue;
-                              }),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _equipoSeleccionado = newValue;
+                                  //  AL CAMBIAR EL ARTÍCULO, ACTUALIZAR STOCK
+                                  _calculateAvailability();
+                                });
+                              },
                               validator: (value) => value == null
                                   ? 'Por favor selecciona un equipo'
                                   : null,
@@ -392,7 +475,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              '📋 Información del item',
+                              ' Información del item',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -429,9 +512,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                     'Disponibles: ${_equipoSeleccionado!.cantidadDisponible} unidades',
                                     style: TextStyle(
                                       color:
-                                          _equipoSeleccionado!
-                                                  .cantidadDisponible >
-                                              0
+                                      _equipoSeleccionado!
+                                          .cantidadDisponible >
+                                          0
                                           ? Colors.green.shade600
                                           : Colors.red.shade600,
                                       fontWeight: FontWeight.w500,
@@ -520,7 +603,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             readOnly: true,
                             onTap: () => _selectTime(context),
                             validator: (value) =>
-                                (value == null || value.isEmpty)
+                            (value == null || value.isEmpty)
                                 ? 'Por favor selecciona una hora'
                                 : null,
                           ),
@@ -542,19 +625,48 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             items: _duracionesDisponibles
                                 .map(
                                   (duracion) => DropdownMenuItem(
-                                    value: duracion,
-                                    child: Text(duracion),
-                                  ),
-                                )
+                                value: duracion,
+                                child: Text(duracion),
+                              ),
+                            )
                                 .toList(),
-                            onChanged: (newValue) =>
-                                setState(() => _selectedDuration = newValue),
+                            onChanged: (newValue) {
+                              setState(() => _selectedDuration = newValue);
+                              // 💡 CALCULAR AL CAMBIAR DURACIÓN
+                              _calculateAvailability();
+                            },
                             validator: (value) =>
-                                (value == null || value.isEmpty)
+                            (value == null || value.isEmpty)
                                 ? 'Por favor selecciona una duración'
                                 : null,
                           ),
 
+                          const SizedBox(height: 16),
+
+                          //  INDICADOR DE DISPONIBILIDAD/STOCK CON COLOR
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: status.$1.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: status.$1.withOpacity(0.5)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.inventory_2, color: status.$1),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    status.$2, // Mensaje (Disponible / Baja Disponibilidad / No Disponible)
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: status.$1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 16),
 
                           // Propósito
@@ -563,7 +675,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             decoration: InputDecoration(
                               labelText: 'Actividad o deporte',
                               hintText:
-                                  'Describe la actividad o deporte para el que usarás el equipo...',
+                              'Describe la actividad o deporte para el que usarás el equipo...',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -573,7 +685,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             ),
                             maxLines: 3,
                             validator: (value) =>
-                                (value == null || value.isEmpty)
+                            (value == null || value.isEmpty)
                                 ? 'Por favor describe la actividad'
                                 : null,
                           ),
@@ -589,14 +701,15 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _isSubmitting || _equiposDisponibles.isEmpty
+                      //  DESHABILITAR SI NO ESTÁ DISPONIBLE (ROJO) O CARGANDO
+                      onPressed: _isSubmitting || status.$1 == Colors.red || _equiposDisponibles.isEmpty
                           ? null
                           : _crearReserva,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isSubmitting || _equiposDisponibles.isEmpty
+                        _isSubmitting || _equiposDisponibles.isEmpty
                             ? Colors.grey
-                            : Colors.green,
+                            : status.$1, // Usar color del stock
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -604,21 +717,21 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                       ),
                       child: _isSubmitting
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.sports_tennis, color: Colors.white),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Confirmar Reserva',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+                          : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.sports_tennis, color: Colors.white),
+                          SizedBox(width: 10),
+                          Text(
+                            'Confirmar Reserva',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
@@ -652,9 +765,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         SizedBox(height: 8),
                         Text(
                           '• La reserva estará pendiente de confirmación\n'
-                          '• Debes presentar tu identificación y carnet al recoger el equipo\n'
-                          '• Eres responsable del equipo durante el tiempo de préstamo\n'
-                          '• Reporta cualquier daño o anomalía al personal',
+                              '• Debes presentar tu identificación y carnet al recoger el equipo\n'
+                              '• Eres responsable del equipo durante el tiempo de préstamo\n'
+                              '• Reporta cualquier daño o anomalía al personal',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],

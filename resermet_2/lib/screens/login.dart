@@ -25,7 +25,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginUser() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Si la validación falla (campos vacíos o inválidos)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingrese su correo y contraseña válidos')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
