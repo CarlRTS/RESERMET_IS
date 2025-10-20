@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
+import '../widgets/toastification_log.dart'; // Importación agregada
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -59,7 +60,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _registrarUsuarioCompleto() async {
     final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) return;
+    if (!isValid) {
+      // Si la validación falla (campos vacíos o inválidos)
+      LoginToastService.showRegistrationError(context);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -70,11 +75,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final telefono = _telefonoController.text.trim();
     final rol = _selectedRol!;
     final carrera = _selectedCarrera!;
-
-    final cs = Theme.of(context).colorScheme;
-    void toast(String m, Color c) => ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(m), backgroundColor: c));
 
     try {
       final authResponse = await Supabase.instance.client.auth.signUp(
@@ -107,23 +107,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
 
-      // Mensaje de verificación de correo
-      toast(
-        '¡Registro exitoso! Verifica tu correo para activar la cuenta.',
-        cs.primary,
-      );
+      // Toast de registro exitoso
+      LoginToastService.showRegistrationSuccess(context);
+
       await Future.delayed(const Duration(milliseconds: 600));
       if (mounted) Navigator.of(context).pop();
-    } on AuthException catch (_) {
-      // Supabase devuelve AuthException sin user; igual indicamos verificacion
-      toast(
-        '¡Registro exitoso! Verifica tu correo para activar la cuenta.',
-        cs.primary,
-      );
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted) Navigator.of(context).pop();
+    } on AuthException catch (e) {
+      // Manejo específico de errores de autenticación
+      if (e.message.contains('User already registered')) {
+        LoginToastService.showRegistrationError(
+          context,
+          message: 'Este correo ya está registrado',
+        );
+      } else {
+        // Si es otro error de Auth, mostramos registro exitoso (por el flujo de verificación)
+        LoginToastService.showRegistrationSuccess(context);
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) Navigator.of(context).pop();
+      }
     } catch (e) {
-      toast('Error inesperado: $e', cs.error);
+      // Error inesperado
+      LoginToastService.showRegistrationError(
+        context,
+        message: 'Error inesperado: $e',
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -438,24 +445,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ).textTheme.bodyMedium?.copyWith(fontSize: 15),
                                 children: const [
                                   TextSpan(
-                                    text: '¿Ya tienes cuenta? ',
+                                    text: '¿Ya tienes cuenta?',
                                     style: TextStyle(
                                       color: UnimetPalette.primary,
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Inicia sesión',
+                                    text: ' Inicia sesión',
                                     style: TextStyle(
                                       color: UnimetPalette.accent,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-
-                          SizedBox(height: tokens.paddingMD.bottom),
                         ],
                       ),
                     ),
