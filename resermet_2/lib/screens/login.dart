@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
+import '../widgets/toastification_log.dart'; // Importación agregada
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,9 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginUser() async {
     if (!_formKey.currentState!.validate()) {
       // Si la validación falla (campos vacíos o inválidos)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingrese su correo y contraseña válidos')),
-      );
+      LoginToastService.showLoginError(context);
       return;
     }
 
@@ -38,13 +37,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final supabase = Supabase.instance.client;
-    final cs = Theme.of(context).colorScheme;
-
-    void _showSnack(String msg, {Color? bg}) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: bg));
-    }
 
     try {
       final response = await supabase.auth.signInWithPassword(
@@ -55,24 +47,28 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response.user;
 
       if (user == null) {
-        _showSnack('Usuario no registrado.', bg: cs.error);
+        LoginToastService.showInvalidCredentials(context);
       } else if (user.emailConfirmedAt == null) {
-        _showSnack(
-          'Debes confirmar tu correo antes de iniciar sesión.',
-          bg: cs.tertiary,
-        );
+        LoginToastService.showEmailNotVerified(context);
       } else {
-        _showSnack('¡Bienvenido ${user.email}!', bg: cs.primary);
+        LoginToastService.showLoginSuccess(context);
       }
     } on AuthException catch (e) {
-      final msg =
-          (e.message.contains('Invalid login credentials') ||
-              e.message.contains('Email not confirmed'))
-          ? 'Credenciales incorrectas o correo no confirmado.'
-          : 'Error: ${e.message}';
-      _showSnack(msg, bg: cs.error);
+      if (e.message.contains('Invalid login credentials')) {
+        LoginToastService.showInvalidCredentials(context);
+      } else if (e.message.contains('Email not confirmed')) {
+        LoginToastService.showEmailNotVerified(context);
+      } else {
+        LoginToastService.showLoginError(
+          context,
+          message: 'Error: ${e.message}',
+        );
+      }
     } catch (e) {
-      _showSnack('Error inesperado: $e', bg: cs.error);
+      LoginToastService.showLoginError(
+        context,
+        message: 'Error inesperado: $e',
+      );
     } finally {
       setState(() => _isLoading = false);
     }
