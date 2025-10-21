@@ -7,10 +7,9 @@ import 'consola_service.dart';
 import 'equipo_deportivo_service.dart';
 
 /// Servicio de reservas:
-/// - NO modifica `articulo.estado` (el stock/estado se controla en tus pantallas).
-/// - Lee reservas para usuario/admin.
-/// - Crea reserva (si deseas centralizar el insert aquí).
-/// - Finaliza reservas manualmente o masivamente (vencidas).
+/// - NO modifica `articulo.estado` (el stock/estado lo controlan las pantallas).
+/// - API para usuario y administración.
+/// - Crea/lee reservas y permite finalizar/cancelar.
 class ReservaService with BaseService {
   final _cubiculoService = CubiculoService();
   final _consolaService = ConsolaService();
@@ -53,7 +52,7 @@ class ReservaService with BaseService {
       final response = await supabase
           .from('reserva')
           .select('*')
-          .eq('id_usuario', userId) // columna en BD
+          .eq('id_usuario', userId)
           .order('inicio', ascending: false);
 
       final List<Reserva> reservas = [];
@@ -63,7 +62,7 @@ class ReservaService with BaseService {
           final Articulo articulo = await _getArticuloById(idArticulo);
           reservas.add(Reserva.fromSupabase(item, articulo));
         } catch (_) {
-          // Ignorar errores de carga de artículo para no romper UX
+          // Ignorar fallos de carga de artículo para no romper la UX
         }
       }
       return reservas;
@@ -74,13 +73,44 @@ class ReservaService with BaseService {
     }
   }
 
+  /// Devuelve TODAS mis reservas en formato crudo (con nombre de artículo).
+  Future<List<Map<String, dynamic>>> getMisReservasRaw() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+    final data = await supabase
+        .from('reserva')
+        .select(
+          'id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)',
+        )
+        .eq('id_usuario', userId)
+        .order('inicio', ascending: true);
+
+    return (data as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Cancela una reserva (uso estudiante, para reservas FUTURAS).
+  Future<void> cancelarReserva({required int idReserva}) async {
+    await supabase
+        .from('reserva')
+        .update({'estado': 'cancelada'})
+        .eq('id_reserva', idReserva);
+  }
+
+  /// Finaliza una reserva (uso estudiante, para reservas ACTIVAS).
+  Future<void> finalizarReservaUsuario({required int idReserva}) async {
+    await supabase
+        .from('reserva')
+        .update({'estado': 'finalizada'})
+        .eq('id_reserva', idReserva);
+  }
+
   /// Crea una nueva reserva a partir de tu modelo Reserva.
   /// IMPORTANTE: no cambia `articulo.estado`.
   Future<Reserva> createReserva(Reserva reserva) async {
     try {
       final inserted = await supabase
           .from('reserva')
-          .insert(reserva.toJson()) // tu modelo incluye: id_articulo, id_usuario, inicio, fin, estado, etc.
+          .insert(reserva.toJson())
           .select()
           .single();
 
@@ -102,7 +132,6 @@ class ReservaService with BaseService {
     final data = await supabase
         .from('reserva')
         .select(
-          // incluye nombre del artículo por relación supabase
           'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
         )
         .eq('estado', 'activa')
@@ -111,11 +140,8 @@ class ReservaService with BaseService {
     return (data as List).cast<Map<String, dynamic>>();
   }
 
-  /// Finaliza una reserva manualmente (desde botón).
-  /// No toca `articulo.estado`.
-  Future<void> finalizarReserva({
-    required int idReserva,
-  }) async {
+  /// Finaliza una reserva manualmente (desde botón en admin).
+  Future<void> finalizarReserva({required int idReserva}) async {
     await supabase
         .from('reserva')
         .update({'estado': 'finalizada'})
@@ -133,7 +159,7 @@ class ReservaService with BaseService {
         .update({'estado': 'finalizada'})
         .lt('fin', nowUtcIso)
         .eq('estado', 'activa')
-        .select('id_reserva'); // para contar cuántas filas se actualizaron
+        .select('id_reserva'); // contar filas actualizadas
 
     final updated = (response as List?)?.length ?? 0;
     return updated;
