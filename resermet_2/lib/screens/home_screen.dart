@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:resermet_2/screens/reservations/cubiculo_booking_screen.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'my_reservations.dart';
