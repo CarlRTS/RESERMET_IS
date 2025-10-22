@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:resermet_2/screens/reservations/cubiculo_booking_screen.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_colors.dart';
 import 'my_reservations.dart';
@@ -233,9 +235,12 @@ class HomeScreen extends StatelessWidget {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            context
-                                .findAncestorStateOfType<_MainScreenState>()
-                                ?._onItemTapped(3);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                const BookingScreen(),
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.meeting_room),
                           label: const Text('Reserva tu Cubículo'),
