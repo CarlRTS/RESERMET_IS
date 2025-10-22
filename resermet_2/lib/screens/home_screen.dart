@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/app_colors.dart';
+
 import 'my_reservations.dart';
 import 'reservations/reservation_screen.dart';
 import 'availability.dart';
@@ -10,6 +10,7 @@ import 'admin/cubiculos_list_screen.dart';
 import 'admin/admin_home_screen.dart';
 import 'login.dart';
 import 'registro.dart';
+import 'package:resermet_2/ui/theme/app_theme.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -71,26 +72,31 @@ class _MainScreenState extends State<MainScreen> {
   // Ítems del bottom navigation (sin admin si no es administrador)
   List<BottomNavigationBarItem> get _bottomNavItems {
     final items = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.calendar_month),
+        icon: Icon(Icons.home_rounded),
+        label: 'Inicio',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.calendar_month_rounded),
         label: 'Reservar',
       ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.list_alt),
+        icon: Icon(Icons.list_alt_rounded),
         label: 'Mis Reservas',
       ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.location_on),
+        icon: Icon(Icons.location_on_rounded),
         label: 'Ubicación',
       ),
     ];
 
     if (_isAdmin) {
-      items.add(const BottomNavigationBarItem(
-        icon: Icon(Icons.admin_panel_settings),
-        label: 'Admin',
-      ));
+      items.add(
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.admin_panel_settings_rounded),
+          label: 'Admin',
+        ),
+      );
     }
 
     return items;
@@ -104,27 +110,28 @@ class _MainScreenState extends State<MainScreen> {
 
   // 💡 FUNCIÓN DE CERRAR SESIÓN (LOGOUT)
   Future<void> _signOut() async {
+    final cs = Theme.of(context).colorScheme;
     try {
       await Supabase.instance.client.auth.signOut();
       // Redirigir al login después de cerrar sesión
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
+          (route) => false,
         );
       }
     } on AuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al cerrar sesión: ${e.message}'),
-          backgroundColor: Colors.red,
+          backgroundColor: cs.error,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: cs.error,
         ),
       );
     }
@@ -132,27 +139,30 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('RESERMET'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             tooltip: 'Cerrar sesión',
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Cerrar sesión'),
-                  content:
-                  const Text('¿Estás seguro que deseas cerrar sesión?'),
+                  content: const Text(
+                    '¿Estás seguro que deseas cerrar sesión?',
+                  ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
+                      onPressed: () => Navigator.pop(context, false),
                       child: const Text('Cancelar'),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
+                      onPressed: () => Navigator.pop(context, true),
                       child: const Text('Cerrar sesión'),
                     ),
                   ],
@@ -171,9 +181,11 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         items: _bottomNavItems,
         currentIndex: _selectedIndex,
-        selectedItemColor: AppColors.unimetBlue,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: cs.primary,
+        unselectedItemColor: cs.onSurface.withOpacity(0.55),
+        backgroundColor: cs.surface,
         onTap: _onItemTapped,
+        showUnselectedLabels: true,
       ),
     );
   }
@@ -185,75 +197,84 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
+    final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text(
+        children: [
+          // titulo
+          Text(
             'Bienvenido a UNIMET Reservas',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.unimetBlue,
+            style: text.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: cs.primary,
             ),
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Tu portal para reservar cubículos, consolas y otros recursos académicos.',
-            style: TextStyle(fontSize: 16, color: Colors.black87),
+          const SizedBox(height: 6),
+          Text(
+            'Tu portal para reservar cubículos, equipos deportivos y más.',
+            style: text.bodyMedium?.copyWith(
+              color: cs.onSurface.withOpacity(.75),
+            ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
 
           // Tarjeta de información/acción
           Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
             child: Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.school,
-                    size: 50,
-                    color: AppColors.unimetOrange,
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: cs.primary.withOpacity(.10),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cs.primary.withOpacity(.25)),
+                    ),
+                    child: Icon(
+                      Icons.school_outlined,
+                      size: 36,
+                      color: cs.primary,
+                    ),
                   ),
-                  const SizedBox(height: 15),
-                  const Text(
+                  const SizedBox(height: 14),
+                  Text(
                     '¡Reserva lo que necesitas!',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // Fila 1: Cubículo + Equipo Deportivo
                   Row(
                     children: [
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            context
-                                .findAncestorStateOfType<_MainScreenState>()
-                                ?._onItemTapped(3);
-                          },
-                          icon: const Icon(Icons.meeting_room),
-                          label: const Text('Reserva tu Cubículo'),
+                        child: FilledButton.icon(
+                          onPressed: () => context
+                              .findAncestorStateOfType<_MainScreenState>()
+                              ?._onItemTapped(3),
+                          icon: const Icon(Icons.meeting_room_rounded),
+                          label: const Text('Reserva tu cubículo'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: ElevatedButton.icon(
+                        child: OutlinedButton.icon(
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) =>
-                                const CatalogEquipoDeportivoScreen(),
+                                    const CatalogEquipoDeportivoScreen(),
                               ),
                             );
                           },
-                          icon: const Icon(Icons.sports_soccer),
-                          label: const Text('Reserva tu Equipo Deportivo'),
+                          icon: const Icon(Icons.sports_soccer_rounded),
+                          label: const Text('Equipo deportivo'),
                         ),
                       ),
                     ],
@@ -261,11 +282,11 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  // Fila 2: Sala Gamer (placeholder por ahora)
+                  // Fila 2
                   Row(
                     children: [
                       Expanded(
-                        child: ElevatedButton.icon(
+                        child: OutlinedButton.icon(
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -273,8 +294,8 @@ class HomeScreen extends StatelessWidget {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.sports_esports),
-                          label: const Text('Reserva en la Sala Gamer'),
+                          icon: const Icon(Icons.sports_esports_rounded),
+                          label: const Text('Sala Gamer'),
                         ),
                       ),
                     ],
@@ -284,24 +305,35 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 30),
-          const Row(
+          const SizedBox(height: 24),
+
+          // Últimas noticias
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Últimas Noticias',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.unimetBlue,
+                'Últimas noticias',
+                style: text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: cs.primary,
                 ),
               ),
             ],
           ),
-          const ListTile(
-            leading: Icon(Icons.fiber_new, color: AppColors.unimetBlue),
-            title: Text('Nuevos cubículos disponibles en Biblioteca.'),
-            subtitle: Text('2 de Octubre, 2025'),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Icon(Icons.fiber_new_rounded, color: cs.primary),
+            title: const Text('Nuevos cubículos disponibles en Biblioteca.'),
+            subtitle: Text(
+              '2 de Octubre, 2025',
+              style: text.bodySmall?.copyWith(
+                color: cs.onSurface.withOpacity(.65),
+              ),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: cs.outlineVariant),
+            ),
           ),
         ],
       ),
