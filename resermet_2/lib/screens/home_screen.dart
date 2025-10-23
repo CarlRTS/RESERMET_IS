@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:resermet_2/screens/reservations/cubiculo_booking_screen.dart';
 import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'my_reservations.dart';
 import 'reservations/reservation_screen.dart';
-import 'availability.dart';
 import 'admin/admin_home_screen.dart';
-import 'catalog_equipo_deportivo_screen.dart';
 import 'admin/cubiculos_list_screen.dart';
-import 'admin/admin_home_screen.dart';
 import 'login.dart';
 import 'registro.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_equipment.dart';
+import 'package:resermet_2/screens/reservations/reservation_form_console.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -61,7 +59,6 @@ class _MainScreenState extends State<MainScreen> {
       const HomeScreen(),
       const BookingScreen(),
       const MyBookingsScreen(),
-      const AvailabilityScreen(),
     ];
 
     if (_isAdmin) {
@@ -85,10 +82,6 @@ class _MainScreenState extends State<MainScreen> {
       const BottomNavigationBarItem(
         icon: Icon(Icons.list_alt_rounded),
         label: 'Mis Reservas',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.location_on_rounded),
-        label: 'Ubicación',
       ),
     ];
 
@@ -224,11 +217,12 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Tarjeta de información/acción
+          // Tarjeta de instrucciones (única)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 72,
@@ -239,74 +233,64 @@ class HomeScreen extends StatelessWidget {
                       border: Border.all(color: cs.primary.withOpacity(.25)),
                     ),
                     child: Icon(
-                      Icons.school_outlined,
+                      Icons.info_outline_rounded,
                       size: 36,
                       color: cs.primary,
                     ),
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    '¡Reserva lo que necesitas!',
+                    'Cómo usar la app para reservar',
                     style: text.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: cs.primary,
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => context
-                              .findAncestorStateOfType<_MainScreenState>()
-                              ?._onItemTapped(3),
-                          icon: const Icon(Icons.meeting_room_rounded),
-                          label: const Text('Reserva tu cubículo'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const CatalogEquipoDeportivoScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.sports_soccer_rounded),
-                          label: const Text('Equipo deportivo'),
-                        ),
-                      ),
-                    ],
-                  ),
-
                   const SizedBox(height: 12),
-
-                  // Fila 2
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Sala Gamer: próximamente'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.sports_esports_rounded),
-                          label: const Text('Sala Gamer'),
+                  Text(
+                    '1️⃣ En el menú inferior, toca la pestaña "Reservar".\n\n'
+                    '2️⃣ Elige el tipo de reserva que deseas:\n'
+                    '   • Cubículos de estudio\n'
+                    '   • Equipos deportivos\n'
+                    '   • Sala Gamer\n\n'
+                    '3️⃣ Completa el formulario con los datos requeridos (hora, duración y propósito).\n\n'
+                    '4️⃣ Confirma la reserva y revisa su estado en la pestaña "Mis Reservas".\n\n'
+                    '5️⃣ Preséntate en el lugar asignado con tu carnet para validar el uso del espacio o artículo.',
+                    style: text.bodyMedium?.copyWith(
+                      color: cs.onSurface.withOpacity(.8),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: cs.outlineVariant),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline_rounded,
+                          color: cs.primary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Consejo: puedes consultar tus horarios y cancelaciones desde "Mis Reservas".',
+                            style: text.bodySmall?.copyWith(
+                              color: cs.onSurface.withOpacity(.9),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-
           const SizedBox(height: 24),
 
           // Últimas noticias
