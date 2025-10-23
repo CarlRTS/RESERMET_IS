@@ -7,15 +7,12 @@ import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
 class BookingScreen extends StatelessWidget {
   const BookingScreen({super.key});
 
-  // 🚧 FUNCIÓN COMENTADA PARA PRUEBAS - DESBLOQUEAR FINES DE SEMANA
   // Función para verificar si es fin de semana
-  /*
   bool _esFinDeSemana() {
     final now = DateTime.now();
     // 6 = Sábado, 7 = Domingo
     return now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
   }
-  */
 
   // Widget auxiliar para las tarjetas de artículos
   Widget _buildArticleCard(
@@ -26,32 +23,24 @@ class BookingScreen extends StatelessWidget {
     required Color color,
     required Widget formScreen,
   }) {
-    // 🚧 COMENTADO PARA PRUEBAS - SIEMPRE HABILITADO
-    // final esFinDeSemana = _esFinDeSemana();
-    final esFinDeSemana = false; // Forzar habilitado para pruebas
-
+    final esFinDeSemana = _esFinDeSemana();
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      // 🚧 COMENTADO PARA PRUEBAS - SIN COLOR GRIS
-      // color: esFinDeSemana ? Colors.grey[300] : null,
+      color: esFinDeSemana ? Colors.grey[300] : null,
       child: ListTile(
         contentPadding: const EdgeInsets.all(20),
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            // 🚧 COMENTADO PARA PRUEBAS - COLOR NORMAL SIEMPRE
-            // color: esFinDeSemana
-            //     ? Colors.grey.withOpacity(0.3)
-            //     : color.withOpacity(0.1),
-            color: color.withOpacity(0.1),
+            color: esFinDeSemana
+                ? Colors.grey.withOpacity(0.3)
+                : color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             icon,
-            // 🚧 COMENTADO PARA PRUEBAS - COLOR NORMAL SIEMPRE
-            // color: esFinDeSemana ? Colors.grey : color,
-            color: color,
+            color: esFinDeSemana ? Colors.grey : color,
             size: 30,
           ),
         ),
@@ -67,10 +56,7 @@ class BookingScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(subtitle),
-            // 🚧 COMENTADO PARA PRUEBAS - SIN MENSAJE DE RESTRICCIÓN
-            /*
-            if (esFinDeSemana)
-              const SizedBox(height: 5),
+            if (esFinDeSemana) const SizedBox(height: 5),
             if (esFinDeSemana)
               Text(
                 'No disponible fines de semana',
@@ -80,48 +66,44 @@ class BookingScreen extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-            */
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey),
-        // 🚧 COMENTADO PARA PRUEBAS - SIEMPRE HABILITADO
-        // onTap: esFinDeSemana
-        //     ? null // Deshabilitar el tap los fines de semana
-        //     : () {
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => Scaffold(
-                appBar: AppBar(
-                  title: Text(title),
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                ),
-                body: formScreen,
-              ),
-            ),
-          );
-        },
+        onTap: esFinDeSemana
+            ? null // Deshabilitar el tap los fines de semana
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => Scaffold(
+                      appBar: AppBar(
+                        title: Text(title),
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                      ),
+                      body: formScreen,
+                    ),
+                  ),
+                );
+              },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🚧 COMENTADO PARA PRUEBAS - SIN BANNER DE ADVERTENCIA
-    // final esFinDeSemana = _esFinDeSemana();
+    final esFinDeSemana = _esFinDeSemana();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Título principal sin indicador de fin de semana
-          const Column(
+          // Título principal con indicador de fin de semana
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Selecciona el Artículo a Reservar',
                 style: TextStyle(
                   fontSize: 24,
@@ -129,9 +111,7 @@ class BookingScreen extends StatelessWidget {
                   color: AppColors.unimetBlue,
                 ),
               ),
-              // 🚧 COMENTADO PARA PRUEBAS - SIN BANNER DE ADVERTENCIA
-              /*
-              if (esFinDeSemana)
+              if (esFinDeSemana) // Banner de advertencia
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(top: 10),
@@ -157,7 +137,6 @@ class BookingScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-              */
             ],
           ),
           const SizedBox(height: 20),
