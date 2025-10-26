@@ -11,6 +11,7 @@ import 'registro.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
 import 'package:resermet_2/screens/reservations/reservation_form_equipment.dart';
 import 'package:resermet_2/screens/reservations/reservation_form_console.dart';
+import 'package:resermet_2/screens/user_profile_screen.dart'; // 👈 NUEVO IMPORT
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -132,6 +133,13 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // 👇 Navegar a Mi Perfil
+  void _goToMyProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -140,6 +148,11 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('RESERMET'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_rounded),
+            tooltip: 'Mi Perfil',
+            onPressed: _goToMyProfile, // 👈 acceso rápido a perfil
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Cerrar sesión',
