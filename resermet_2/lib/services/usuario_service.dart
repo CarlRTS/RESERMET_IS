@@ -200,4 +200,19 @@ class UsuarioService {
       return null;
     }
   }
+    /// Lista TODOS los usuarios ordenados alfabéticamente.
+  /// Orden: nombre ASC, luego apellido ASC, luego correo ASC.
+  Future<List<UserProfile>> listAllUsersOrdered() async {
+    final rowsDyn = await _sb
+        .from('usuario')
+        .select()
+        .order('nombre', ascending: true)
+        .order('apellido', ascending: true)
+        .order('correo', ascending: true);
+
+    final rows = _asListOfMap(rowsDyn);
+    return rows.map((e) => UserProfile.fromMap(e)).toList();
+  }
 }
+
+
