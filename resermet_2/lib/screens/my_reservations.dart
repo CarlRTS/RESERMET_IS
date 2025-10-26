@@ -1,9 +1,10 @@
+// lib/screens/my_reservations.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:resermet_2/services/reserva_service.dart';
 import '../utils/app_colors.dart';
 
-/// Pantalla: Mis Reservas (estudiante) con pestañas:
+/// Pantalla: Mis Reservas (estudiante)
 /// - Activas (countdown + finalizar ahora)
 /// - Futuras (cancelar)
 /// - Historial (finalizadas/canceladas, solo lectura)
@@ -22,7 +23,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   String? _error;
   List<Map<String, dynamic>> _reservas = [];
 
-  Timer? _ticker; // refresca contadores
+  Timer? _ticker;
   late TabController _tabController;
 
   @override
@@ -31,7 +32,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     _tabController = TabController(length: 3, vsync: this);
     _fetch();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {}); // redibuja contadores activos
+      if (mounted) setState(() {});
     });
   }
 
@@ -61,7 +62,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
-  // ---------- Helpers de tiempo/estado ----------
+  // ---------- Helpers ----------
   String _formatRemaining(DateTime finUtc) {
     final now = DateTime.now().toUtc();
     final diff = finUtc.difference(now);
@@ -147,7 +148,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       if (inicio == null || fin == null) return false;
       return _esActiva(now, inicio, fin) && (r['estado'] == 'activa');
     }).toList()
-      ..sort((a, b) => '${a['fin']}'.compareTo('${b['fin']}')); // por terminar primero
+      ..sort((a, b) => '${a['fin']}'.compareTo('${b['fin']}'));
   }
 
   List<Map<String, dynamic>> _filtrarFuturas() {
@@ -157,7 +158,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       if (inicio == null) return false;
       return _esFutura(now, inicio) && (r['estado'] != 'cancelada');
     }).toList()
-      ..sort((a, b) => '${a['inicio']}'.compareTo('${b['inicio']}')); // más próximas primero
+      ..sort((a, b) => '${a['inicio']}'.compareTo('${b['inicio']}'));
   }
 
   List<Map<String, dynamic>> _filtrarHistorial() {
@@ -165,7 +166,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       final estado = (r['estado'] ?? '').toString();
       return estado == 'finalizada' || estado == 'cancelada';
     }).toList()
-      ..sort((a, b) => '${b['inicio']}'.compareTo('${a['inicio']}')); // recientes primero
+      ..sort((a, b) => '${b['inicio']}'.compareTo('${a['inicio']}'));
   }
 
   // ---------- UI ----------
@@ -205,13 +206,31 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                     ],
                   ),
                   const SizedBox(height: 10),
+
+                  // 🟥 Bloque de error (solo si ocurre)
+                  if (_error != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+
                   const Text(
                     'Consulta, cancela o finaliza tus reservas.',
                     style: TextStyle(fontSize: 16, color: Colors.black87),
                   ),
                   const SizedBox(height: 12),
 
-                  // Tabs
                   TabBar(
                     controller: _tabController,
                     labelColor: AppColors.unimetBlue,
@@ -225,7 +244,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   ),
                   const SizedBox(height: 8),
 
-                  // Contenido de tabs
                   Expanded(
                     child: TabBarView(
                       controller: _tabController,
@@ -257,7 +275,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               itemCount: data.length,
               itemBuilder: (context, index) {
                 final r = data[index];
-
                 final idReserva = r['id_reserva'] as int;
                 final nombreArticulo =
                     (r['articulo'] is Map && r['articulo']['nombre'] != null)
@@ -286,7 +303,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Título + chip de estado
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -330,10 +346,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                           children: [
                             _kv('Inicio (UTC)', inicio?.toIso8601String() ?? '-'),
                             _kv('Fin (UTC)', fin?.toIso8601String() ?? '-'),
-                            _kv(
-                              tipo == _TipoLista.activas ? 'Tiempo restante' : 'Detalle',
-                              detalleTiempo,
-                            ),
+                            _kv(tipo == _TipoLista.activas ? 'Tiempo restante' : 'Detalle', detalleTiempo),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -381,3 +394,4 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 }
 
 enum _TipoLista { activas, futuras, historial }
+

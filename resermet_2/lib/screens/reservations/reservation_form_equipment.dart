@@ -34,7 +34,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   // 💡 NUEVOS ESTADOS DE DISPONIBILIDAD
   int _activeReservations = 0;
   int _stockTotal = 0;
-  // -------------------------------------
 
   // Duraciones dinámicas
   List<String> _duracionesDisponibles = [
@@ -71,25 +70,22 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
     final int available = _stockTotal - _activeReservations;
 
-    // Regla: Pocos en existencia (Amarillo) si queda menos del 30% del stock total
+    // Regla: Pocos en existencia si queda < 30% del stock total
     final int lowStockThreshold = (_stockTotal * 0.3).ceil();
 
     if (available <= 0) {
-      // Rojo: No disponible
       return (Colors.red, 'No disponible - 0 unidades restantes');
     } else if (available <= lowStockThreshold) {
-      // Amarillo: Pocos en existencia
       return (
         Colors.orange,
         'Baja disponibilidad - $available unidades restantes',
       );
     } else {
-      // Verde: Disponible
       return (Colors.green, 'Disponible - $available unidades restantes');
     }
   }
 
-  // 💡 NUEVO MÉTODO PARA CALCULAR LA DISPONIBILIDAD (ACTUALIZA _activeReservations)
+  // 💡 Calcula disponibilidad para el rango elegido
   void _calculateAvailability() async {
     if (_equipoSeleccionado == null ||
         _selectedTime == null ||
@@ -190,7 +186,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
         });
         _actualizarDuracionesDisponibles();
-        _calculateAvailability(); // 💡 CALCULAR AL SELECCIONAR HORA
+        _calculateAvailability(); // 💡 calcular al seleccionar hora
       },
     );
   }
@@ -201,7 +197,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     );
   }
 
-  // ====== CREAR RESERVA CON VALIDACIÓN DE CONFLICTO AÑADIDA ======
+  // ====== CREAR RESERVA CON VALIDACIÓN DE CONFLICTO ======
   Future<void> _crearReserva() async {
     if (_equipoSeleccionado == null) {
       _mostrarError('Por favor selecciona un equipo');
@@ -219,7 +215,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       return;
     }
 
-    // Mostrar toast de carga
+    // Toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
@@ -236,7 +232,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       // 2) FIN local según duración
       final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // 💡 3) VALIDAR DISPONIBILIDAD DE STOCK (usando la lógica de la UI)
+      // 3) VALIDAR STOCK
       final conflictoCount = await _reservaService.getActiveReservationsCount(
         idArticulo: _equipoSeleccionado!.idObjeto,
         inicio: inicioLocal,
@@ -250,15 +246,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
           'El Equipo Deportivo "${_equipoSeleccionado!.nombre}" no tiene unidades disponibles en ese horario.',
         );
         if (mounted) setState(() => _isSubmitting = false);
-        return; // Detener el proceso
+        return;
       }
-      // ----------------------------------------------------
 
-      // 4) Convertir ambos a UTC
+      // 4) Convertir a UTC
       final inicioIso = inicioLocal.toUtc().toIso8601String();
       final finIso = finLocal.toUtc().toIso8601String();
 
-      // 5) Insert SIN 'rango' (GENERATED) y con fecha_reserva UTC YYYY-MM-DD
+      // 5) Insert
       final reservaData = {
         'id_articulo': _equipoSeleccionado!.idObjeto,
         'id_usuario': user.id,
@@ -271,34 +266,28 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // Cerrar toast de carga y mostrar éxito
+      // Éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
         _equipoSeleccionado!.nombre,
       );
 
-      // Esperar un poco para que el usuario vea el toast de éxito
       await Future.delayed(const Duration(seconds: 2));
-
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      // Cerrar toast de carga y mostrar error
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
         'Error de conexión con la base de datos',
       );
-
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      // Cerrar toast de carga y mostrar error genérico
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
         'Error inesperado al procesar la reserva',
       );
-
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -325,8 +314,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   Widget build(BuildContext context) {
     // Obtener el status para la UI
     final status = _stockStatus;
-    final cs = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -392,7 +379,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         const SizedBox(height: 16),
 
                         if (_isLoading)
-                          // 💡 INDICADOR DE CARGA: Muestra el indicador mientras se cargan los equipos
                           const Center(child: CircularProgressIndicator())
                         else if (_equiposDisponibles.isEmpty)
                           const Text(
@@ -418,8 +404,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 vertical: 12,
                               ),
                             ),
-
-                            // Lo que se ve CUANDO EL CAMPO ESTÁ CERRADO (una sola línea)
                             selectedItemBuilder: (context) =>
                                 _equiposDisponibles.map((e) {
                                   return Align(
@@ -434,7 +418,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                     ),
                                   );
                                 }).toList(),
-
                             items: _equiposDisponibles.map((equipo) {
                               return DropdownMenuItem<EquipoDeportivo>(
                                 value: equipo,
@@ -455,7 +438,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                         color: Colors.grey.shade600,
                                       ),
                                     ),
-                                    // 💡 Muestra el número exacto de unidades disponibles
                                     Text(
                                       'Disponibles: ${equipo.cantidadDisponible}',
                                       style: TextStyle(
@@ -470,7 +452,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             onChanged: (newValue) {
                               setState(() {
                                 _equipoSeleccionado = newValue;
-                                //  AL CAMBIAR EL ARTÍCULO, ACTUALIZAR STOCK
                                 _calculateAvailability();
                               });
                             },
@@ -535,11 +516,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   'Disponibles: ${_equipoSeleccionado!.cantidadDisponible} unidades',
                                   style: TextStyle(
                                     color:
-                                        _equipoSeleccionado!
-                                                .cantidadDisponible >
-                                            0
-                                        ? Colors.green.shade600
-                                        : Colors.red.shade600,
+                                        _equipoSeleccionado!.cantidadDisponible >
+                                                0
+                                            ? Colors.green.shade600
+                                            : Colors.red.shade600,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -654,7 +634,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               .toList(),
                           onChanged: (newValue) {
                             setState(() => _selectedDuration = newValue);
-                            // 💡 CALCULAR AL CAMBIAR DURACIÓN
                             _calculateAvailability();
                           },
                           validator: (value) => (value == null || value.isEmpty)
@@ -664,7 +643,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                         const SizedBox(height: 16),
 
-                        //  INDICADOR DE DISPONIBILIDAD/STOCK CON COLOR
+                        //  Indicador de stock
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -680,8 +659,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  status
-                                      .$2, // Mensaje (Disponible / Baja Disponibilidad / No Disponible)
+                                  status.$2,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: status.$1,
@@ -724,9 +702,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    //  DESHABILITAR SI NO ESTÁ DISPONIBLE (ROJO) O CARGANDO
-                    onPressed:
-                        _isSubmitting ||
+                    onPressed: _isSubmitting ||
                             status.$1 == Colors.red ||
                             _equiposDisponibles.isEmpty
                         ? null
@@ -734,8 +710,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           _isSubmitting || _equiposDisponibles.isEmpty
-                          ? Colors.grey
-                          : status.$1, // Usar color del stock
+                              ? Colors.grey
+                              : status.$1,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -743,7 +719,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     ),
                     child: _isSubmitting
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : Row(
+                        : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.sports_tennis, color: Colors.white),
@@ -763,7 +739,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                 const SizedBox(height: 20),
 
-                // Información adicional
+                // Info extra
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),

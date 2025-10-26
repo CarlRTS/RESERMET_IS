@@ -1,17 +1,13 @@
+// lib/screens/home_screen.dart (o donde tengas este widget)
+import 'package:flutter/foundation.dart'; // debugPrint
 import 'package:flutter/material.dart';
-import 'package:resermet_2/screens/reservations/cubiculo_booking_screen.dart';
-import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'admin/admin_home_screen.dart';
+import 'login.dart';
 import 'my_reservations.dart';
 import 'reservations/reservation_screen.dart';
-import 'admin/admin_home_screen.dart';
-import 'admin/cubiculos_list_screen.dart';
-import 'login.dart';
-import 'registro.dart';
-import 'package:resermet_2/ui/theme/app_theme.dart';
-import 'package:resermet_2/screens/reservations/reservation_form_equipment.dart';
-import 'package:resermet_2/screens/reservations/reservation_form_console.dart';
-import 'package:resermet_2/screens/user_profile_screen.dart'; // 👈 NUEVO IMPORT
+import 'package:resermet_2/screens/user_profile_screen.dart';
 
 // --- Pantalla Principal (Con Navegación Inferior) ---
 class MainScreen extends StatefulWidget {
@@ -41,16 +37,16 @@ class _MainScreenState extends State<MainScreen> {
             .select('rol')
             .eq('id_usuario', user.id)
             .maybeSingle();
-
+            
         if (response != null) {
-          final userData = response as Map<String, dynamic>;
+          final userData = Map<String, dynamic>.from(response);
           setState(() {
             _isAdmin = userData['rol'] == 'administrador';
           });
         }
       }
     } catch (e) {
-      print('Error verificando rol de administrador: $e');
+      debugPrint('Error verificando rol de administrador: $e');
     }
   }
 

@@ -1,3 +1,5 @@
+// ignore_for_file: unused_import
+
 // availability.dart
 /*
 import 'package:flutter/material.dart';
@@ -200,8 +202,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
 // availability.dart
 
-// availability.dart
-
 import 'dart:async'; // Necesario para StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
@@ -236,19 +236,15 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     super.initState();
     _fetchCubicles();
 
-    // 💡 CONFIGURACIÓN REALTIME: Suscribirse a cambios en la tabla 'cubiculo'
-    // Cada vez que un cubículo se actualiza (estado cambia), se recarga la lista.
+    // 💡 CONFIGURACIÓN REALTIME
     _sub = _client
         .from('cubiculo')
-        // Usa primaryKey: ['id_articulo'] para un canal más eficiente
         .stream(primaryKey: ['id_articulo'])
         .listen((_) {
-          // Cuando la base de datos notifica un cambio, recargar los datos
-          _fetchCubicles();
-        });
+      _fetchCubicles();
+    });
   }
 
-  // 💡 IMPORTANTE: Cancelar la suscripción al destruir el widget
   @override
   void dispose() {
     _sub?.cancel();
@@ -263,10 +259,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     try {
       final cubicles = await _cubiculoService.getCubiculos();
       setState(() {
-        // Muestra los cubículos que no están 'en_mantenimiento'
-        _cubicles = cubicles
-            .where((c) => c.estado != 'en_mantenimiento')
-            .toList();
+        _cubicles = cubicles.where((c) => c.estado != 'en_mantenimiento').toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -285,13 +278,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     }
   }
 
+  // ignore: unused_element
   void _handleReservationTap(BuildContext context, Cubiculo cubicle) {
     if (cubicle.estado == 'disponible') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          // Pasa el objeto Cubiculo a la pantalla de reserva
-          builder: (context) => ReservationFormCubiculo(),
+          builder: (context) => const ReservationFormCubiculo(),
         ),
       );
     } else {
@@ -339,10 +332,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           ),
           const SizedBox(height: 20),
 
-          // 🔄 Indicador de carga
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
-          // ❌ Indicador de error
           else if (_error.isNotEmpty)
             Center(
               child: Column(
@@ -361,11 +352,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 ],
               ),
             )
-          // Lista de cubículos
           else if (_cubicles.isEmpty)
-            const Center(
-              child: Text('No hay cubículos disponibles o registrados.'),
-            )
+            const Center(child: Text('No hay cubículos disponibles o registrados.'))
           else
             Expanded(
               child: ListView.builder(
@@ -379,7 +367,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     elevation: 4,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
-                      // Borde sutil para indicar disponibilidad
                       side: isAvailable
                           ? BorderSide(color: Colors.green.shade100, width: 2)
                           : BorderSide.none,
@@ -409,8 +396,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       ),
                       trailing: Chip(
                         label: Text(
-                          cubicle
-                              .estado, // Mostrar el estado tal como viene de la DB
+                          cubicle.estado,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -418,10 +404,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         ),
                         backgroundColor: statusColor,
                       ),
-                      // Al tocar, si está disponible, llama a la función de reserva
-                      /*onTap: isAvailable
-                            ? () => _handleReservationTap(context, cubicle)
-                            : null, // Si está ocupado, no es clickeable*/
+                      // Si tu amigo reactiva el tap, listo para usar:
+                      // onTap: isAvailable ? () => _handleReservationTap(context, cubicle) : null,
                     ),
                   );
                 },

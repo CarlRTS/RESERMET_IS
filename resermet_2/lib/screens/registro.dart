@@ -61,7 +61,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _registrarUsuarioCompleto() async {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) {
-      // Si la validación falla (campos vacíos o inválidos)
       LoginToastService.showRegistrationError(context);
       return;
     }
@@ -94,7 +93,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'rol': rol,
         });
 
-        // tabla especifica por rol
         if (rol == 'estudiante') {
           await Supabase.instance.client.from('estudiante').insert({
             'id_usuario': user.id,
@@ -107,26 +105,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
 
-      // Toast de registro exitoso
       LoginToastService.showRegistrationSuccess(context);
 
       await Future.delayed(const Duration(milliseconds: 600));
       if (mounted) Navigator.of(context).pop();
     } on AuthException catch (e) {
-      // Manejo específico de errores de autenticación
       if (e.message.contains('User already registered')) {
         LoginToastService.showRegistrationError(
           context,
           message: 'Este correo ya está registrado',
         );
       } else {
-        // Si es otro error de Auth, mostramos registro exitoso (por el flujo de verificación)
         LoginToastService.showRegistrationSuccess(context);
         await Future.delayed(const Duration(milliseconds: 600));
         if (mounted) Navigator.of(context).pop();
       }
     } catch (e) {
-      // Error inesperado
       LoginToastService.showRegistrationError(
         context,
         message: 'Error inesperado: $e',
@@ -139,8 +133,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final tokens =
-        Theme.of(context).extension<AppTokens>() ??
+
+    // ✅ Ahora SÍ usamos tokens para radio y padding
+    final tokens = Theme.of(context).extension<AppTokens>() ??
         const AppTokens(
           radiusXL: 24,
           radiusMD: 14,
@@ -162,11 +157,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Card(
                     elevation: 1.5,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(tokens.radiusXL),
                       side: BorderSide(color: cs.outlineVariant),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                      padding: EdgeInsets.fromLTRB(
+                        tokens.paddingMD.left + 12,
+                        tokens.paddingMD.top + 12,
+                        tokens.paddingMD.right + 12,
+                        tokens.paddingMD.bottom + 8,
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -190,8 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 12),
                           Text(
                             'Crea tu cuenta Resermet',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   color: cs.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -199,13 +198,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Usa tu correo institucional UNIMET',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: cs.onSurface.withOpacity(.75),
                                 ),
                           ),
                           const SizedBox(height: 22),
-                          //  Correo
+
+                          // Correo
                           TextFormField(
                             controller: _emailController,
                             decoration: const InputDecoration(
@@ -228,7 +227,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          //  Nombre
+                          // Nombre
                           TextFormField(
                             controller: _nombreController,
                             decoration: const InputDecoration(
@@ -239,9 +238,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'El nombre es obligatorio';
                               }
-                              if (!RegExp(
-                                r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$",
-                              ).hasMatch(value)) {
+                              if (!RegExp(r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$")
+                                  .hasMatch(value)) {
                                 return 'Solo se permiten letras (incluye acentos y ñ)';
                               }
                               return null;
@@ -249,7 +247,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          //  Apellido
+                          // Apellido
                           TextFormField(
                             controller: _apellidoController,
                             decoration: const InputDecoration(
@@ -260,9 +258,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'El apellido es obligatorio';
                               }
-                              if (!RegExp(
-                                r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$",
-                              ).hasMatch(value)) {
+                              if (!RegExp(r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$")
+                                  .hasMatch(value)) {
                                 return 'Solo se permiten letras (incluye acentos y ñ)';
                               }
                               return null;
@@ -270,7 +267,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          //  Teléfono
+                          // Teléfono
                           TextFormField(
                             controller: _telefonoController,
                             decoration: const InputDecoration(
@@ -290,7 +287,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          //  Tipo de Usuario
+                          // Tipo de Usuario
                           DropdownButtonFormField<String>(
                             value: _selectedRol,
                             decoration: const InputDecoration(
@@ -320,6 +317,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
                           const SizedBox(height: 14),
+
                           if (_selectedRol == 'estudiante') ...[
                             DropdownButtonFormField<String>(
                               value: _selectedCarrera,
@@ -335,13 +333,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   )
                                   .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedCarrera = v),
+                              onChanged: (v) => setState(() => _selectedCarrera = v),
                             ),
                             const SizedBox(height: 14),
                           ],
 
-                          //  Contraseña
+                          // Contraseña
                           TextFormField(
                             controller: _passwordController,
                             decoration: InputDecoration(
@@ -365,9 +362,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             obscureText: _obscurePassword,
                             autofillHints: const [AutofillHints.newPassword],
-                            validator: (v) => (v == null || v.length < 6)
-                                ? 'Debe tener al menos 6 caracteres.'
-                                : null,
+                            validator: (v) =>
+                                (v == null || v.length < 6) ? 'Debe tener al menos 6 caracteres.' : null,
                           ),
                           const SizedBox(height: 14),
 
@@ -384,8 +380,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       : Icons.visibility,
                                 ),
                                 onPressed: () => setState(
-                                  () => _obscureConfirmPassword =
-                                      !_obscureConfirmPassword,
+                                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
                                 ),
                                 style: IconButton.styleFrom(
                                   foregroundColor: UnimetPalette.primary,
@@ -409,9 +404,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                           // CTA
                           FilledButton(
-                            onPressed: _isLoading
-                                ? null
-                                : _registrarUsuarioCompleto,
+                            onPressed: _isLoading ? null : _registrarUsuarioCompleto,
                             style: FilledButton.styleFrom(
                               minimumSize: const Size.fromHeight(50),
                               shape: const StadiumBorder(),
@@ -420,9 +413,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
                                   )
                                 : const Text('CREAR CUENTA'),
                           ),
@@ -433,22 +424,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(),
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 8,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                             ),
                             child: RichText(
                               text: TextSpan(
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.copyWith(fontSize: 15),
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 15),
                                 children: const [
                                   TextSpan(
                                     text: '¿Ya tienes cuenta?',
-                                    style: TextStyle(
-                                      color: UnimetPalette.primary,
-                                    ),
+                                    style: TextStyle(color: UnimetPalette.primary),
                                   ),
                                   TextSpan(
                                     text: ' Inicia sesión',

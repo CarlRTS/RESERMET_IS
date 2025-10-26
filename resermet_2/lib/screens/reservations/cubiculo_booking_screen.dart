@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:resermet_2/models/cubiculo.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 
-import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
-
-
 class CubiculoBookingScreen extends StatelessWidget {
   final Cubiculo cubiculo;
 

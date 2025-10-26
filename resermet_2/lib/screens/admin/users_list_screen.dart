@@ -113,7 +113,8 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
   Widget _avatar(UserProfile u) {
     final foto = u.fotoUrl;
-    final initials = '${(u.nombre ?? '').isNotEmpty ? u.nombre![0] : ''}${(u.apellido ?? '').isNotEmpty ? u.apellido![0] : ''}';
+    final initials =
+        '${(u.nombre ?? '').isNotEmpty ? u.nombre![0] : ''}${(u.apellido ?? '').isNotEmpty ? u.apellido![0] : ''}';
     return CircleAvatar(
       radius: 20,
       backgroundImage: (foto != null && foto.isNotEmpty) ? NetworkImage(foto) : null,
@@ -173,10 +174,16 @@ class _UsersListScreenState extends State<UsersListScreen> {
                               separatorBuilder: (_, __) => const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final u = _users[index];
-                                final title = '${u.nombre ?? ''} ${u.apellido ?? ''}'.trim().isEmpty
-                                    ? (u.correo ?? 'Usuario')
-                                    : '${u.nombre ?? ''} ${u.apellido ?? ''}'.trim();
-                                final subtitle = u.correo ?? '-';
+
+                                // Nombre completo (puede venir vacío si el usuario aún no lo completó)
+                                final fullName =
+                                    '${u.nombre ?? ''} ${u.apellido ?? ''}'.trim();
+
+                                // Si no hay nombre, usamos el correo (no-nullable en tu modelo)
+                                final title = fullName.isEmpty ? u.correo : fullName;
+
+                                // Subtítulo: muestra siempre el correo (no-nullable)
+                                final subtitle = u.correo;
 
                                 return ListTile(
                                   leading: _avatar(u),
