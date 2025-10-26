@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'cubiculos_list_screen.dart';
 import 'consolas_list_screen.dart';
 import 'equipos_list_screen.dart';
-import 'reservas_activas_screen.dart'; // ← NUEVO IMPORT
+import 'reservas_activas_screen.dart';
+import 'users_list_screen.dart'; // ← NUEVO IMPORT
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -36,6 +37,13 @@ class AdminHomeScreen extends StatelessWidget {
     );
   }
 
+  void _navigateToUsers(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const UsersListScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,12 +69,11 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Selecciona el tipo de recurso que deseas gestionar',
+                'Selecciona el módulo que deseas gestionar',
                 style: TextStyle(fontSize: 16, color: Colors.black87),
               ),
               const SizedBox(height: 30),
 
-              // Tarjeta Cubículos
               _buildManagementCard(
                 context,
                 title: 'Cubículos de Estudio',
@@ -78,7 +85,6 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Tarjeta Consolas
               _buildManagementCard(
                 context,
                 title: 'Consolas y Juegos',
@@ -90,7 +96,6 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Tarjeta Equipos Deportivos
               _buildManagementCard(
                 context,
                 title: 'Equipos Deportivos',
@@ -102,7 +107,6 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // 🟦 NUEVA TARJETA: Reservas Activas
               _buildManagementCard(
                 context,
                 title: 'Reservas Activas',
@@ -110,6 +114,18 @@ class AdminHomeScreen extends StatelessWidget {
                 icon: Icons.schedule,
                 color: Colors.blueAccent,
                 onTap: () => _navigateToReservasActivas(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              // 🟦 NUEVA TARJETA: Usuarios
+              _buildManagementCard(
+                context,
+                title: 'Usuarios',
+                subtitle: 'Buscar y ver perfiles de estudiantes',
+                icon: Icons.people_alt_rounded,
+                color: Colors.purple,
+                onTap: () => _navigateToUsers(context),
                 available: true,
               ),
             ],
