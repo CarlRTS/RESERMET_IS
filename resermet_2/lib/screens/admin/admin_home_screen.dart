@@ -4,7 +4,8 @@ import 'cubiculos_list_screen.dart';
 import 'consolas_list_screen.dart';
 import 'equipos_list_screen.dart';
 import 'reservas_activas_screen.dart';
-import 'users_list_screen.dart'; // ← NUEVO IMPORT
+import 'users_list_screen.dart';
+import 'reporte_reservas_screen.dart'; // <-- Mantenemos este import
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -44,6 +45,14 @@ class AdminHomeScreen extends StatelessWidget {
     );
   }
 
+  // Mantenemos esta función
+  void _navigateToReportes(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ReporteReservasScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,11 +83,47 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
+              // Tarjeta de Reportes (la mantenemos)
+              _buildManagementCard(
+                context,
+                title: 'Reporte de Reservas',
+                subtitle: 'Ver estadísticas de uso por mes',
+                icon: Icons.bar_chart_rounded,
+                color: Colors.teal,
+                onTap: () => _navigateToReportes(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              _buildManagementCard(
+                context,
+                title: 'Reservas Activas',
+                subtitle: 'Monitorear y finalizar reservas en curso',
+                icon: Icons.schedule_rounded,
+                color: Colors.blueAccent,
+                onTap: () => _navigateToReservasActivas(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              _buildManagementCard(
+                context,
+                title: 'Usuarios',
+                subtitle: 'Buscar y ver perfiles de estudiantes',
+                icon: Icons.people_alt_rounded,
+                color: Colors.purple,
+                onTap: () => _navigateToUsers(context),
+                available: true,
+              ),
+              const SizedBox(height: 20),
+
+              const Divider(height: 20), // Separador
+
               _buildManagementCard(
                 context,
                 title: 'Cubículos de Estudio',
                 subtitle: 'Gestionar espacios individuales o grupales',
-                icon: Icons.meeting_room,
+                icon: Icons.meeting_room_rounded,
                 color: const Color(0xFF0033A0),
                 onTap: () => _navigateToCubiculos(context),
                 available: true,
@@ -89,7 +134,7 @@ class AdminHomeScreen extends StatelessWidget {
                 context,
                 title: 'Consolas y Juegos',
                 subtitle: 'Gestionar equipos del Centro de Diseño Digital',
-                icon: Icons.gamepad,
+                icon: Icons.gamepad_rounded,
                 color: Colors.green,
                 onTap: () => _navigateToConsolas(context),
                 available: true,
@@ -100,32 +145,9 @@ class AdminHomeScreen extends StatelessWidget {
                 context,
                 title: 'Equipos Deportivos',
                 subtitle: 'Gestionar material deportivo y equipos',
-                icon: Icons.sports_baseball,
+                icon: Icons.sports_baseball_rounded,
                 color: Colors.orange,
                 onTap: () => _navigateToEquiposDeportivos(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              _buildManagementCard(
-                context,
-                title: 'Reservas Activas',
-                subtitle: 'Monitorear y finalizar reservas en curso',
-                icon: Icons.schedule,
-                color: Colors.blueAccent,
-                onTap: () => _navigateToReservasActivas(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              // 🟦 NUEVA TARJETA: Usuarios
-              _buildManagementCard(
-                context,
-                title: 'Usuarios',
-                subtitle: 'Buscar y ver perfiles de estudiantes',
-                icon: Icons.people_alt_rounded,
-                color: Colors.purple,
-                onTap: () => _navigateToUsers(context),
                 available: true,
               ),
             ],
@@ -136,14 +158,14 @@ class AdminHomeScreen extends StatelessWidget {
   }
 
   Widget _buildManagementCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    required bool available,
-  }) {
+      BuildContext context, {
+        required String title,
+        required String subtitle,
+        required IconData icon,
+        required Color color,
+        required VoidCallback onTap,
+        required bool available,
+      }) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
