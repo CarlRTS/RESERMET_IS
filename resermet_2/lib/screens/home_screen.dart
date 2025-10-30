@@ -120,7 +120,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _reservaService = ReservaService();
   List<Map<String, dynamic>> _reservas = [];
   List<Map<String, dynamic>> _reservasMostradas = [];
@@ -128,7 +128,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cargarReservas();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Este método se llama cuando la app vuelve a primer plano
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _cargarReservas(); // Recargar cuando la app vuelve a estar activa
+    }
   }
 
   // Método helper para navegación consistente
@@ -149,7 +164,10 @@ class _HomeScreenState extends State<HomeScreen> {
           body: formScreen,
         ),
       ),
-    );
+    ).then((_) {
+      // Cuando regresamos de cualquier pantalla de reserva, recargamos las reservas
+      _cargarReservas();
+    });
   }
 
   Future<String> _getNombre() async {
@@ -176,18 +194,21 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = await _reservaService.getMisReservasRaw();
       final now = DateTime.now().toUtc();
 
-      // Filtrar canceladas y solo activas/futuras
+      // Filtrar canceladas y finalizadas, solo activas/futuras
       final filtradas = <Map<String, dynamic>>[];
       for (var r in data) {
         final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
         final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
         if (inicio == null || fin == null) continue;
         final estado = ('${r['estado'] ?? ''}').toLowerCase();
-        if (estado == 'cancelada') continue;
+        
+        // EXCLUIR tanto canceladas como finalizadas
+        if (estado == 'cancelada' || estado == 'finalizada') continue;
 
         final esFutura = now.isBefore(inicio);
         final esActiva = now.isAfter(inicio) && now.isBefore(fin);
 
+        // Solo incluir activas o futuras
         if (esFutura || esActiva) {
           // Enriquecemos el registro con etiqueta/color
           final enriched = Map<String, dynamic>.from(r);
@@ -229,10 +250,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // 👇 FUNCIÓN MEJORADA - Iconos más precisos según el tipo de artículo
-  (IconData, Color) _iconoYColorPorArticulo(Map<String, dynamic>? art) {
-    final nombre = (art?['nombre'] ?? '').toString().toLowerCase();
-    final tipo = (art?['tipo'] ?? art?['categoria'] ?? art?['tipo_articulo'] ?? '')
+  // 👇 FUNCIÓN CORREGIDA - DETERMINAR ICONO Y COLOR
+  (IconData, Color) _obtenerIconoYColor(Map<String, dynamic> reserva, Map<String, dynamic>? articulo) {
+    final etiqueta = reserva['_etiqueta'] as String;
+    
+    // Si es FUTURA, siempre usar el icono de reloj
+    if (etiqueta == 'FUTURA') {
+      return (Icons.access_time_rounded, Colors.orange);
+    }
+    
+    // Si es ACTIVA, usar el icono específico del artículo
+    final nombre = (articulo?['nombre'] ?? '').toString().toLowerCase();
+    final tipo = (articulo?['tipo'] ?? articulo?['categoria'] ?? articulo?['tipo_articulo'] ?? '')
         .toString()
         .toLowerCase();
 
@@ -240,9 +269,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (nombre.contains('ps') || 
         nombre.contains('xbox') || 
         nombre.contains('nintendo') ||
+        nombre.contains('switch') || // ← AGREGADO SWITCH
         nombre.contains('consola') ||
         tipo.contains('consola')) {
-      return (Icons.sports_esports_rounded, AppColors.unimetOrange);
+      return (Icons.sports_esports_rounded, AppColors.unimetOrange); // Mando para consolas
     }
     
     if (nombre.contains('cubículo') || 
@@ -251,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
         nombre.contains('estudio') ||
         tipo.contains('cubículo') ||
         tipo.contains('sala')) {
-      return (Icons.meeting_room_rounded, AppColors.unimetBlue);
+      return (Icons.meeting_room_rounded, AppColors.unimetBlue); // Cubículo para cubículos
     }
     
     if (nombre.contains('balón') || 
@@ -261,10 +291,10 @@ class _HomeScreenState extends State<HomeScreen> {
         nombre.contains('equipo') ||
         tipo.contains('deportivo') ||
         tipo.contains('equipo')) {
-      return (Icons.sports_soccer_rounded, Colors.green);
+      return (Icons.sports_soccer_rounded, Colors.green); // Balón para equipos deportivos
     }
 
-    // Por defecto
+    // Por defecto para ACTIVAS
     return (Icons.event_available_rounded, Colors.teal);
   }
 
@@ -366,7 +396,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
                               builder: (_) => const UserProfileScreen()),
-                        ),
+                        ).then((_) {
+                          // Recargar reservas al regresar del perfil
+                          _cargarReservas();
+                        }),
                       ),
                     ),
                     // Icono de logout con borde sutil
@@ -505,20 +538,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           (r['_inicio'] as DateTime).toLocal();
                       final finLocal = (r['_fin'] as DateTime).toLocal();
                       String nombre = 'Artículo';
-                      IconData icono = Icons.event;
-                      Color colorIcono = Colors.grey;
+                      Map<String, dynamic>? articulo;
 
                       if (r['articulo'] is Map) {
-                        final art =
-                            Map<String, dynamic>.from(r['articulo'] as Map);
-                        nombre = (art['nombre'] ?? 'Artículo').toString();
-                        final (iconoObtenido, colorObtenido) = _iconoYColorPorArticulo(art);
-                        icono = iconoObtenido;
-                        colorIcono = colorObtenido;
+                        articulo = Map<String, dynamic>.from(r['articulo'] as Map);
+                        nombre = (articulo['nombre'] ?? 'Artículo').toString();
                       }
 
                       final etiqueta = r['_etiqueta'] as String;
                       final colorEstado = r['_color'] as Color;
+                      
+                      // 👇 USAR LA FUNCIÓN CORREGIDA PARA OBTENER ICONO Y COLOR
+                      final (icono, colorIcono) = _obtenerIconoYColor(r, articulo);
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
