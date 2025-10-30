@@ -1,3 +1,4 @@
+// lib/services/reserva_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'base_service.dart';
 import '../models/reserva.dart';
@@ -80,8 +81,8 @@ class ReservaService with BaseService {
     final data = await supabase
         .from('reserva')
         .select(
-          'id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)',
-        )
+      'id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)',
+    )
         .eq('id_usuario', userId)
         .order('inicio', ascending: true);
 
@@ -137,7 +138,7 @@ class ReservaService with BaseService {
           .select('id_reserva')
           .eq('id_articulo', idArticulo)
           .eq('estado', 'activa')
-          // solape: inicio < finSolicitado AND fin > inicioSolicitado
+      // solape: inicio < finSolicitado AND fin > inicioSolicitado
           .lt('inicio', finIso)
           .gt('fin', inicioIso);
 
@@ -164,9 +165,9 @@ class ReservaService with BaseService {
     final data = await supabase
         .from('reserva')
         .select(
-          // incluye nombre del artículo por relación Supabase
-          'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
-        )
+      // incluye nombre del artículo por relación Supabase
+      'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
+    )
         .eq('estado', 'activa')
         .order('fin', ascending: true);
 
@@ -197,4 +198,63 @@ class ReservaService with BaseService {
     final updated = (response as List?)?.length ?? 0;
     return updated;
   }
+
+  /// Obtiene las estadísticas de reservas para un rango de fechas usando RPC.
+  Future<ReporteStats> getEstadisticasReservas({
+    required DateTime fechaInicio,
+    required DateTime fechaFin,
+  }) async {
+    try {
+      // Formatear las fechas como 'YYYY-MM-DD'
+      final inicioStr = fechaInicio.toIso8601String().split('T').first;
+      final finStr = fechaFin.toIso8601String().split('T').first;
+
+      final response = await supabase.rpc(
+        'get_reporte_reservas',
+        params: {
+          'fecha_inicio': inicioStr,
+          'fecha_fin': finStr,
+        },
+      );
+
+      // El response es el JSONB que devolvimos
+      return ReporteStats.fromJson(response as Map<String, dynamic>);
+
+    } on PostgrestException catch (e) {
+      throw Exception('Error de BD al generar reporte: ${e.message}');
+    } catch (e) {
+      throw Exception('Error al generar reporte: $e');
+    }
+  }
+}
+
+// =================================================
+// == CLASE PARA REPORTES (EXISTENTE) ==
+// =================================================
+
+/// Modelo para la respuesta de la función de reporte
+class ReporteStats {
+  final int totalReservas;
+  final int finalizadas;
+  final int canceladas;
+  final int cubiculos;
+  final int consolas;
+  final int equipos;
+
+  ReporteStats.fromJson(Map<String, dynamic> json)
+      : totalReservas = json['total_reservas'] ?? 0,
+        finalizadas = json['finalizadas'] ?? 0,
+        canceladas = json['canceladas'] ?? 0,
+        cubiculos = json['desglose']?['cubiculos'] ?? 0,
+        consolas = json['desglose']?['consolas'] ?? 0,
+        equipos = json['desglose']?['equipos'] ?? 0;
+
+  // Un reporte vacío por defecto
+  ReporteStats.empty()
+      : totalReservas = 0,
+        finalizadas = 0,
+        canceladas = 0,
+        cubiculos = 0,
+        consolas = 0,
+        equipos = 0;
 }
