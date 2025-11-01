@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
 import '../widgets/toastification_log.dart';
+import 'password_recovery.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -247,6 +248,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ],
                                   ),
+                                ),
+                              ),
+                              // Enlace a recuperación de contraseña
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const PasswordRecoveryScreen(),
+                                    ),
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                ),
+                                child: Text(
+                                  '¿Olvidaste tu contraseña?',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: UnimetPalette.accent,
+                                        fontSize: 14,
+                                      ),
                                 ),
                               ),
 
