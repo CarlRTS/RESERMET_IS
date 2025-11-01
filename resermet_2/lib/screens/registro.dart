@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
-import '../widgets/toastification_log.dart'; // Importación agregada
+import '../widgets/toastification_log.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -29,7 +29,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedCarrera;
 
   final List<String> _carreras = const [
-    'Ingeniería',
+    'Ingeniería de Sistemas',
+    'Ingeniería Mecánica',
+    'Ingeniería Química',
+    'Ingeniería de Producción',
+    'Ingeniería Civil',
+    'Ingeniería Eléctrica',
     'Administración',
     'Economía',
     'Contaduría',
@@ -37,8 +42,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Educación',
     'Derecho',
     'Comunicación Social',
-    'Arquitectura',
-    'Otra',
+    'Estudios Liberales',
+    'Estudios Internacionales',
   ];
 
   @override
@@ -134,8 +139,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    // ✅ Ahora SÍ usamos tokens para radio y padding
-    final tokens = Theme.of(context).extension<AppTokens>() ??
+    final tokens =
+        Theme.of(context).extension<AppTokens>() ??
         const AppTokens(
           radiusXL: 24,
           radiusMD: 14,
@@ -145,12 +150,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(color: UnimetPalette.base),
-        alignment: Alignment.center,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
+              constraints: const BoxConstraints(maxWidth: 480),
               child: Form(
                 key: _formKey,
                 child: AutofillGroup(
@@ -161,56 +165,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       side: BorderSide(color: cs.outlineVariant),
                     ),
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        tokens.paddingMD.left + 12,
-                        tokens.paddingMD.top + 12,
-                        tokens.paddingMD.right + 12,
-                        tokens.paddingMD.bottom + 8,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Header
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              color: cs.primary.withOpacity(.10),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: cs.primary.withOpacity(.25),
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.person_add_alt_1_outlined,
-                              size: 36,
-                              color: cs.primary,
+                          // Logo en lugar del icono circular
+                          SizedBox(
+                            width: 200, // Ajusta el ancho según necesites
+                            height: 80, // Ajusta la altura según necesites
+                            child: Image.asset(
+                              'assets/images/logo_resermet_naranja.png', // Cambia por la ruta de tu logo
+                              fit: BoxFit.contain,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 4), // Espacio ajustado
                           Text(
                             'Crea tu cuenta Resermet',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
                                   color: cs.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
+                            textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Usa tu correo institucional UNIMET',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
                                   color: cs.onSurface.withOpacity(.75),
                                 ),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 18),
 
-                          // Correo
-                          TextFormField(
+                          // Campos de formulario
+                          _buildTextFormField(
                             controller: _emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Correo Institucional',
-                              prefixIcon: Icon(Icons.email),
-                            ),
+                            label: 'Correo Institucional',
+                            icon: Icons.email,
                             keyboardType: TextInputType.emailAddress,
                             autofillHints: const [AutofillHints.email],
                             validator: (value) {
@@ -225,67 +218,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 14),
 
-                          // Nombre
-                          TextFormField(
+                          _buildTextFormField(
                             controller: _nombreController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nombre',
-                              prefixIcon: Icon(Icons.person),
-                            ),
+                            label: 'Nombre',
+                            icon: Icons.person,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'El nombre es obligatorio';
                               }
-                              if (!RegExp(r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$")
-                                  .hasMatch(value)) {
-                                return 'Solo se permiten letras (incluye acentos y ñ)';
+                              if (!RegExp(
+                                r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$",
+                              ).hasMatch(value)) {
+                                return 'Solo se permiten letras';
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 14),
 
-                          // Apellido
-                          TextFormField(
+                          _buildTextFormField(
                             controller: _apellidoController,
-                            decoration: const InputDecoration(
-                              labelText: 'Apellido',
-                              prefixIcon: Icon(Icons.person_outline),
-                            ),
+                            label: 'Apellido',
+                            icon: Icons.person_outline,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'El apellido es obligatorio';
                               }
-                              if (!RegExp(r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$")
-                                  .hasMatch(value)) {
-                                return 'Solo se permiten letras (incluye acentos y ñ)';
+                              if (!RegExp(
+                                r"^[a-zA-ZÀ-ÿ\u00f1\u00d1\s]+$",
+                              ).hasMatch(value)) {
+                                return 'Solo se permiten letras';
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 14),
 
-                          // Teléfono
-                          TextFormField(
+                          _buildTextFormField(
                             controller: _telefonoController,
-                            decoration: const InputDecoration(
-                              labelText: 'Teléfono',
-                              prefixIcon: Icon(Icons.phone),
-                            ),
+                            label: 'Teléfono',
+                            icon: Icons.phone,
                             keyboardType: TextInputType.phone,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'El teléfono es obligatorio';
                               }
                               if (!RegExp(r"^\d{10,}$").hasMatch(value)) {
-                                return 'El teléfono debe tener al menos 10 dígitos';
+                                return 'Mínimo 10 dígitos';
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 14),
 
                           // Tipo de Usuario
                           DropdownButtonFormField<String>(
@@ -293,6 +275,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Tipo de Usuario',
                               prefixIcon: Icon(Icons.people),
+                              isDense: true,
                             ),
                             items: const [
                               DropdownMenuItem(
@@ -316,7 +299,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
 
                           if (_selectedRol == 'estudiante') ...[
                             DropdownButtonFormField<String>(
@@ -324,115 +307,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               decoration: const InputDecoration(
                                 labelText: 'Carrera',
                                 prefixIcon: Icon(Icons.school),
+                                isDense: true,
                               ),
+                              dropdownColor: Colors.white,
+                              menuMaxHeight: 300,
+                              itemHeight: 50,
+                              isExpanded: true,
                               items: _carreras
                                   .map(
                                     (c) => DropdownMenuItem(
                                       value: c,
-                                      child: Text(c),
+                                      child: Text(
+                                        c,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
                                     ),
                                   )
                                   .toList(),
-                              onChanged: (v) => setState(() => _selectedCarrera = v),
+                              onChanged: (v) =>
+                                  setState(() => _selectedCarrera = v),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                           ],
 
                           // Contraseña
-                          TextFormField(
+                          _buildPasswordField(
                             controller: _passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Contraseña (min. 6 caracteres)',
-                              prefixIcon: const Icon(Icons.lock),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                                onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword,
-                                ),
-                                style: IconButton.styleFrom(
-                                  foregroundColor: UnimetPalette.primary,
-                                  overlayColor: Colors.transparent,
-                                  splashFactory: NoSplash.splashFactory,
-                                ),
-                              ),
-                            ),
+                            label: 'Contraseña (min. 6 caracteres)',
                             obscureText: _obscurePassword,
-                            autofillHints: const [AutofillHints.newPassword],
-                            validator: (v) =>
-                                (v == null || v.length < 6) ? 'Debe tener al menos 6 caracteres.' : null,
+                            onToggle: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            validator: (v) => (v == null || v.length < 6)
+                                ? 'Mínimo 6 caracteres'
+                                : null,
                           ),
-                          const SizedBox(height: 14),
 
                           // Confirmar contraseña
-                          TextFormField(
+                          _buildPasswordField(
                             controller: _confirmPasswordController,
-                            decoration: InputDecoration(
-                              labelText: 'Confirmar contraseña',
-                              prefixIcon: const Icon(Icons.lock_reset),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscureConfirmPassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                ),
-                                onPressed: () => setState(
-                                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                                ),
-                                style: IconButton.styleFrom(
-                                  foregroundColor: UnimetPalette.primary,
-                                  overlayColor: Colors.transparent,
-                                  splashFactory: NoSplash.splashFactory,
-                                ),
-                              ),
-                            ),
+                            label: 'Confirmar contraseña',
                             obscureText: _obscureConfirmPassword,
+                            onToggle: () => setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
-                                return 'Confirme su contraseña.';
+                                return 'Confirme su contraseña';
                               }
                               if (v != _passwordController.text) {
-                                return 'Las contraseñas no coinciden.';
+                                return 'Las contraseñas no coinciden';
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 20),
+
+                          const SizedBox(height: 16),
 
                           // CTA
                           FilledButton(
-                            onPressed: _isLoading ? null : _registrarUsuarioCompleto,
+                            onPressed: _isLoading
+                                ? null
+                                : _registrarUsuarioCompleto,
                             style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(50),
+                              minimumSize: const Size.fromHeight(48),
                               shape: const StadiumBorder(),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Text('CREAR CUENTA'),
                           ),
 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
 
                           // Link: ¿Ya tienes cuenta? Inicia sesión
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(),
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 6,
+                              ),
                             ),
                             child: RichText(
                               text: TextSpan(
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 15),
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.copyWith(fontSize: 14),
                                 children: const [
                                   TextSpan(
                                     text: '¿Ya tienes cuenta?',
-                                    style: TextStyle(color: UnimetPalette.primary),
+                                    style: TextStyle(
+                                      color: UnimetPalette.primary,
+                                    ),
                                   ),
                                   TextSpan(
                                     text: ' Inicia sesión',
@@ -455,6 +430,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Widget helper para campos de texto
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    List<String>? autofillHints,
+    required String? Function(String?)? validator,
+  }) {
+    return Column(
+      children: [
+        TextFormField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon),
+            isDense: true,
+          ),
+          keyboardType: keyboardType,
+          autofillHints: autofillHints,
+          validator: validator,
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  // Widget helper para campos de contraseña
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool obscureText,
+    required VoidCallback onToggle,
+    required String? Function(String?)? validator,
+  }) {
+    return Column(
+      children: [
+        TextFormField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: const Icon(Icons.lock),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscureText ? Icons.visibility_off : Icons.visibility,
+                size: 20,
+              ),
+              onPressed: onToggle,
+              style: IconButton.styleFrom(
+                foregroundColor: UnimetPalette.primary,
+                overlayColor: Colors.transparent,
+                splashFactory: NoSplash.splashFactory,
+                padding: const EdgeInsets.all(4),
+              ),
+            ),
+            isDense: true,
+          ),
+          obscureText: obscureText,
+          autofillHints: const [AutofillHints.newPassword],
+          validator: validator,
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

@@ -90,8 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           // Fondo
           Container(decoration: BoxDecoration(color: UnimetPalette.base)),
-
-          // Imagen superior - FIJA, no se mueve con el scroll
+          // Imagen superior
           Positioned(
             top: 50,
             left: 0,
@@ -106,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // Contenido principal CON SCROLL - empieza DESPUÉS de la imagen
+          // Contenido principal
           Padding(
             padding: const EdgeInsets.only(
               top: 160,
