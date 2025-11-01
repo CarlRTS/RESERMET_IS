@@ -39,8 +39,8 @@ dependencies:
   toastification:  ^3.0.3
   image_picker: ^1.0.7
   url_launcher: ^6.3.0
-  fl_chart: ^0.68.0  # <-- NUEVO USAR FLUTTER PUB GET
-  easy_date_timeline: ^2.0.9 # <-- Nuevo usar pub get
+  fl_chart: ^0.68.0 
+  easy_date_timeline: ^2.0.9 
 
 
 
@@ -65,11 +65,13 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
+  uses-material-design: true
+  assets:
+  - assets/images/
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
-  uses-material-design: true
+  
 
   # To add assets to your application, add an assets section, like this:
   # assets:
