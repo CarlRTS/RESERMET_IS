@@ -100,6 +100,25 @@ class LoginToastService {
     );
   }
 
+  // 📧 EMAIL DE RECUPERACIÓN ENVIADO
+  static void showRecoveryEmailSent(BuildContext context, {String? message}) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.info,
+      style: ToastificationStyle.flatColored,
+      title: const Text('Email Enviado'),
+      description: Text(
+        message ?? 'Revisa tu correo para restablecer tu contraseña',
+      ),
+      autoCloseDuration: const Duration(seconds: 5),
+      borderRadius: BorderRadius.circular(12),
+      primaryColor: Colors.blue,
+      alignment: Alignment.topRight,
+      animationDuration: const Duration(milliseconds: 300),
+      icon: const Icon(Icons.email_outlined, color: Colors.white),
+    );
+  }
+
   // CREDENCIALES INCORRECTAS
   static void showInvalidCredentials(BuildContext context) {
     toastification.show(

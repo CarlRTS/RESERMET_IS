@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/home_screen.dart'; // ← Contiene MainScreen
-import 'screens/login.dart'; // ← Tu pantalla de login
+import 'package:app_links/app_links.dart'; // 👈 Importación de app_links
+import 'screens/home_screen.dart';
+import 'screens/login.dart';
+import 'package:resermet_2/screens/new_password_screen.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
 
+// navigatorKey
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +21,57 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late AppLinks _appLinks; // 👈 Declara AppLinks
+
+  @override
+  void initState() {
+    super.initState();
+    _appLinks = AppLinks(); // 👈 Inicializa AppLinks
+    _handleDeepLinks();
+  }
+
+  void _handleDeepLinks() async {
+    try {
+      // Manejar el link inicial si la app fue abierta desde un link
+      final initialLink = await _appLinks.getInitialAppLink(); // 👈 Cambiado
+      if (initialLink != null) {
+        _handlePasswordResetLink(initialLink.path); // 👈 Usa .path
+      }
+
+      // Escuchar links mientras la app está en primer plano
+      _appLinks.uriLinkStream.listen((Uri? uri) {
+        // 👈 Cambiado
+        if (uri != null && mounted) {
+          _handlePasswordResetLink(uri.toString()); // 👈 Convierte a String
+        }
+      });
+    } catch (e) {
+      print('Error handling deep links: $e');
+    }
+  }
+
+  void _handlePasswordResetLink(String link) {
+    // Verificar si es un link de reset de contraseña
+    if (link.contains('reset-password')) {
+      // Navegar a la pantalla de nueva contraseña
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const NewPasswordScreen()),
+            (route) => false,
+          );
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,19 +79,18 @@ class MyApp extends StatelessWidget {
       title: 'RESERMET',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: const AuthGate(), // 👈 Maneja si hay sesión o no
+      navigatorKey: navigatorKey,
+      home: const AuthGate(),
     );
   }
 }
 
 // 🚪 AuthGate: decide si mostrar Login o MainScreen
-// 💡 CORRECCIÓN CLAVE: Usa StreamBuilder para reaccionar a los cambios de Auth.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Usamos StreamBuilder para escuchar el estado de autenticación de Supabase
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {

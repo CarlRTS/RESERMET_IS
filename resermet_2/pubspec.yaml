@@ -41,6 +41,7 @@ dependencies:
   url_launcher: ^6.3.0
   fl_chart: ^0.68.0 
   easy_date_timeline: ^2.0.9 
+  app_links: ^3.1.0
 
 
 

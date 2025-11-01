@@ -31,25 +31,41 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
 
     final email = _emailController.text.trim();
     final supabase = Supabase.instance.client;
+    final currentContext = context; // 👈 Guarda el context antes de async
 
     try {
       await supabase.auth.resetPasswordForEmail(
         email,
-        redirectTo:
-            'resermet://reset-password', // Cambia esto por tu URL de deep linking
+        redirectTo: 'resermet://reset-password',
       );
 
       setState(() => _emailSent = true);
-      LoginToastService.showLoginSuccess(context);
+
+      // 👇 CORREGIDO - Usa ReservationToastService y mensaje específico
+      if (mounted) {
+        LoginToastService.showRecoveryEmailSent(
+          currentContext,
+          message: 'Se ha enviado un enlace de recuperación a tu correo',
+        );
+      }
     } on AuthException catch (e) {
-      LoginToastService.showLoginError(context, message: 'Error: ${e.message}');
+      if (mounted) {
+        LoginToastService.showLoginError(
+          currentContext,
+          message: 'Error: ${e.message}',
+        );
+      }
     } catch (e) {
-      LoginToastService.showLoginError(
-        context,
-        message: 'Error inesperado: $e',
-      );
+      if (mounted) {
+        LoginToastService.showLoginError(
+          currentContext,
+          message: 'Error inesperado: $e',
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -150,8 +166,9 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                                 ),
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (value) {
-                                  if (value == null || value.isEmpty)
+                                  if (value == null || value.isEmpty) {
                                     return 'Ingrese su correo institucional';
+                                  }
                                   final correo = value.toLowerCase();
                                   if (!correo.endsWith(
                                         '@correo.unimet.edu.ve',
