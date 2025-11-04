@@ -81,8 +81,8 @@ class ReservaService with BaseService {
     final data = await supabase
         .from('reserva')
         .select(
-      'id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)',
-    )
+          'id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)',
+        )
         .eq('id_usuario', userId)
         .order('inicio', ascending: true);
 
@@ -138,7 +138,7 @@ class ReservaService with BaseService {
           .select('id_reserva')
           .eq('id_articulo', idArticulo)
           .eq('estado', 'activa')
-      // solape: inicio < finSolicitado AND fin > inicioSolicitado
+          // solape: inicio < finSolicitado AND fin > inicioSolicitado
           .lt('inicio', finIso)
           .gt('fin', inicioIso);
 
@@ -165,9 +165,9 @@ class ReservaService with BaseService {
     final data = await supabase
         .from('reserva')
         .select(
-      // incluye nombre del artículo por relación Supabase
-      'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
-    )
+          // incluye nombre del artículo por relación Supabase
+          'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
+        )
         .eq('estado', 'activa')
         .order('fin', ascending: true);
 
@@ -199,6 +199,23 @@ class ReservaService with BaseService {
     return updated;
   }
 
+  Future<void> crearReservaCubiculo({
+    required String cubiculoId,
+    required DateTime startTime,
+    required DateTime endTime,
+    List<String>? companionsUserIds,
+  }) async {
+    final sb = Supabase.instance.client;
+    final payload = {
+      'cubiculo_id': cubiculoId,
+      'start_time': startTime.toUtc().toIso8601String(),
+      'end_time': endTime.toUtc().toIso8601String(),
+      if (companionsUserIds != null && companionsUserIds.isNotEmpty)
+        'companions_user_ids': companionsUserIds,
+    };
+    await sb.from('reservations').insert(payload);
+  }
+
   /// Obtiene las estadísticas de reservas para un rango de fechas usando RPC.
   Future<ReporteStats> getEstadisticasReservas({
     required DateTime fechaInicio,
@@ -211,15 +228,11 @@ class ReservaService with BaseService {
 
       final response = await supabase.rpc(
         'get_reporte_reservas',
-        params: {
-          'fecha_inicio': inicioStr,
-          'fecha_fin': finStr,
-        },
+        params: {'fecha_inicio': inicioStr, 'fecha_fin': finStr},
       );
 
       // El response es el JSONB que devolvimos
       return ReporteStats.fromJson(response as Map<String, dynamic>);
-
     } on PostgrestException catch (e) {
       throw Exception('Error de BD al generar reporte: ${e.message}');
     } catch (e) {
@@ -242,19 +255,19 @@ class ReporteStats {
   final int equipos;
 
   ReporteStats.fromJson(Map<String, dynamic> json)
-      : totalReservas = json['total_reservas'] ?? 0,
-        finalizadas = json['finalizadas'] ?? 0,
-        canceladas = json['canceladas'] ?? 0,
-        cubiculos = json['desglose']?['cubiculos'] ?? 0,
-        consolas = json['desglose']?['consolas'] ?? 0,
-        equipos = json['desglose']?['equipos'] ?? 0;
+    : totalReservas = json['total_reservas'] ?? 0,
+      finalizadas = json['finalizadas'] ?? 0,
+      canceladas = json['canceladas'] ?? 0,
+      cubiculos = json['desglose']?['cubiculos'] ?? 0,
+      consolas = json['desglose']?['consolas'] ?? 0,
+      equipos = json['desglose']?['equipos'] ?? 0;
 
   // Un reporte vacío por defecto
   ReporteStats.empty()
-      : totalReservas = 0,
-        finalizadas = 0,
-        canceladas = 0,
-        cubiculos = 0,
-        consolas = 0,
-        equipos = 0;
+    : totalReservas = 0,
+      finalizadas = 0,
+      canceladas = 0,
+      cubiculos = 0,
+      consolas = 0,
+      equipos = 0;
 }

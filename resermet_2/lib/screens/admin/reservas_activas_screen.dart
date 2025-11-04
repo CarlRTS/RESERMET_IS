@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:resermet_2/services/reserva_service.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservasActivasScreen extends StatefulWidget {
   const ReservasActivasScreen({super.key});
@@ -18,13 +19,16 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
   String? _errorMsg;
 
   List<Map<String, dynamic>> _reservas = [];
+  bool _isAdmin = false;
 
   Timer? _tick; // para refrescar el contador en pantalla (sin tocar la BD)
+  bool _busyActions = false;
 
   @override
   void initState() {
     super.initState();
     _fetch();
+    _loadUserRole();
     // Refrescar la UI cada segundo para el contador
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
@@ -35,6 +39,27 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
   void dispose() {
     _tick?.cancel();
     super.dispose();
+  }
+
+  // carga del rol del usuario para mostrar botón solo a administradores
+  Future<void> _loadUserRole() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return;
+      // Ajusta el nombre de la tabla/columnas a tu esquema
+      final row = await Supabase.instance.client
+          .from('usuario')
+          .select('rol')
+          .eq('id_usuario', uid)
+          .maybeSingle();
+
+      if (!mounted) return;
+      setState(() {
+        _isAdmin = (row != null && (row['rol'] ?? '') == 'administrador');
+      });
+    } catch (_) {
+      // Si falla, dejamos _isAdmin = false sin romper nada
+    }
   }
 
   Future<void> _fetch() async {
@@ -104,6 +129,58 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     }
   }
 
+  Future<void> _verIntegrantes(int idReserva) async {
+    try {
+      // 1) Tomamos titular y acompañantes de la reserva (por id)
+      final reserva = await Supabase.instance.client
+          .from('reserva') // <-- tu tabla real
+          .select('id_usuario, companions_user_ids')
+          .eq('id_reserva', idReserva)
+          .single();
+
+      final titularId = (reserva['id_usuario'] as String?) ?? '';
+      final companions =
+          (reserva['companions_user_ids'] as List?)?.cast<String>() ??
+          const <String>[];
+
+      final ids = <String>[if (titularId.isNotEmpty) titularId, ...companions];
+
+      if (ids.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Esta reserva no tiene integrantes')),
+        );
+        return;
+      }
+
+      // 2) Traer perfiles
+      final perfiles = await Supabase.instance.client
+          .from('usuario') //
+          .select('id_usuario, nombre, apellido, correo, rol, foto_url')
+          .inFilter('id_usuario', ids);
+
+      if (!mounted) return;
+
+      // 3) Mostrar sheet
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _IntegrantesSheet(
+          integrantes: (perfiles as List).cast<Map<String, dynamic>>(),
+          titularId: titularId,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error cargando integrantes: $e')));
+    }
+  }
+
   // Formatea el tiempo restante hacia hh:mm:ss (o “Vencida”)
   String _formatRemaining(DateTime finUtc) {
     final nowUtc = DateTime.now().toUtc();
@@ -139,16 +216,13 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
 
   // Tarjeta de una reserva
   Widget _buildReservaCard(Map<String, dynamic> r) {
-    // Campos esperados: id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)
     final idReserva = r['id_reserva'] as int;
     final idArticulo = r['id_articulo'] as int?;
     final estado = (r['estado'] ?? '') as String;
 
-    // inicio/fin vienen como timestamptz -> ISO. Parsearlos a UTC.
     final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
     final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
 
-    // articulo puede venir como mapa anidado: {"nombre": "..."}
     String nombreArticulo = 'Artículo #${idArticulo ?? '-'}';
     final articuloObj = r['articulo'];
     if (articuloObj is Map && articuloObj['nombre'] != null) {
@@ -186,7 +260,6 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // Detalles
             Wrap(
               spacing: 16,
               runSpacing: 4,
@@ -198,18 +271,22 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // Acciones
+            // --- Botones de acción ---
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.group_outlined),
+                  label: const Text('Ver integrantes'),
+                  onPressed: () => _verIntegrantes(idReserva),
+                ),
+                const SizedBox(width: 8),
+
                 if (vencida)
-                  Tooltip(
-                    message: 'La reserva ya venció. Puedes finalizarla.',
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.flag),
-                      label: const Text('Finalizar'),
-                      onPressed: () => _finalizar(idReserva),
-                    ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.flag),
+                    label: const Text('Finalizar'),
+                    onPressed: () => _finalizar(idReserva),
                   )
                 else
                   OutlinedButton.icon(
@@ -235,29 +312,31 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     );
   }
 
-  Future<void> _syncVencidas() async {
-    // Este botón es opcional. Llama a la RPC/Update que marca como finalizadas las vencidas.
+  Future<int> _syncVencidas() async {
+    final n = await _reservaService.finalizarVencidas();
+    if (!mounted) return n;
+    if (n > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Se finalizaron $n reservas vencidas.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay reservas vencidas por finalizar.'),
+        ),
+      );
+    }
+    return n;
+  }
+
+  Future<void> _syncAndRefresh() async {
+    if (_busyActions) return;
+    setState(() => _busyActions = true);
     try {
-      final n = await _reservaService.finalizarVencidas();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            n > 0
-                ? 'Se finalizaron $n reservas vencidas.'
-                : 'No hay reservas vencidas por finalizar.',
-          ),
-        ),
-      );
-      await _fetch();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sincronizando vencidas: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      await _syncVencidas(); // finaliza vencidas (si hay) y muestra snackbar
+      await _fetch(); // luego recarga la lista
+    } finally {
+      if (mounted) setState(() => _busyActions = false);
     }
   }
 
@@ -272,14 +351,18 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            tooltip: 'Sincronizar vencidas',
-            onPressed: _syncVencidas,
-            icon: const Icon(Icons.sync),
-          ),
-          IconButton(
-            tooltip: 'Recargar',
-            onPressed: _fetch,
-            icon: const Icon(Icons.refresh),
+            tooltip: 'Sincronizar y recargar',
+            onPressed: _busyActions ? null : _syncAndRefresh,
+            icon: _busyActions
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.sync),
           ),
         ],
       ),
@@ -335,10 +418,108 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
                       itemBuilder: (_, i) => _buildReservaCard(_reservas[i]),
                     ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _fetch,
-        icon: const Icon(Icons.refresh),
-        label: const Text('Actualizar'),
+    );
+  }
+}
+
+// Sheet para mostrar integrantes
+class _IntegrantesSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> integrantes;
+  final String titularId;
+
+  const _IntegrantesSheet({required this.integrantes, required this.titularId});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    // Ordena: titular primero, luego acompañantes
+    final ordenados = [...integrantes]
+      ..sort((a, b) {
+        final aTit = a['id_usuario'] == titularId ? 0 : 1;
+        final bTit = b['id_usuario'] == titularId ? 0 : 1;
+        return aTit.compareTo(bTit);
+      });
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: cs.outlineVariant,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const Text(
+              'Integrantes de la reserva',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: ordenados.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final u = ordenados[i];
+                  final isTitular = u['id_usuario'] == titularId;
+                  final nombre = (u['nombre'] ?? '').toString().trim();
+                  final apellido = (u['apellido'] ?? '').toString().trim();
+                  final nombreCompleto = ('$nombre $apellido').trim();
+                  final correo = (u['correo'] ?? '').toString();
+                  final rolSistema = (u['rol'] ?? '').toString();
+                  final foto = (u['foto_url'] ?? '').toString();
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: foto.isNotEmpty
+                          ? NetworkImage(foto)
+                          : null,
+                      child: foto.isEmpty
+                          ? Text(
+                              (nombreCompleto.isNotEmpty
+                                      ? nombreCompleto[0]
+                                      : (correo.isNotEmpty ? correo[0] : 'U'))
+                                  .toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                    title: Text(
+                      nombreCompleto.isNotEmpty ? nombreCompleto : correo,
+                    ),
+                    subtitle: Text(
+                      '${isTitular ? "Titular" : "Acompañante"} • $rolSistema',
+                    ),
+                    trailing: isTitular
+                        ? Chip(
+                            label: const Text('Titular'),
+                            backgroundColor: cs.primaryContainer,
+                            side: BorderSide(color: cs.primary),
+                            labelStyle: TextStyle(color: cs.onPrimaryContainer),
+                          )
+                        : null,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+              label: const Text('Cerrar'),
+            ),
+          ],
+        ),
       ),
     );
   }
