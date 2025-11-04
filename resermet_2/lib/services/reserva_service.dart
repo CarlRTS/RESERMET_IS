@@ -7,64 +7,33 @@ import 'cubiculo_service.dart';
 import 'consola_service.dart';
 import 'equipo_deportivo_service.dart';
 
-/// Servicio de reservas:
-/// - NO modifica `articulo.estado` (el stock/estado lo controlan las pantallas).
-/// - API para usuario y administración.
-/// - Crea/lee reservas y permite finalizar/cancelar.
 class ReservaService with BaseService {
   final _cubiculoService = CubiculoService();
   final _consolaService = ConsolaService();
   final _equipoService = EquipoDeportivoService();
 
-  // -------------------------------------------------
-  // Helpers privados
-  // -------------------------------------------------
-
-  /// Carga el Articulo concreto (Cubículo / Consola / Equipo) por su ID.
   Future<Articulo> _getArticuloById(int idArticulo) async {
     final cubiculos = await _cubiculoService.getCubiculos();
-    try {
-      return cubiculos.firstWhere((e) => e.idObjeto == idArticulo);
-    } catch (_) {}
-
+    try { return cubiculos.firstWhere((e) => e.idObjeto == idArticulo); } catch (_) {}
     final consolas = await _consolaService.getConsolas();
-    try {
-      return consolas.firstWhere((e) => e.idObjeto == idArticulo);
-    } catch (_) {}
-
+    try { return consolas.firstWhere((e) => e.idObjeto == idArticulo); } catch (_) {}
     final equipos = await _equipoService.getEquiposDeportivos();
-    try {
-      return equipos.firstWhere((e) => e.idObjeto == idArticulo);
-    } catch (_) {}
-
+    try { return equipos.firstWhere((e) => e.idObjeto == idArticulo); } catch (_) {}
     throw Exception('Tipo de artículo no reconocido para ID: $idArticulo');
   }
 
-  // -------------------------------------------------
-  // API de usuario
-  // -------------------------------------------------
-
-  /// Devuelve las reservas del usuario autenticado con el Articulo cargado.
   Future<List<Reserva>> getMyReservations() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return [];
-
     try {
-      final response = await supabase
-          .from('reserva')
-          .select('*')
-          .eq('id_usuario', userId) // <-- Mantener filtro por usuario
-          .order('inicio', ascending: false);
-
+      final response = await supabase.from('reserva').select('*').eq('id_usuario', userId).order('inicio', ascending: false);
       final List<Reserva> reservas = [];
       for (final item in (response as List)) {
         final int idArticulo = item['id_articulo'] as int;
         try {
           final Articulo articulo = await _getArticuloById(idArticulo);
           reservas.add(Reserva.fromSupabase(item, articulo));
-        } catch (_) {
-          // Ignorar fallos de carga de artículo para no romper la UX
-        }
+        } catch (_) {}
       }
       return reservas;
     } on PostgrestException catch (e) {
@@ -74,47 +43,24 @@ class ReservaService with BaseService {
     }
   }
 
-  /// Devuelve MIS reservas en formato crudo (con nombre de artículo).
   Future<List<Map<String, dynamic>>> getMisReservasRaw() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return [];
-    final data = await supabase
-        .from('reserva')
-        .select(
-          'id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)',
-        )
-        .eq('id_usuario', userId)
-        .order('inicio', ascending: true);
-
+    final data = await supabase.from('reserva').select('id_reserva, id_articulo, inicio, fin, estado, articulo(nombre)').eq('id_usuario', userId).order('inicio', ascending: true);
     return (data as List).cast<Map<String, dynamic>>();
   }
 
-  /// Cancela una reserva (uso estudiante, para reservas FUTURAS).
   Future<void> cancelarReserva({required int idReserva}) async {
-    await supabase
-        .from('reserva')
-        .update({'estado': 'cancelada'})
-        .eq('id_reserva', idReserva);
+    await supabase.from('reserva').update({'estado': 'cancelada'}).eq('id_reserva', idReserva);
   }
 
-  /// Finaliza una reserva (uso estudiante, para reservas ACTIVAS).
   Future<void> finalizarReservaUsuario({required int idReserva}) async {
-    await supabase
-        .from('reserva')
-        .update({'estado': 'finalizada'})
-        .eq('id_reserva', idReserva);
+    await supabase.from('reserva').update({'estado': 'finalizada'}).eq('id_reserva', idReserva);
   }
 
-  /// Crea una nueva reserva a partir de tu modelo Reserva.
-  /// IMPORTANTE: no cambia `articulo.estado`.
   Future<Reserva> createReserva(Reserva reserva) async {
     try {
-      final inserted = await supabase
-          .from('reserva')
-          .insert(reserva.toJson())
-          .select()
-          .single();
-
+      final inserted = await supabase.from('reserva').insert(reserva.toJson()).select().single();
       return Reserva.fromSupabase(inserted, reserva.articulo);
     } on PostgrestException catch (e) {
       throw Exception('Error al crear la reserva: ${e.message}');
@@ -123,7 +69,6 @@ class ReservaService with BaseService {
     }
   }
 
-  // --- Utilidad: conteo de solapes activos para un artículo ---
   Future<int> getActiveReservationsCount({
     required int idArticulo,
     required DateTime inicio,
@@ -132,73 +77,34 @@ class ReservaService with BaseService {
     try {
       final inicioIso = inicio.toUtc().toIso8601String();
       final finIso = fin.toUtc().toIso8601String();
-
-      final response = await supabase
-          .from('reserva')
-          .select('id_reserva')
-          .eq('id_articulo', idArticulo)
-          .eq('estado', 'activa')
-          // solape: inicio < finSolicitado AND fin > inicioSolicitado
-          .lt('inicio', finIso)
-          .gt('fin', inicioIso);
-
+      final response = await supabase.from('reserva').select('id_reserva').eq('id_articulo', idArticulo).eq('estado', 'activa').lt('inicio', finIso).gt('fin', inicioIso);
       return (response as List).length;
     } on PostgrestException catch (e) {
-      // log y rethrow para depurar sin romper UX arriba
-      // ignore: avoid_print
       print('Error de BD al calcular las reservas activas: ${e.message}');
       rethrow;
     } catch (e) {
-      // ignore: avoid_print
       print('Error al calcular las reservas activas: $e');
       rethrow;
     }
   }
 
-  // -------------------------------------------------
-  // API de administración
-  // -------------------------------------------------
-
-  /// Devuelve las reservas en estado 'activa' (ordenadas por fin asc).
-  /// La vista admin calcula el contador y decide cuándo finalizar.
   Future<List<Map<String, dynamic>>> getReservasActivasRaw() async {
-    final data = await supabase
-        .from('reserva')
-        .select(
-          // incluye nombre del artículo por relación Supabase
-          'id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)',
-        )
-        .eq('estado', 'activa')
-        .order('fin', ascending: true);
-
+    final data = await supabase.from('reserva').select('id_reserva, id_articulo, id_usuario, inicio, fin, estado, articulo(nombre)').eq('estado', 'activa').order('fin', ascending: true);
     return (data as List).cast<Map<String, dynamic>>();
   }
 
-  /// Finaliza una reserva manualmente (desde botón en admin).
   Future<void> finalizarReserva({required int idReserva}) async {
-    await supabase
-        .from('reserva')
-        .update({'estado': 'finalizada'})
-        .eq('id_reserva', idReserva);
+    await supabase.from('reserva').update({'estado': 'finalizada'}).eq('id_reserva', idReserva);
   }
 
-  /// Finaliza todas las reservas vencidas (fin < ahora UTC) que siguen 'activa'.
-  /// Usado por el botón "Sincronizar vencidas" en la vista admin.
-  /// Devuelve cuántas reservas fueron actualizadas.
   Future<int> finalizarVencidas() async {
     final nowUtcIso = DateTime.now().toUtc().toIso8601String();
-
-    final response = await supabase
-        .from('reserva')
-        .update({'estado': 'finalizada'})
-        .lt('fin', nowUtcIso)
-        .eq('estado', 'activa')
-        .select('id_reserva'); // contar filas actualizadas
-
+    final response = await supabase.from('reserva').update({'estado': 'finalizada'}).lt('fin', nowUtcIso).eq('estado', 'activa').select('id_reserva');
     final updated = (response as List?)?.length ?? 0;
     return updated;
   }
 
+  // --- FUNCIÓN DE TU COMPAÑERO (SE QUEDA) ---
   Future<void> crearReservaCubiculo({
     required String cubiculoId,
     required DateTime startTime,
@@ -216,23 +122,27 @@ class ReservaService with BaseService {
     await sb.from('reservations').insert(payload);
   }
 
-  /// Obtiene las estadísticas de reservas para un rango de fechas usando RPC.
+  // --- ¡FUNCIÓN DE REPORTES ACTUALIZADA! ---
   Future<ReporteStats> getEstadisticasReservas({
     required DateTime fechaInicio,
     required DateTime fechaFin,
+    int filtroArea = 0, // <-- Acepta el filtro
   }) async {
     try {
-      // Formatear las fechas como 'YYYY-MM-DD'
       final inicioStr = fechaInicio.toIso8601String().split('T').first;
       final finStr = fechaFin.toIso8601String().split('T').first;
 
       final response = await supabase.rpc(
         'get_reporte_reservas',
-        params: {'fecha_inicio': inicioStr, 'fecha_fin': finStr},
+        params: {
+          'fecha_inicio': inicioStr,
+          'fecha_fin': finStr,
+          'filtro_area': filtroArea, // <-- Lo pasa al SQL
+        },
       );
 
-      // El response es el JSONB que devolvimos
       return ReporteStats.fromJson(response as Map<String, dynamic>);
+
     } on PostgrestException catch (e) {
       throw Exception('Error de BD al generar reporte: ${e.message}');
     } catch (e) {
@@ -242,32 +152,57 @@ class ReservaService with BaseService {
 }
 
 // =================================================
-// == CLASE PARA REPORTES (EXISTENTE) ==
+// == NUEVAS CLASES PARA REPORTES (Compatibles) ==
 // =================================================
 
-/// Modelo para la respuesta de la función de reporte
-class ReporteStats {
-  final int totalReservas;
-  final int finalizadas;
-  final int canceladas;
+class GraficoTipo {
   final int cubiculos;
   final int consolas;
   final int equipos;
 
-  ReporteStats.fromJson(Map<String, dynamic> json)
-    : totalReservas = json['total_reservas'] ?? 0,
-      finalizadas = json['finalizadas'] ?? 0,
-      canceladas = json['canceladas'] ?? 0,
-      cubiculos = json['desglose']?['cubiculos'] ?? 0,
-      consolas = json['desglose']?['consolas'] ?? 0,
-      equipos = json['desglose']?['equipos'] ?? 0;
+  GraficoTipo.fromJson(Map<String, dynamic> json)
+      : cubiculos = json['cubiculos'] ?? 0,
+        consolas = json['consolas'] ?? 0,
+        equipos = json['equipos'] ?? 0;
 
-  // Un reporte vacío por defecto
+  GraficoTipo.empty()
+      : cubiculos = 0,
+        consolas = 0,
+        equipos = 0;
+}
+
+class GraficoHora {
+  final int hora;
+  final int total;
+
+  GraficoHora.fromJson(Map<String, dynamic> json)
+      : hora = json['hora'] ?? 0,
+        total = json['total'] ?? 0;
+}
+
+class ReporteStats {
+  final int totalReservas;
+  final int finalizadas;
+  final int canceladas;
+  final double totalHoras; // <-- El nuevo KPI
+  final GraficoTipo graficoTipo;
+  final List<GraficoHora> graficoHora;
+
+  ReporteStats.fromJson(Map<String, dynamic> json)
+      : totalReservas = json['kpi_total_reservas'] ?? 0,
+        finalizadas = json['kpi_finalizadas'] ?? 0,
+        canceladas = json['kpi_canceladas'] ?? 0,
+        totalHoras = (json['kpi_total_horas'] as num?)?.toDouble() ?? 0.0,
+        graficoTipo = GraficoTipo.fromJson(json['grafico_tipo'] ?? {}),
+        graficoHora = (json['grafico_hora'] as List?)
+            ?.map((item) => GraficoHora.fromJson(item))
+            .toList() ?? [];
+
   ReporteStats.empty()
-    : totalReservas = 0,
-      finalizadas = 0,
-      canceladas = 0,
-      cubiculos = 0,
-      consolas = 0,
-      equipos = 0;
+      : totalReservas = 0,
+        finalizadas = 0,
+        canceladas = 0,
+        totalHoras = 0.0,
+        graficoTipo = GraficoTipo.empty(),
+        graficoHora = [];
 }

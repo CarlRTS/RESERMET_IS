@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:resermet_2/services/reserva_service.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
-import 'package:fl_chart/fl_chart.dart'; // Para los gráficos
+import 'package:fl_chart/fl_chart.dart'; // Para el Gráfico de Pastel
 
 class ReporteReservasScreen extends StatefulWidget {
   const ReporteReservasScreen({super.key});
@@ -18,6 +18,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
   bool _isLoading = false;
   String? _error;
   ReporteStats _stats = ReporteStats.empty();
+  int _filtroAreaSeleccionada = 0; // 0 = Todos
 
   // Fechas seleccionadas (inicio = Domingo, fin = Sábado)
   late DateTime _fechaInicio;
@@ -29,15 +30,9 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
   @override
   void initState() {
     super.initState();
-    // Por defecto, mostrar la semana actual
     final now = DateTime.now();
-    // Calculamos el inicio de la semana (Domingo)
-    _fechaInicio =
-        DateTime(now.year, now.month, now.day - (now.weekday % 7));
-    // Calculamos el fin de la semana (Sábado)
+    _fechaInicio = DateTime(now.year, now.month, now.day - (now.weekday % 7));
     _fechaFin = _fechaInicio.add(const Duration(days: 6));
-
-    // Cargar los datos iniciales
     _fetchReporte();
   }
 
@@ -51,6 +46,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
       final stats = await _reservaService.getEstadisticasReservas(
         fechaInicio: _fechaInicio,
         fechaFin: _fechaFin,
+        filtroArea: _filtroAreaSeleccionada, // Pasa el filtro
       );
       setState(() {
         _stats = stats;
@@ -66,31 +62,27 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
 
   // --- UI ---
 
-  // Selector de semana: el usuario elije CUALQUIER día, y calculamos su semana
+  // Selector de semana con el calendario pop-up
   Future<void> _seleccionarSemana() async {
     final now = DateTime.now();
     final newDate = await showDatePicker(
       context: context,
       initialDate: _fechaInicio,
-      firstDate: DateTime(2023), // Año de inicio de tu app
+      firstDate: DateTime(2023),
       lastDate: DateTime(now.year + 1),
       initialEntryMode: DatePickerEntryMode.calendarOnly,
       helpText: 'SELECCIONA CUALQUIER DÍA DE LA SEMANA',
     );
 
     if (newDate != null) {
-      // Día seleccionado (ej. Martes 28)
-      // Calculamos el inicio de esa semana (Domingo 26)
       final inicioSemana = DateTime(
           newDate.year, newDate.month, newDate.day - (newDate.weekday % 7));
-      // Calculamos el fin de esa semana (Sábado 1)
       final finSemana = inicioSemana.add(const Duration(days: 6));
 
       setState(() {
         _fechaInicio = inicioSemana;
         _fechaFin = finSemana;
       });
-      // Volver a cargar los datos
       _fetchReporte();
     }
   }
@@ -100,7 +92,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reporte Semanal de Reservas'),
-        backgroundColor: UnimetPalette.primary, // Usando tu paleta
+        backgroundColor: UnimetPalette.primary,
         foregroundColor: Colors.white,
       ),
       body: RefreshIndicator(
@@ -108,11 +100,9 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 1. Selector de Fecha (Restaurado)
-            _buildDatePicker(),
+            _buildFilterRow(), // Widget que contiene ambos filtros
             const SizedBox(height: 16),
 
-            // 2. Contenido (Loading, Error o Datos)
             if (_isLoading)
               const Center(
                   child: Padding(
@@ -131,11 +121,9 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     );
   }
 
-  // --- (WIDGET RESTAURADO A LA VERSIÓN CON BOTÓN) ---
-  Widget _buildDatePicker() {
+  // Widget selector de fecha Y filtro de área
+  Widget _buildFilterRow() {
     final textTheme = Theme.of(context).textTheme;
-
-    // Formato de fecha para la semana
     final formatoFecha =
         '${_getNombreMesAbrev(_fechaInicio.month)} ${_fechaInicio.day} - ${_getNombreMesAbrev(_fechaFin.month)} ${_fechaFin.day}, ${_fechaFin.year}';
 
@@ -144,33 +132,62 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
           children: [
-            Expanded( // Para que el texto no se desborde
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Semana Seleccionada',
-                    style: textTheme.labelMedium
-                        ?.copyWith(color: Colors.grey.shade600),
+            // Fila 1: Selector de Semana
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Semana Seleccionada',
+                        style: textTheme.labelMedium
+                            ?.copyWith(color: Colors.grey.shade600),
+                      ),
+                      Text(
+                        formatoFecha,
+                        style: textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  Text(
-                    formatoFecha, // Muestra el rango semanal
-                    style: textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
+                ),
+                FilledButton.icon(
+                  icon: const Icon(Icons.calendar_month),
+                  label: const Text('Cambiar'),
+                  onPressed: _seleccionarSemana,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: UnimetPalette.secondary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            FilledButton.icon(
-              icon: const Icon(Icons.calendar_month),
-              label: const Text('Cambiar'),
-              onPressed: _seleccionarSemana, // Abre el DatePicker
-              style: FilledButton.styleFrom(
-                backgroundColor: UnimetPalette.secondary, // Usando tu paleta
+            const Divider(height: 20),
+            // Fila 2: Filtro de Área
+            DropdownButtonFormField<int>(
+              value: _filtroAreaSeleccionada,
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('Todos los Artículos')),
+                DropdownMenuItem(value: 1, child: Text('Cubículos')),
+                DropdownMenuItem(value: 3, child: Text('Consolas')),
+                DropdownMenuItem(value: 2, child: Text('Equipos Deportivos')),
+              ],
+              onChanged: (int? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _filtroAreaSeleccionada = newValue;
+                  });
+                  _fetchReporte(); // Vuelve a cargar el reporte con el nuevo filtro
+                }
+              },
+              decoration: const InputDecoration(
+                labelText: 'Filtrar por tipo de artículo',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
           ],
@@ -178,7 +195,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
       ),
     );
   }
-  // --- (FIN DEL WIDGET RESTAURADO) ---
+
 
   Widget _buildErrorState() {
     return Center(
@@ -220,7 +237,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
                   ?.copyWith(color: Colors.grey.shade600),
             ),
             Text(
-              'No hay datos para la semana seleccionada.',
+              'No hay datos para esta semana o filtro.',
               style: TextStyle(color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
@@ -230,7 +247,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     );
   }
 
-  // --- SECCIÓN DE CONTENIDO ---
+  // --- SECCIÓN DE CONTENIDO (CON GRÁFICO DE PASTEL) ---
   Widget _buildStatsContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,19 +261,26 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
               ?.copyWith(color: UnimetPalette.primary, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        // Rejilla de KPIs
+
         GridView.count(
-          crossAxisCount: 3, // 3 columnas
+          crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
+          childAspectRatio: (1 / .6),
           children: [
             _buildKpiCard(
-              label: 'Total',
+              label: 'Total Reservas',
               value: _stats.totalReservas.toString(),
               icon: Icons.bookmark_add_rounded,
               color: UnimetPalette.primary,
+            ),
+            _buildKpiCard(
+              label: 'Total de Horas',
+              value: _stats.totalHoras.toStringAsFixed(1),
+              icon: Icons.timer_rounded,
+              color: Colors.teal.shade700,
             ),
             _buildKpiCard(
               label: 'Finalizadas',
@@ -275,16 +299,26 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
 
         const SizedBox(height: 24),
 
-        // 2. Desglose por Artículo (Gráfico de Pastel)
+        // 2. Sección de Análisis
         Text(
-          'Desglose por Artículo',
+          'Análisis de Reservas',
           style: Theme.of(context)
               .textTheme
               .titleLarge
               ?.copyWith(color: UnimetPalette.primary, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        _buildPieChartCard(),
+
+        // --- (Selector de gráfico eliminado) ---
+
+        // Si el filtro es "Todos", muestra el gráfico de pastel.
+        if (_filtroAreaSeleccionada == 0) ...[
+          _buildPieChartCard(),
+          const SizedBox(height: 16),
+        ],
+
+        // Mostrar siempre el mapa de calor de horas pico
+        _buildHoraCard(),
       ],
     );
   }
@@ -298,7 +332,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     final textTheme = Theme.of(context).textTheme;
     return Card(
       elevation: 2,
-      color: color.withOpacity(0.05), // Fondo sutil
+      color: color.withOpacity(0.05),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: color.withOpacity(0.3)),
@@ -310,7 +344,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
+            const Spacer(),
             Text(
               value,
               style: textTheme.headlineMedium?.copyWith(
@@ -329,33 +363,32 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     );
   }
 
+  // --- Gráfico de Pastel ---
   Widget _buildPieChartCard() {
-    // Colores para el gráfico
     const pieColors = {
       'cubiculos': Colors.blue,
       'consolas': Colors.purple,
       'equipos': Colors.orange,
     };
 
-    // Lista de secciones del gráfico
     final pieSections = [
       PieChartSectionData(
-        value: _stats.cubiculos.toDouble(),
-        title: '${_stats.cubiculos}',
+        value: _stats.graficoTipo.cubiculos.toDouble(),
+        title: '${_stats.graficoTipo.cubiculos}',
         color: pieColors['cubiculos'],
         radius: _touchedIndex == 0 ? 60.0 : 50.0,
         titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
       ),
       PieChartSectionData(
-        value: _stats.consolas.toDouble(),
-        title: '${_stats.consolas}',
+        value: _stats.graficoTipo.consolas.toDouble(),
+        title: '${_stats.graficoTipo.consolas}',
         color: pieColors['consolas'],
         radius: _touchedIndex == 1 ? 60.0 : 50.0,
         titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
       ),
       PieChartSectionData(
-        value: _stats.equipos.toDouble(),
-        title: '${_stats.equipos}',
+        value: _stats.graficoTipo.equipos.toDouble(),
+        title: '${_stats.graficoTipo.equipos}',
         color: pieColors['equipos'],
         radius: _touchedIndex == 2 ? 60.0 : 50.0,
         titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
@@ -364,63 +397,78 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
 
     return Card(
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // El Gráfico
-            Expanded(
-              flex: 2,
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: PieChart(
-                  PieChartData(
-                    pieTouchData: PieTouchData(
-                      touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                        setState(() {
-                          if (!event.isInterestedForInteractions ||
-                              pieTouchResponse == null ||
-                              pieTouchResponse.touchedSection == null) {
-                            _touchedIndex = -1;
-                            return;
-                          }
-                          _touchedIndex =
-                              pieTouchResponse.touchedSection!.touchedSectionIndex;
-                        });
-                      },
-                    ),
-                    borderData: FlBorderData(show: false),
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                    sections: pieSections,
-                  ),
-                ),
+            Text(
+              'Desglose por Tipo (Total)',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: UnimetPalette.primary
               ),
             ),
-            const SizedBox(width: 20),
-            // La Leyenda
-            Expanded(
-              flex: 1,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildLegendIndicator(
-                    color: pieColors['cubiculos']!,
-                    text: 'Cubículos',
+            const Divider(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: PieChart(
+                      PieChartData(
+                        pieTouchData: PieTouchData(
+                          touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                            setState(() {
+                              if (!event.isInterestedForInteractions ||
+                                  pieTouchResponse == null ||
+                                  pieTouchResponse.touchedSection == null) {
+                                _touchedIndex = -1;
+                                return;
+                              }
+                              _touchedIndex =
+                                  pieTouchResponse.touchedSection!.touchedSectionIndex;
+                            });
+                          },
+                        ),
+                        borderData: FlBorderData(show: false),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections: pieSections,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  _buildLegendIndicator(
-                    color: pieColors['consolas']!,
-                    text: 'Consolas',
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLegendIndicator(
+                        color: pieColors['cubiculos']!,
+                        text: 'Cubículos',
+                        value: _stats.graficoTipo.cubiculos.toString(),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendIndicator(
+                        color: pieColors['consolas']!,
+                        text: 'Consolas',
+                        value: _stats.graficoTipo.consolas.toString(),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendIndicator(
+                        color: pieColors['equipos']!,
+                        text: 'Equipos',
+                        value: _stats.graficoTipo.equipos.toString(),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  _buildLegendIndicator(
-                    color: pieColors['equipos']!,
-                    text: 'Equipos',
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -428,20 +476,118 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     );
   }
 
-  Widget _buildLegendIndicator({required Color color, required String text}) {
+  // --- ¡NUEVO MAPA DE CALOR (Heat Map) PARA HORARIOS PICO! ---
+  Widget _buildHoraCard() {
+    // 1. Encontrar el valor máximo para la escala de color
+    double maxTotal = 1; // Evitar división por cero
+    if (_stats.graficoHora.isNotEmpty) {
+      maxTotal = _stats.graficoHora
+          .map((h) => h.total)
+          .reduce((a, b) => a > b ? a : b)
+          .toDouble();
+    }
+    if (maxTotal == 0) maxTotal = 1; // Evitar división por cero si todo es 0
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Horarios Más Populares',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: UnimetPalette.primary
+              ),
+            ),
+            const Divider(height: 20),
+
+            // El "Heat Map"
+            Wrap(
+              spacing: 8.0, // Espacio horizontal
+              runSpacing: 8.0, // Espacio vertical
+              children: _stats.graficoHora.map((dataHora) {
+
+                // 2. Calcular la intensidad del color (de 0.0 a 1.0)
+                final double opacidad = (dataHora.total / maxTotal).clamp(0.0, 1.0);
+
+                // 3. Definir el color. 0 = gris, >0 = azul
+                final Color colorFondo = dataHora.total == 0
+                    ? Colors.grey.shade200
+                // Usamos opacidad. clamp(0.15, 1.0) para que nunca sea invisible
+                    : UnimetPalette.primary.withOpacity(opacidad.clamp(0.15, 1.0));
+
+                // 4. Definir color del texto (blanco sobre oscuro, negro sobre claro)
+                final Color colorTexto = (dataHora.total == 0)
+                    ? Colors.black54
+                    : (opacidad > 0.6 ? Colors.white : Colors.black87);
+
+
+                return Container(
+                  width: 75, // Ancho fijo para cada "caja"
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colorFondo,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black.withOpacity(0.05)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${dataHora.hora}:00', // "7:00"
+                        style: TextStyle(
+                          color: colorTexto,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        '${dataHora.total} res.', // "5 res."
+                        style: TextStyle(
+                          color: colorTexto.withOpacity(0.8),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildLegendIndicator({
+    required Color color,
+    required String text,
+    String? value,
+  }) {
     return Row(
       children: [
         Container(
-          width: 16,
-          height: 16,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             shape: BoxShape.rectangle,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(2),
             color: color,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Text(text),
+        if (value != null) ...[
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ]
       ],
     );
   }
