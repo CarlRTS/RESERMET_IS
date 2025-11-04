@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/home_screen.dart'; // ← Contiene MainScreen
-import 'screens/login.dart'; // ← Tu pantalla de login
+import 'screens/home_screen.dart';
+import 'screens/login.dart';
+import 'package:resermet_2/screens/new_password_screen.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
 
+// navigatorKey
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,23 +29,22 @@ class MyApp extends StatelessWidget {
       title: 'RESERMET',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: const AuthGate(), // 👈 Maneja si hay sesión o no
+      navigatorKey: navigatorKey,
+      home: const AuthGate(),
     );
   }
 }
 
-// 🚪 AuthGate: decide si mostrar Login o MainScreen
-// 💡 CORRECCIÓN CLAVE: Usa StreamBuilder para reaccionar a los cambios de Auth.
+// 🚪 AuthGate: Esta es la lógica corregida y robusta.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Usamos StreamBuilder para escuchar el estado de autenticación de Supabase
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        // 1. Mostrar una pantalla de carga mientras se resuelve el estado inicial
+        // 1. Pantalla de carga mientras se resuelve
         if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -51,13 +53,29 @@ class AuthGate extends StatelessWidget {
 
         final AuthState authState = snapshot.data!;
         final Session? session = authState.session;
+        final AuthChangeEvent event = authState.event;
 
-        // Si hay una sesión activa → MainScreen
+        // 2. ¡LÓGICA CORRECTA!
+        // Si el EVENTO es 'passwordRecovery', RETORNA la pantalla.
+        // NO NAVEGUES.
+        // Al retornarla, este StreamBuilder sigue vivo y escuchando.
+        if (event == AuthChangeEvent.passwordRecovery) {
+          print(
+            '🔐 Evento detectado: PasswordRecovery. Mostrando NewPasswordScreen.',
+          );
+          return const NewPasswordScreen();
+        }
+
+        // 3. Si NO es un evento de recovery, revisamos la sesión.
+        // (Esto funcionará para el Login y para después de
+        // actualizar la contraseña).
         if (session != null) {
+          print('✅ Sesión detectada. Mostrando MainScreen.');
           return const MainScreen();
         }
 
-        // Si no hay sesión (o después de un logout) → LoginScreen
+        // 4. Si no hay sesión → LoginScreen
+        print('⚪️ No hay sesión. Mostrando LoginScreen.');
         return const LoginScreen();
       },
     );
