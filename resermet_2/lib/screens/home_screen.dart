@@ -182,8 +182,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       if (resp is Map) {
         final map = Map<String, dynamic>.from(resp as Map);
-        final n = (map['nombre'] as String?)?.trim() ?? '';
-        return n.isEmpty ? 'Usuario' : n;
+        final nombreCompleto = (map['nombre'] as String?)?.trim() ?? '';
+        
+        // 👇 TOMAR SOLO EL PRIMER NOMBRE
+        if (nombreCompleto.isNotEmpty) {
+          final primerNombre = nombreCompleto.split(' ').first;
+          return primerNombre;
+        }
+        
+        return 'Usuario';
       }
     } catch (_) {}
     return 'Usuario';

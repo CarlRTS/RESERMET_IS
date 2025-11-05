@@ -19,7 +19,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     with SingleTickerProviderStateMixin {
   final _service = ReservaService();
 
-  bool _loading = true;
+  // ELIMINADA: bool _loading = true; // No se usa
   String? _error;
   List<Map<String, dynamic>> _reservas = [];
 
@@ -45,19 +45,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   Future<void> _fetch() async {
     setState(() {
-      _loading = true;
+      // ELIMINADA: _loading = true;
       _error = null;
     });
     try {
       final data = await _service.getMisReservasRaw();
       setState(() {
         _reservas = data;
-        _loading = false;
+        // ELIMINADA: _loading = false;
       });
     } catch (e) {
       setState(() {
         _error = 'Error al cargar tus reservas: $e';
-        _loading = false;
+        // ELIMINADA: _loading = false;
       });
     }
   }
@@ -176,74 +176,136 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     final futuras = _filtrarFuturas();
     final historial = _filtrarHistorial();
 
-    return DefaultTabController(
-      length: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // Encabezado + refresh
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Mis Reservas',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.unimetBlue,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Actualizar',
-                        onPressed: _fetch,
-                        icon: const Icon(Icons.refresh, color: AppColors.unimetBlue),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 🟥 Bloque de error (solo si ocurre)
-                  if (_error != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          'Mis Reservas',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: AppColors.unimetBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar',
+            onPressed: _fetch,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // 🟥 Bloque de error (solo si ocurre)
+          if (_error != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline_rounded, color: Colors.red.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Colors.red.shade700, 
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
-                  ],
-
-                  const Text(
-                    'Consulta, cancela o finaliza tus reservas.',
-                    style: TextStyle(fontSize: 16, color: Colors.black87),
                   ),
-                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ],
 
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: AppColors.unimetBlue,
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: AppColors.unimetBlue,
-                    tabs: [
-                      Tab(text: 'Activas (${activas.length})', icon: const Icon(Icons.play_circle_outline)),
-                      Tab(text: 'Futuras (${futuras.length})', icon: const Icon(Icons.schedule)),
-                      Tab(text: 'Historial (${historial.length})', icon: const Icon(Icons.history)),
-                    ],
+          // Contadores de reservas
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildCounter('Activas', activas.length, Colors.green),
+                _buildCounter('Futuras', futuras.length, Colors.orange),
+                _buildCounter('Historial', historial.length, Colors.grey),
+              ],
+            ),
+          ),
+
+          // Tabs con nuevo diseño
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                children: [
+                  // Tabs con diseño mejorado
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      labelColor: AppColors.unimetBlue,
+                      unselectedLabelColor: Colors.grey.shade600,
+                      indicator: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      tabs: [
+                        Tab(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.play_circle_fill_rounded, size: 18),
+                              const SizedBox(width: 6),
+                              Text('Activas (${activas.length})'),
+                            ],
+                          ),
+                        ),
+                        Tab(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.schedule_rounded, size: 18),
+                              const SizedBox(width: 6),
+                              Text('Futuras (${futuras.length})'),
+                            ],
+                          ),
+                        ),
+                        Tab(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.history_rounded, size: 18),
+                              const SizedBox(width: 6),
+                              Text('Historial (${historial.length})'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-
+                  
+                  const SizedBox(height: 16),
+                  
                   Expanded(
                     child: TabBarView(
                       controller: _tabController,
@@ -256,22 +318,75 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildCounter(String title, int count, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildLista(List<Map<String, dynamic>> data, {required _TipoLista tipo}) {
     return RefreshIndicator(
       onRefresh: _fetch,
+      color: AppColors.unimetBlue,
       child: data.isEmpty
           ? ListView(
-              children: const [
-                SizedBox(height: 80),
-                Center(child: Text('No hay reservas en esta sección')),
+              children: [
+                const SizedBox(height: 80),
+                Column(
+                  children: [
+                    Icon(
+                      _getEmptyIcon(tipo),
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _getEmptyMessage(tipo),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             )
           : ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 16),
               itemCount: data.length,
               itemBuilder: (context, index) {
                 final r = data[index];
@@ -289,91 +404,138 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 if (tipo == _TipoLista.activas && fin != null) {
                   detalleTiempo = _formatRemaining(fin);
                 } else if (tipo == _TipoLista.futuras && inicio != null) {
-                  detalleTiempo = 'Empieza: ${inicio.toIso8601String()}';
+                  detalleTiempo = 'Empieza: ${_formatDateTimeShort(inicio.toLocal())}';
                 }
 
-                return Card(
+                // Determinar icono y color según el tipo de artículo
+                final (icono, colorIcono) = _obtenerIconoYColor(r);
+
+                return Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                nombreArticulo,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.unimetBlue,
-                                  fontSize: 16,
+                  child: Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header con icono y estado - COMPLETAMENTE RESPONSIVE
+                          Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: colorIcono.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                                child: Icon(icono, color: colorIcono, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nombreArticulo,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black87,
+                                        fontSize: 15,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _getTipoArticulo(r),
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                constraints: const BoxConstraints(
+                                  minWidth: 60,
+                                  maxWidth: 80,
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getEstadoColor(tipo, estado).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _getEstadoColor(tipo, estado).withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  _getEstadoText(tipo, estado),
+                                  style: TextStyle(
+                                    color: _getEstadoColor(tipo, estado),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 10,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          // Información de tiempo - DISEÑO VERTICAL PARA TODOS (EVITA OVERFLOW)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildTimeInfoCompact('Inicio', inicio?.toLocal()),
+                              const SizedBox(height: 6),
+                              _buildTimeInfoCompact('Fin', fin?.toLocal()),
+                              if (tipo == _TipoLista.activas) ...[
+                                const SizedBox(height: 6),
+                                _buildTimeInfoCompact('Tiempo Restante', null, customValue: detalleTiempo),
+                              ],
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          // Acciones
+                          if (tipo != _TipoLista.historial)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Wrap(
+                                spacing: 8,
+                                children: [
+                                  if (tipo == _TipoLista.futuras)
+                                    _buildActionButtonCompact(
+                                      icon: Icons.cancel_rounded,
+                                      label: 'Cancelar',
+                                      color: Colors.red,
+                                      onPressed: () => _cancelar(idReserva),
+                                    ),
+                                  if (tipo == _TipoLista.activas)
+                                    _buildActionButtonCompact(
+                                      icon: Icons.flag_rounded,
+                                      label: 'Finalizar',
+                                      color: AppColors.unimetBlue,
+                                      onPressed: () => _finalizarAhora(idReserva),
+                                    ),
+                                ],
                               ),
                             ),
-                            Chip(
-                              backgroundColor: tipo == _TipoLista.activas
-                                  ? Colors.green.shade50
-                                  : (tipo == _TipoLista.futuras
-                                      ? Colors.blue.shade50
-                                      : Colors.grey.shade200),
-                              label: Text(
-                                tipo == _TipoLista.activas
-                                    ? 'ACTIVA'
-                                    : (tipo == _TipoLista.futuras ? 'FUTURA' : estado.toUpperCase()),
-                                style: TextStyle(
-                                  color: tipo == _TipoLista.activas
-                                      ? Colors.green.shade700
-                                      : (tipo == _TipoLista.futuras
-                                          ? Colors.blue.shade700
-                                          : Colors.black54),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 4,
-                          children: [
-                            _kv('Inicio (UTC)', inicio?.toIso8601String() ?? '-'),
-                            _kv('Fin (UTC)', fin?.toIso8601String() ?? '-'),
-                            _kv(tipo == _TipoLista.activas ? 'Tiempo restante' : 'Detalle', detalleTiempo),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            if (tipo == _TipoLista.futuras)
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.cancel),
-                                label: const Text('Cancelar'),
-                                onPressed: () => _cancelar(idReserva),
-                              ),
-                            if (tipo == _TipoLista.activas)
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.flag),
-                                label: const Text('Finalizar ahora'),
-                                onPressed: () => _finalizarAhora(idReserva),
-                              ),
-                            if (tipo == _TipoLista.historial)
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.info_outline),
-                                label: const Text('Sin acciones'),
-                                onPressed: null,
-                              ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -382,16 +544,194 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  Widget _kv(String k, String v) {
+  Widget _buildTimeInfoCompact(String label, DateTime? date, {String? customValue}) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$k: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-        Flexible(child: Text(v)),
+        SizedBox(
+          width: 100,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            customValue ?? (date != null ? _formatDateTimeShort(date) : '-'),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
       ],
     );
+  }
+
+  Widget _buildActionButtonCompact({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper para obtener icono y color según el artículo
+  (IconData, Color) _obtenerIconoYColor(Map<String, dynamic> reserva) {
+    final articulo = reserva['articulo'] is Map 
+        ? Map<String, dynamic>.from(reserva['articulo'] as Map)
+        : <String, dynamic>{};
+    
+    final nombre = (articulo['nombre'] ?? '').toString().toLowerCase();
+    final tipo = (articulo['tipo'] ?? articulo['categoria'] ?? articulo['tipo_articulo'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    if (nombre.contains('ps') || 
+        nombre.contains('xbox') || 
+        nombre.contains('nintendo') ||
+        nombre.contains('switch') ||
+        nombre.contains('consola') ||
+        tipo.contains('consola')) {
+      return (Icons.sports_esports_rounded, AppColors.unimetOrange);
+    }
+    
+    if (nombre.contains('cubículo') || 
+        nombre.contains('cubiculo') || 
+        nombre.contains('sala') ||
+        nombre.contains('estudio') ||
+        tipo.contains('cubículo') ||
+        tipo.contains('sala')) {
+      return (Icons.meeting_room_rounded, AppColors.unimetBlue);
+    }
+    
+    if (nombre.contains('balón') || 
+        nombre.contains('balon') || 
+        nombre.contains('pelota') ||
+        nombre.contains('raqueta') ||
+        nombre.contains('equipo') ||
+        tipo.contains('deportivo') ||
+        tipo.contains('equipo')) {
+      return (Icons.sports_soccer_rounded, Colors.green);
+    }
+
+    return (Icons.event_available_rounded, Colors.teal);
+  }
+
+  String _getTipoArticulo(Map<String, dynamic> reserva) {
+    final articulo = reserva['articulo'] is Map 
+        ? Map<String, dynamic>.from(reserva['articulo'] as Map)
+        : <String, dynamic>{};
+    
+    final nombre = (articulo['nombre'] ?? '').toString().toLowerCase();
+    final tipo = (articulo['tipo'] ?? articulo['categoria'] ?? articulo['tipo_articulo'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    if (nombre.contains('ps') || nombre.contains('xbox') || nombre.contains('nintendo') ||
+        nombre.contains('switch') || nombre.contains('consola') || tipo.contains('consola')) {
+      return 'Consola';
+    }
+    
+    if (nombre.contains('cubículo') || nombre.contains('cubiculo') || nombre.contains('sala') ||
+        nombre.contains('estudio') || tipo.contains('cubículo') || tipo.contains('sala')) {
+      return 'Cubículo';
+    }
+    
+    if (nombre.contains('balón') || nombre.contains('balon') || nombre.contains('pelota') ||
+        nombre.contains('raqueta') || nombre.contains('equipo') || tipo.contains('deportivo') ||
+        tipo.contains('equipo')) {
+      return 'Deportivo';
+    }
+
+    return 'Artículo';
+  }
+
+  Color _getEstadoColor(_TipoLista tipo, String estado) {
+    switch (tipo) {
+      case _TipoLista.activas:
+        return Colors.green;
+      case _TipoLista.futuras:
+        return Colors.orange;
+      case _TipoLista.historial:
+        return estado == 'finalizada' ? Colors.green : Colors.red;
+    }
+  }
+
+  String _getEstadoText(_TipoLista tipo, String estado) {
+    switch (tipo) {
+      case _TipoLista.activas:
+        return 'ACTIVA';
+      case _TipoLista.futuras:
+        return 'FUTURA';
+      case _TipoLista.historial:
+        return estado.toUpperCase();
+    }
+  }
+
+  IconData _getEmptyIcon(_TipoLista tipo) {
+    switch (tipo) {
+      case _TipoLista.activas:
+        return Icons.play_circle_outline_rounded;
+      case _TipoLista.futuras:
+        return Icons.schedule_outlined;
+      case _TipoLista.historial:
+        return Icons.history_toggle_off_rounded;
+    }
+  }
+
+  String _getEmptyMessage(_TipoLista tipo) {
+    switch (tipo) {
+      case _TipoLista.activas:
+        return 'No tienes reservas activas';
+      case _TipoLista.futuras:
+        return 'No tienes reservas futuras';
+      case _TipoLista.historial:
+        return 'No hay historial de reservas';
+    }
+  }
+
+  String _formatDateTimeShort(DateTime dt) {
+    return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 
 enum _TipoLista { activas, futuras, historial }
-
