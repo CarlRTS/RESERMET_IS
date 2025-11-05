@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Importaciones existentes
 import 'my_reservations.dart';
-import 'reservations/reservation_screen.dart';
 import 'admin/admin_home_screen.dart';
 import 'login.dart';
 import 'package:resermet_2/screens/user_profile_screen.dart';
@@ -42,7 +41,9 @@ class _MainScreenState extends State<MainScreen> {
 
         if (resp is Map<String, dynamic>) {
           final role = resp['rol'] as String?;
-          if (mounted) setState(() => _isAdmin = role == 'administrador');
+          if (mounted) {
+            setState(() => _isAdmin = role == 'administrador');
+          }
         }
       }
     } catch (e) {
@@ -53,60 +54,191 @@ class _MainScreenState extends State<MainScreen> {
   List<Widget> get _widgetOptions {
     final screens = <Widget>[
       const HomeScreen(),
-      const BookingScreen(),
       const MyBookingsScreen(),
     ];
-    if (_isAdmin) screens.add(const AdminHomeScreen());
+    if (_isAdmin) {
+      screens.add(const AdminHomeScreen());
+    }
     return screens;
   }
 
   List<BottomNavigationBarItem> get _bottomNavItems {
     final items = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_rounded),
+      BottomNavigationBarItem(
+        icon: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _selectedIndex == 0 
+                ? AppColors.unimetBlue.withOpacity(0.15) 
+                : Colors.transparent,
+          ),
+          child: Icon(
+            Icons.home_rounded,
+            color: _selectedIndex == 0 ? AppColors.unimetBlue : Colors.grey.shade500,
+            size: _selectedIndex == 0 ? 24 : 22,
+          ),
+        ),
+        activeIcon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.unimetBlue.withOpacity(0.2),
+            border: Border.all(
+              color: AppColors.unimetBlue.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            Icons.home_rounded,
+            color: AppColors.unimetBlue,
+            size: 24,
+          ),
+        ),
         label: 'Inicio',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.calendar_month_rounded),
-        label: 'Reservar',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.list_alt_rounded),
+      BottomNavigationBarItem(
+        icon: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _selectedIndex == 1 
+                ? AppColors.unimetOrange.withOpacity(0.15) 
+                : Colors.transparent,
+          ),
+          child: Icon(
+            Icons.list_alt_rounded,
+            color: _selectedIndex == 1 ? AppColors.unimetOrange : Colors.grey.shade500,
+            size: _selectedIndex == 1 ? 24 : 22,
+          ),
+        ),
+        activeIcon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.unimetOrange.withOpacity(0.2),
+            border: Border.all(
+              color: AppColors.unimetOrange.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            Icons.list_alt_rounded,
+            color: AppColors.unimetOrange,
+            size: 24,
+          ),
+        ),
         label: 'Mis Reservas',
       ),
     ];
     if (_isAdmin) {
-      items.add(const BottomNavigationBarItem(
-        icon: Icon(Icons.admin_panel_settings_rounded),
-        label: 'Admin',
-      ));
+      items.add(
+        BottomNavigationBarItem(
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _selectedIndex == (_isAdmin ? 2 : 1) 
+                  ? Colors.purple.withOpacity(0.15) 
+                  : Colors.transparent,
+            ),
+            child: Icon(
+              Icons.admin_panel_settings_rounded,
+              color: _selectedIndex == (_isAdmin ? 2 : 1) ? Colors.purple : Colors.grey.shade500,
+              size: _selectedIndex == (_isAdmin ? 2 : 1) ? 24 : 22,
+            ),
+          ),
+          activeIcon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.purple.withOpacity(0.2),
+              border: Border.all(
+                color: Colors.purple.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Icon(
+              Icons.admin_panel_settings_rounded,
+              color: Colors.purple,
+              size: 24,
+            ),
+          ),
+          label: 'Admin',
+        ),
+      );
     }
     return items;
   }
 
-  void _onItemTapped(int index) => setState(() => _selectedIndex = index);
+  void _onItemTapped(int index) {
+    if (mounted) {
+      setState(() => _selectedIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: MediaQuery.removePadding(
         context: context,
         removeTop: true,
-        child: Center(
-          child: _widgetOptions.elementAt(_selectedIndex),
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: _widgetOptions,
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: _bottomNavItems,
-        currentIndex: _selectedIndex,
-        selectedItemColor: cs.primary,
-        unselectedItemColor: cs.onSurface.withOpacity(0.55),
-        backgroundColor: cs.surface,
-        onTap: _onItemTapped,
-        showUnselectedLabels: true,
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 5),
+              spreadRadius: 2,
+            ),
+            BoxShadow(
+              color: AppColors.unimetBlue.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25),
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            items: _bottomNavItems,
+            currentIndex: _selectedIndex,
+            selectedItemColor: AppColors.unimetBlue,
+            unselectedItemColor: Colors.grey.shade500,
+            backgroundColor: Colors.white,
+            onTap: _onItemTapped,
+            showUnselectedLabels: true,
+            showSelectedLabels: true,
+            selectedLabelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade500,
+              height: 1.2,
+            ),
+            selectedFontSize: 12,
+            unselectedFontSize: 11,
+            elevation: 0,
+          ),
+        ),
       ),
     );
   }
@@ -121,7 +253,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  final _reservaService = ReservaService();
+  final ReservaService _reservaService = ReservaService();
   List<Map<String, dynamic>> _reservas = [];
   List<Map<String, dynamic>> _reservasMostradas = [];
 
@@ -141,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Este método se llama cuando la app vuelve a primer plano
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && mounted) {
       _cargarReservas(); // Recargar cuando la app vuelve a estar activa
     }
   }
@@ -166,7 +298,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     ).then((_) {
       // Cuando regresamos de cualquier pantalla de reserva, recargamos las reservas
-      _cargarReservas();
+      if (mounted) {
+        _cargarReservas();
+      }
     });
   }
 
@@ -203,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       // Filtrar canceladas y finalizadas, solo activas/futuras
       final filtradas = <Map<String, dynamic>>[];
-      for (var r in data) {
+      for (final r in data) {
         final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
         final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
         if (inicio == null || fin == null) continue;
@@ -405,7 +539,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               builder: (_) => const UserProfileScreen()),
                         ).then((_) {
                           // Recargar reservas al regresar del perfil
-                          _cargarReservas();
+                          if (mounted) {
+                            _cargarReservas();
+                          }
                         }),
                       ),
                     ),
@@ -664,7 +800,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       onTap: () {
                         final mainState =
                             context.findAncestorStateOfType<_MainScreenState>();
-                        if (mainState != null) mainState._onItemTapped(2);
+                        if (mainState != null && mounted) {
+                          mainState._onItemTapped(1); // 👈 Cambiado a índice 1
+                        }
                       },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
