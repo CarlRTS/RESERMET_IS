@@ -272,15 +272,18 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
             ),
             const SizedBox(height: 12),
             // --- Botones de acción ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end, // Equivalente a mainAxisAlignment.end
+              spacing: 8.0, // Espacio horizontal (reemplaza tu SizedBox)
+              runSpacing: 4.0, // Espacio vertical (si los botones bajan de línea)
               children: [
                 OutlinedButton.icon(
                   icon: const Icon(Icons.group_outlined),
                   label: const Text('Ver integrantes'),
                   onPressed: () => _verIntegrantes(idReserva),
                 ),
-                const SizedBox(width: 8),
+
+                // El SizedBox(width: 8) ya no es necesario, 'spacing' se encarga.
 
                 if (vencida)
                   OutlinedButton.icon(

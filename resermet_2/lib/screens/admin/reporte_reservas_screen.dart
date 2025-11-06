@@ -247,7 +247,7 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
     );
   }
 
-  // --- SECCIÓN DE CONTENIDO (CON GRÁFICO DE PASTEL) ---
+  // --- SECCIÓN DE CONTENIDO (CON GRÁFICOS) ---
   Widget _buildStatsContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +268,12 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
-          childAspectRatio: (1 / .6),
+
+          // --- ¡CORREGIDO! ---
+          // Se cambió (1 / .6) por (1 / .8) para dar más altura
+          // a las tarjetas y evitar el 'bottom overflow'.
+          childAspectRatio: (1 / .8),
+
           children: [
             _buildKpiCard(
               label: 'Total Reservas',
@@ -580,7 +585,18 @@ class _ReporteReservasScreenState extends State<ReporteReservasScreen> {
           ),
         ),
         const SizedBox(width: 10),
-        Text(text),
+
+        // --- ¡CORREGIDO! ---
+        // Se envuelve el texto en Flexible para que se trunque
+        // con '...' si es muy largo, evitando el 'right overflow'.
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+          ),
+        ),
+
         if (value != null) ...[
           const Spacer(),
           Text(
