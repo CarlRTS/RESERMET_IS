@@ -76,7 +76,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   bool _esFutura(DateTime now, DateTime inicio) => now.isBefore(inicio);
   bool _esActiva(DateTime now, DateTime inicio, DateTime fin) =>
-      (now.isAfter(inicio) || now.isAtSameMomentAs(inicio)) && now.isBefore(fin);
+      (now.isAfter(inicio) || now.isAtSameMomentAs(inicio)) &&
+      now.isBefore(fin);
 
   // ---------- Acciones ----------
   Future<void> _cancelar(int idReserva) async {
@@ -88,8 +89,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           '¿Deseas cancelar esta reserva? Esto liberará el recurso para otros estudiantes.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí, cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sí, cancelar'),
+          ),
         ],
       ),
     );
@@ -99,13 +106,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       await _service.cancelarReserva(idReserva: idReserva);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reserva cancelada'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Reserva cancelada'),
+          backgroundColor: Colors.green,
+        ),
       );
       await _fetch();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cancelar: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error al cancelar: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -115,10 +128,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Finalizar ahora'),
-        content: const Text('¿Deseas finalizar la reserva antes de su hora de fin?'),
+        content: const Text(
+          '¿Deseas finalizar la reserva antes de su hora de fin?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí, finalizar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sí, finalizar'),
+          ),
         ],
       ),
     );
@@ -128,13 +149,19 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       await _service.finalizarReservaUsuario(idReserva: idReserva);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reserva finalizada'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Reserva finalizada'),
+          backgroundColor: Colors.green,
+        ),
       );
       await _fetch();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al finalizar: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error al finalizar: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -147,8 +174,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
       if (inicio == null || fin == null) return false;
       return _esActiva(now, inicio, fin) && (r['estado'] == 'activa');
-    }).toList()
-      ..sort((a, b) => '${a['fin']}'.compareTo('${b['fin']}'));
+    }).toList()..sort((a, b) => '${a['fin']}'.compareTo('${b['fin']}'));
   }
 
   List<Map<String, dynamic>> _filtrarFuturas() {
@@ -157,16 +183,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
       if (inicio == null) return false;
       return _esFutura(now, inicio) && (r['estado'] != 'cancelada');
-    }).toList()
-      ..sort((a, b) => '${a['inicio']}'.compareTo('${b['inicio']}'));
+    }).toList()..sort((a, b) => '${a['inicio']}'.compareTo('${b['inicio']}'));
   }
 
   List<Map<String, dynamic>> _filtrarHistorial() {
     return _reservas.where((r) {
       final estado = (r['estado'] ?? '').toString();
       return estado == 'finalizada' || estado == 'cancelada';
-    }).toList()
-      ..sort((a, b) => '${b['inicio']}'.compareTo('${a['inicio']}'));
+    }).toList()..sort((a, b) => '${b['inicio']}'.compareTo('${a['inicio']}'));
   }
 
   // ---------- UI ----------
@@ -179,21 +203,28 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Mis Reservas',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
+        toolbarHeight: 100,
+        title: const Padding(
+          padding: EdgeInsets.only(top: 10.0),
+          child: Text(
+            'Mis Reservas',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
           ),
         ),
         backgroundColor: AppColors.unimetBlue,
         foregroundColor: Colors.white,
         elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20.0),
+            bottomRight: Radius.circular(20.0),
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Actualizar',
             onPressed: _fetch,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, size: 35.0),
           ),
         ],
       ),
@@ -218,7 +249,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                     child: Text(
                       _error!,
                       style: TextStyle(
-                        color: Colors.red.shade700, 
+                        color: Colors.red.shade700,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -245,22 +276,32 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           // Tabs con nuevo diseño
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Column(
                 children: [
-                  // Tabs con diseño mejorado
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(15),
                     ),
+                    padding: const EdgeInsets.all(
+                      4,
+                    ), // Espacio interno adicional
                     child: TabBar(
                       controller: _tabController,
                       labelColor: AppColors.unimetBlue,
                       unselectedLabelColor: Colors.grey.shade600,
+                      indicatorSize: TabBarIndicatorSize.label,
+                      labelPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 2,
+                      ),
                       indicator: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
@@ -270,42 +311,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                         ],
                       ),
                       tabs: [
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.play_circle_fill_rounded, size: 18),
-                              const SizedBox(width: 6),
-                              Text('Activas (${activas.length})'),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.schedule_rounded, size: 18),
-                              const SizedBox(width: 6),
-                              Text('Futuras (${futuras.length})'),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.history_rounded, size: 18),
-                              const SizedBox(width: 6),
-                              Text('Historial (${historial.length})'),
-                            ],
-                          ),
-                        ),
+                        Tab(text: 'Activas (${activas.length})'),
+                        Tab(text: 'Futuras (${futuras.length})'),
+                        Tab(text: 'Historial (${historial.length})'),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   Expanded(
                     child: TabBarView(
                       controller: _tabController,
@@ -356,7 +370,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  Widget _buildLista(List<Map<String, dynamic>> data, {required _TipoLista tipo}) {
+  Widget _buildLista(
+    List<Map<String, dynamic>> data, {
+    required _TipoLista tipo,
+  }) {
     return RefreshIndicator(
       onRefresh: _fetch,
       color: AppColors.unimetBlue,
@@ -393,8 +410,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 final idReserva = r['id_reserva'] as int;
                 final nombreArticulo =
                     (r['articulo'] is Map && r['articulo']['nombre'] != null)
-                        ? r['articulo']['nombre'].toString()
-                        : 'Artículo';
+                    ? r['articulo']['nombre'].toString()
+                    : 'Artículo';
                 final estado = (r['estado'] ?? '').toString();
 
                 final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
@@ -404,7 +421,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 if (tipo == _TipoLista.activas && fin != null) {
                   detalleTiempo = _formatRemaining(fin);
                 } else if (tipo == _TipoLista.futuras && inicio != null) {
-                  detalleTiempo = 'Empieza: ${_formatDateTimeShort(inicio.toLocal())}';
+                  detalleTiempo =
+                      'Empieza: ${_formatDateTimeShort(inicio.toLocal())}';
                 }
 
                 // Determinar icono y color según el tipo de artículo
@@ -469,12 +487,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                   minWidth: 60,
                                   maxWidth: 80,
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _getEstadoColor(tipo, estado).withOpacity(0.1),
+                                  color: _getEstadoColor(
+                                    tipo,
+                                    estado,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: _getEstadoColor(tipo, estado).withOpacity(0.3),
+                                    color: _getEstadoColor(
+                                      tipo,
+                                      estado,
+                                    ).withOpacity(0.3),
                                   ),
                                 ),
                                 child: Text(
@@ -491,25 +518,32 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               ),
                             ],
                           ),
-                          
+
                           const SizedBox(height: 12),
-                          
+
                           // Información de tiempo - DISEÑO VERTICAL PARA TODOS (EVITA OVERFLOW)
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildTimeInfoCompact('Inicio', inicio?.toLocal()),
+                              _buildTimeInfoCompact(
+                                'Inicio',
+                                inicio?.toLocal(),
+                              ),
                               const SizedBox(height: 6),
                               _buildTimeInfoCompact('Fin', fin?.toLocal()),
                               if (tipo == _TipoLista.activas) ...[
                                 const SizedBox(height: 6),
-                                _buildTimeInfoCompact('Tiempo Restante', null, customValue: detalleTiempo),
+                                _buildTimeInfoCompact(
+                                  'Tiempo Restante',
+                                  null,
+                                  customValue: detalleTiempo,
+                                ),
                               ],
                             ],
                           ),
-                          
+
                           const SizedBox(height: 12),
-                          
+
                           // Acciones
                           if (tipo != _TipoLista.historial)
                             Align(
@@ -529,7 +563,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                       icon: Icons.flag_rounded,
                                       label: 'Finalizar',
                                       color: AppColors.unimetBlue,
-                                      onPressed: () => _finalizarAhora(idReserva),
+                                      onPressed: () =>
+                                          _finalizarAhora(idReserva),
                                     ),
                                 ],
                               ),
@@ -544,7 +579,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  Widget _buildTimeInfoCompact(String label, DateTime? date, {String? customValue}) {
+  Widget _buildTimeInfoCompact(
+    String label,
+    DateTime? date, {
+    String? customValue,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -616,35 +655,39 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   // Helper para obtener icono y color según el artículo
   (IconData, Color) _obtenerIconoYColor(Map<String, dynamic> reserva) {
-    final articulo = reserva['articulo'] is Map 
+    final articulo = reserva['articulo'] is Map
         ? Map<String, dynamic>.from(reserva['articulo'] as Map)
         : <String, dynamic>{};
-    
-    final nombre = (articulo['nombre'] ?? '').toString().toLowerCase();
-    final tipo = (articulo['tipo'] ?? articulo['categoria'] ?? articulo['tipo_articulo'] ?? '')
-        .toString()
-        .toLowerCase();
 
-    if (nombre.contains('ps') || 
-        nombre.contains('xbox') || 
+    final nombre = (articulo['nombre'] ?? '').toString().toLowerCase();
+    final tipo =
+        (articulo['tipo'] ??
+                articulo['categoria'] ??
+                articulo['tipo_articulo'] ??
+                '')
+            .toString()
+            .toLowerCase();
+
+    if (nombre.contains('ps') ||
+        nombre.contains('xbox') ||
         nombre.contains('nintendo') ||
         nombre.contains('switch') ||
         nombre.contains('consola') ||
         tipo.contains('consola')) {
       return (Icons.sports_esports_rounded, AppColors.unimetOrange);
     }
-    
-    if (nombre.contains('cubículo') || 
-        nombre.contains('cubiculo') || 
+
+    if (nombre.contains('cubículo') ||
+        nombre.contains('cubiculo') ||
         nombre.contains('sala') ||
         nombre.contains('estudio') ||
         tipo.contains('cubículo') ||
         tipo.contains('sala')) {
       return (Icons.meeting_room_rounded, AppColors.unimetBlue);
     }
-    
-    if (nombre.contains('balón') || 
-        nombre.contains('balon') || 
+
+    if (nombre.contains('balón') ||
+        nombre.contains('balon') ||
         nombre.contains('pelota') ||
         nombre.contains('raqueta') ||
         nombre.contains('equipo') ||
@@ -657,27 +700,43 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   }
 
   String _getTipoArticulo(Map<String, dynamic> reserva) {
-    final articulo = reserva['articulo'] is Map 
+    final articulo = reserva['articulo'] is Map
         ? Map<String, dynamic>.from(reserva['articulo'] as Map)
         : <String, dynamic>{};
-    
-    final nombre = (articulo['nombre'] ?? '').toString().toLowerCase();
-    final tipo = (articulo['tipo'] ?? articulo['categoria'] ?? articulo['tipo_articulo'] ?? '')
-        .toString()
-        .toLowerCase();
 
-    if (nombre.contains('ps') || nombre.contains('xbox') || nombre.contains('nintendo') ||
-        nombre.contains('switch') || nombre.contains('consola') || tipo.contains('consola')) {
+    final nombre = (articulo['nombre'] ?? '').toString().toLowerCase();
+    final tipo =
+        (articulo['tipo'] ??
+                articulo['categoria'] ??
+                articulo['tipo_articulo'] ??
+                '')
+            .toString()
+            .toLowerCase();
+
+    if (nombre.contains('ps') ||
+        nombre.contains('xbox') ||
+        nombre.contains('nintendo') ||
+        nombre.contains('switch') ||
+        nombre.contains('consola') ||
+        tipo.contains('consola')) {
       return 'Consola';
     }
-    
-    if (nombre.contains('cubículo') || nombre.contains('cubiculo') || nombre.contains('sala') ||
-        nombre.contains('estudio') || tipo.contains('cubículo') || tipo.contains('sala')) {
+
+    if (nombre.contains('cubículo') ||
+        nombre.contains('cubiculo') ||
+        nombre.contains('sala') ||
+        nombre.contains('estudio') ||
+        tipo.contains('cubículo') ||
+        tipo.contains('sala')) {
       return 'Cubículo';
     }
-    
-    if (nombre.contains('balón') || nombre.contains('balon') || nombre.contains('pelota') ||
-        nombre.contains('raqueta') || nombre.contains('equipo') || tipo.contains('deportivo') ||
+
+    if (nombre.contains('balón') ||
+        nombre.contains('balon') ||
+        nombre.contains('pelota') ||
+        nombre.contains('raqueta') ||
+        nombre.contains('equipo') ||
+        tipo.contains('deportivo') ||
         tipo.contains('equipo')) {
       return 'Deportivo';
     }

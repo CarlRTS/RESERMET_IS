@@ -407,8 +407,9 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                       ),
                       const SizedBox(height: 15),
 
-                      // 1) Cubículo
+                      // 1) Cubículo - CORREGIDO
                       DropdownButtonFormField<Cubiculo>(
+                        isExpanded: true, // ¡IMPORTANTE!
                         decoration: const InputDecoration(
                           labelText: 'Cubículo a Reservar',
                           border: OutlineInputBorder(),
@@ -421,6 +422,8 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                             value: cubiculo,
                             child: Text(
                               '${cubiculo.nombre} (Cap: ${cubiculo.capacidad} pers.)',
+                              overflow:
+                                  TextOverflow.ellipsis, // Texto muy largo
                             ),
                           );
                         }).toList(),
@@ -460,8 +463,9 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 4) Duración
+                      // 4) Duración - CORREGIDO
                       DropdownButtonFormField<String>(
+                        isExpanded: true, // ¡IMPORTANTE!
                         decoration: InputDecoration(
                           labelText: _duracionLabelText,
                           border: const OutlineInputBorder(),
@@ -475,7 +479,10 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                         items: _durationsAvailable.map((String duration) {
                           return DropdownMenuItem<String>(
                             value: duration,
-                            child: Text(duration),
+                            child: Text(
+                              duration,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           );
                         }).toList(),
                         onChanged: (String? newValue) {
@@ -566,7 +573,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                                 ),
                         ),
                       ),
-                      // 6) Acompañantes
+                      const SizedBox(height: 16),
 
                       // 6) Propósito
                       TextFormField(

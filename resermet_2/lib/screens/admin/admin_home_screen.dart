@@ -1,5 +1,6 @@
 // lib/screens/admin/admin_home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:resermet_2/utils/app_colors.dart';
 import 'cubiculos_list_screen.dart';
 import 'consolas_list_screen.dart';
 import 'equipos_list_screen.dart';
@@ -57,10 +58,24 @@ class AdminHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel de Administración'),
-        backgroundColor: const Color(0xFF0033A0),
+        toolbarHeight: 100, // Misma altura que el anterior
+        title: const Padding(
+          padding: EdgeInsets.only(top: 10.0), // Texto bajado
+          child: Text(
+            'Panel de Administración',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+          ),
+        ),
+        backgroundColor: AppColors.unimetBlue,
         foregroundColor: Colors.white,
         centerTitle: true,
+        elevation: 0, // Sin sombra
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20.0), // Bordes redondeados abajo
+            bottomRight: Radius.circular(20.0),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -158,14 +173,14 @@ class AdminHomeScreen extends StatelessWidget {
   }
 
   Widget _buildManagementCard(
-      BuildContext context, {
-        required String title,
-        required String subtitle,
-        required IconData icon,
-        required Color color,
-        required VoidCallback onTap,
-        required bool available,
-      }) {
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required bool available,
+  }) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

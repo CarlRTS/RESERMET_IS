@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../widgets/toastification_log.dart'; // Asumo que tienes este widget
-import 'login.dart'; // Necesario para el botón _goBackToLogin
+import '../widgets/toastification_log.dart';
+import 'login.dart';
 
 class NewPasswordScreen extends StatefulWidget {
   const NewPasswordScreen({super.key});
@@ -39,8 +39,6 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     final supabase = Supabase.instance.client;
 
     try {
-      // Gracias al AuthGate en main.dart, ya deberíamos tener
-      // una sesión de recuperación activa.
       final currentUser = supabase.auth.currentUser;
 
       if (currentUser != null) {
@@ -55,30 +53,8 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
         if (mounted) {
           LoginToastService.showLoginSuccess(currentContext);
-
-          // ==========================================================
-          // ¡CORRECCIÓN APLICADA!
-          //
-          // Hemos eliminado `signOut()` y `Navigator.pushAndRemoveUntil`.
-          //
-          // Al ejecutar `updateUser`, la sesión se activa.
-          // Tu AuthGate (en main.dart) detectará este cambio
-          // y te redirigirá al Home (MainScreen) automáticamente.
-          // ==========================================================
-
-          // ❌ LÍNEA ELIMINADA:
-          // await supabase.auth.signOut();
-
-          // ❌ BLOQUE ELIMINADO:
-          // Navigator.pushAndRemoveUntil(
-          //   currentContext,
-          //   MaterialPageRoute(builder: (context) => const LoginScreen()),
-          //   (route) => false,
-          // );
         }
       } else {
-        // Esto no debería pasar si AuthGate funciona,
-        // pero es una buena validación.
         print('❌ Error: No hay sesión de recuperación activa.');
         throw AuthException(
           'Enlace inválido o expirado. Solicita un nuevo enlace de recuperación.',
@@ -135,7 +111,6 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nueva Contraseña'),
-        // Un botón de cerrar (X) tiene más sentido aquí
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: _goBackToLogin,
@@ -145,7 +120,6 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
-          // Usamos SingleChildScrollView para evitar overflow si aparece el teclado
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
