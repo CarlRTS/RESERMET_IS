@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:resermet_2/ui/theme/app_theme.dart';
 import '../widgets/toastification_log.dart';
@@ -27,6 +28,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   String? _selectedRol = 'estudiante';
   String? _selectedCarrera;
+  String _selectedOperadora = '0412';
+
+  final List<String> _operadoras = [
+    '0412', // Digitel
+    '0422', // Digitel
+    '0416', // Movilnet
+    '0426', // Movilnet
+    '0424', // Movistar
+    '0414', // Movistar
+  ];
 
   final List<String> _carreras = const [
     'Ingeniería de Sistemas',
@@ -76,7 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passwordController.text.trim();
     final nombre = _nombreController.text.trim();
     final apellido = _apellidoController.text.trim();
-    final telefono = _telefonoController.text.trim();
+    final telefono = '$_selectedOperadora${_telefonoController.text.trim()}';
     final rol = _selectedRol!;
     final carrera = _selectedCarrera!;
 
@@ -139,14 +150,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    final tokens =
-        Theme.of(context).extension<AppTokens>() ??
-        const AppTokens(
-          radiusXL: 24,
-          radiusMD: 14,
-          paddingMD: EdgeInsets.all(12),
-        );
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(color: UnimetPalette.base),
@@ -161,7 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Card(
                     elevation: 1.5,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusXL),
+                      borderRadius: BorderRadius.circular(24),
                       side: BorderSide(color: cs.outlineVariant),
                     ),
                     child: Padding(
@@ -169,19 +172,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Logo en lugar del icono circular
                           SizedBox(
-                            width: 200, // Ajusta el ancho según necesites
-                            height: 80, // Ajusta la altura según necesites
+                            width: 200,
+                            height: 80,
                             child: Image.asset(
-                              'assets/images/logo_resermet_naranja.png', // Cambia por la ruta de tu logo
+                              'assets/images/logo_resermet_naranja.png',
                               fit: BoxFit.contain,
                             ),
                           ),
-                          const SizedBox(height: 4), // Espacio ajustado
+                          const SizedBox(height: 4),
                           Text(
                             'Crea tu cuenta Resermet',
-                            style: Theme.of(context).textTheme.titleMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
                                 ?.copyWith(
                                   color: cs.primary,
                                   fontWeight: FontWeight.w700,
@@ -191,7 +195,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Usa tu correo institucional UNIMET',
-                            style: Theme.of(context).textTheme.bodySmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
                                 ?.copyWith(
                                   color: cs.onSurface.withOpacity(.75),
                                 ),
@@ -199,13 +205,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 18),
 
-                          // Campos de formulario
                           _buildTextFormField(
                             controller: _emailController,
                             label: 'Correo Institucional',
                             icon: Icons.email,
                             keyboardType: TextInputType.emailAddress,
-                            autofillHints: const [AutofillHints.email],
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Ingrese su correo institucional';
@@ -253,23 +257,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
 
-                          _buildTextFormField(
-                            controller: _telefonoController,
-                            label: 'Teléfono',
-                            icon: Icons.phone,
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'El teléfono es obligatorio';
-                              }
-                              if (!RegExp(r"^\d{10,}$").hasMatch(value)) {
-                                return 'Mínimo 10 dígitos';
-                              }
-                              return null;
-                            },
+                          // Teléfono con dropdown
+                          Row(
+                            children: [
+                              Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: cs.outlineVariant,
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _selectedOperadora,
+                                    items: _operadoras
+                                        .map(
+                                          (op) => DropdownMenuItem(
+                                            value: op,
+                                            child: Text(op),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (v) {
+                                      setState(() => _selectedOperadora = v!);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _telefonoController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Teléfono',
+                                    hintText: '7 dígitos',
+                                    prefixIcon: Icon(Icons.phone),
+                                    isDense: true,
+                                  ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(7),
+                                  ],
+                                  validator: (value) {
+                                    final v = (value ?? '').trim();
+                                    if (v.isEmpty) {
+                                      return 'Ingrese los 7 dígitos';
+                                    }
+                                    if (!RegExp(r'^\d{7}$').hasMatch(v)) {
+                                      return 'Deben ser exactamente 7 dígitos';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 12),
 
-                          // Tipo de Usuario
                           DropdownButtonFormField<String>(
                             value: _selectedRol,
                             decoration: const InputDecoration(
@@ -288,9 +336,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ],
                             onChanged: (value) {
-                              setState(() {
-                                _selectedRol = value;
-                              });
+                              setState(() => _selectedRol = value);
                             },
                             validator: (value) {
                               if (value == null) {
@@ -310,18 +356,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 isDense: true,
                               ),
                               dropdownColor: Colors.white,
-                              menuMaxHeight: 300,
-                              itemHeight: 50,
                               isExpanded: true,
                               items: _carreras
                                   .map(
                                     (c) => DropdownMenuItem(
                                       value: c,
-                                      child: Text(
-                                        c,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
+                                      child: Text(c),
                                     ),
                                   )
                                   .toList(),
@@ -331,28 +371,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             const SizedBox(height: 12),
                           ],
 
-                          // Contraseña
                           _buildPasswordField(
                             controller: _passwordController,
                             label: 'Contraseña (min. 6 caracteres)',
                             obscureText: _obscurePassword,
                             onToggle: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
+                                () => _obscurePassword = !_obscurePassword),
                             validator: (v) => (v == null || v.length < 6)
                                 ? 'Mínimo 6 caracteres'
                                 : null,
                           ),
 
-                          // Confirmar contraseña
                           _buildPasswordField(
                             controller: _confirmPasswordController,
                             label: 'Confirmar contraseña',
                             obscureText: _obscureConfirmPassword,
-                            onToggle: () => setState(
-                              () => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
-                            ),
+                            onToggle: () => setState(() => _obscureConfirmPassword =
+                                !_obscureConfirmPassword),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
                                 return 'Confirme su contraseña';
@@ -363,10 +398,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-
                           const SizedBox(height: 16),
 
-                          // CTA
                           FilledButton(
                             onPressed: _isLoading
                                 ? null
@@ -385,38 +418,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   )
                                 : const Text('CREAR CUENTA'),
                           ),
-
                           const SizedBox(height: 10),
 
-                          // Link: ¿Ya tienes cuenta? Inicia sesión
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 6,
-                              ),
-                            ),
-                            child: RichText(
-                              text: TextSpan(
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodySmall?.copyWith(fontSize: 14),
-                                children: const [
-                                  TextSpan(
-                                    text: '¿Ya tienes cuenta?',
-                                    style: TextStyle(
-                                      color: UnimetPalette.primary,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: ' Inicia sesión',
-                                    style: TextStyle(
-                                      color: UnimetPalette.accent,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                            child: const Text(
+                              '¿Ya tienes cuenta? Inicia sesión',
+                              style: TextStyle(
+                                color: UnimetPalette.accent,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -433,13 +443,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Widget helper para campos de texto
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
-    List<String>? autofillHints,
     required String? Function(String?)? validator,
   }) {
     return Column(
@@ -452,7 +460,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             isDense: true,
           ),
           keyboardType: keyboardType,
-          autofillHints: autofillHints,
           validator: validator,
         ),
         const SizedBox(height: 12),
@@ -460,7 +467,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Widget helper para campos de contraseña
   Widget _buildPasswordField({
     required TextEditingController controller,
     required String label,
@@ -472,6 +478,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         TextFormField(
           controller: controller,
+          obscureText: obscureText,
           decoration: InputDecoration(
             labelText: label,
             prefixIcon: const Icon(Icons.lock),
@@ -481,17 +488,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 size: 20,
               ),
               onPressed: onToggle,
-              style: IconButton.styleFrom(
-                foregroundColor: UnimetPalette.primary,
-                overlayColor: Colors.transparent,
-                splashFactory: NoSplash.splashFactory,
-                padding: const EdgeInsets.all(4),
-              ),
             ),
             isDense: true,
           ),
-          obscureText: obscureText,
-          autofillHints: const [AutofillHints.newPassword],
           validator: validator,
         ),
         const SizedBox(height: 12),

@@ -1,3 +1,4 @@
+// lib/screens/admin/users_list_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,7 +20,12 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
   bool _loading = true;
   String? _error;
+
+  /// Lista mostrada actualmente
   List<UserProfile> _users = [];
+
+  /// Caché completa para filtrar en memoria (sin tocar el servicio)
+  List<UserProfile> _allUsers = [];
 
   @override
   void initState() {
@@ -43,7 +49,8 @@ class _UsersListScreenState extends State<UsersListScreen> {
       final data = await _service.listAllUsersOrdered();
       if (!mounted) return;
       setState(() {
-        _users = data;
+        _allUsers = data;
+        _users = data; // vista inicial = todos
         _loading = false;
       });
     } catch (e) {
@@ -55,22 +62,80 @@ class _UsersListScreenState extends State<UsersListScreen> {
     }
   }
 
+  /// Normaliza texto: minúsculas + sin acentos/ñ para comparar de forma robusta
+  String _norm(String? s) {
+    if (s == null) return '';
+    final lower = s.toLowerCase();
+
+    // Reemplazos comunes sin depender de paquetes externos
+    return lower
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ã', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ì', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ò', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('õ', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ù', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll(RegExp(r'\s+'), ' ') // colapsa espacios múltiples
+        .trim();
+  }
+
+  /// Filtra en memoria con múltiples tokens (nombre, apellido, correo)
+  List<UserProfile> _filterLocal(String rawQuery) {
+    final query = _norm(rawQuery);
+    if (query.isEmpty) return List<UserProfile>.from(_allUsers);
+
+    // Separamos por espacios; cada token debe aparecer en el texto combinado
+    final tokens = query.split(' ').where((t) => t.isNotEmpty).toList();
+
+    return _allUsers.where((u) {
+      final combined = _norm('${u.nombre ?? ""} ${u.apellido ?? ""} ${u.correo}');
+      // Cada token debe estar en el string combinado (orden libre)
+      for (final t in tokens) {
+        if (!combined.contains(t)) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Búsqueda principal: usa filtro local para soportar "nombre apellido" flexible
   Future<void> _search(String q) async {
     final query = q.trim();
     if (query.isEmpty) {
-      await _loadAll(); // sin texto => mostrar todos
+      // sin texto => mostrar todos (desde caché)
+      setState(() => _users = List<UserProfile>.from(_allUsers));
       return;
     }
 
+    // Para mantener UI consistente mostramos loading breve (opcional)
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
-      final data = await _service.searchUsers(query);
+      // Filtrado local robusto
+      final filtered = _filterLocal(query);
+
       if (!mounted) return;
       setState(() {
-        _users = data;
+        _users = filtered;
         _loading = false;
       });
     } catch (e) {
@@ -84,7 +149,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
+    _debounce = Timer(const Duration(milliseconds: 300), () {
       _search(value);
     });
   }
@@ -167,7 +232,15 @@ class _UsersListScreenState extends State<UsersListScreen> {
                     : _users.isEmpty
                         ? const Center(child: Text('No hay usuarios para mostrar'))
                         : RefreshIndicator(
-                            onRefresh: () => _search(_searchCtrl.text),
+                            onRefresh: () async {
+                              // Recarga lista completa y vuelve a aplicar el filtro actual
+                              await _loadAll();
+                              if (mounted) {
+                                setState(() {
+                                  _users = _filterLocal(_searchCtrl.text);
+                                });
+                              }
+                            },
                             child: ListView.separated(
                               physics: const AlwaysScrollableScrollPhysics(),
                               itemCount: _users.length,
@@ -175,14 +248,14 @@ class _UsersListScreenState extends State<UsersListScreen> {
                               itemBuilder: (context, index) {
                                 final u = _users[index];
 
-                                // Nombre completo (puede venir vacío si el usuario aún no lo completó)
+                                // Nombre completo (puede venir vacío si el usuario no lo completó)
                                 final fullName =
                                     '${u.nombre ?? ''} ${u.apellido ?? ''}'.trim();
 
                                 // Si no hay nombre, usamos el correo (no-nullable en tu modelo)
                                 final title = fullName.isEmpty ? u.correo : fullName;
 
-                                // Subtítulo: muestra siempre el correo (no-nullable)
+                                // Subtítulo: siempre el correo
                                 final subtitle = u.correo;
 
                                 return ListTile(
@@ -211,9 +284,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                         builder: (_) => UserDetailScreen(userId: u.idUsuario),
                                       ),
                                     );
-                                    // Al volver, refrescamos la lista (respetando búsqueda)
+                                    // Al volver, refrescamos (respetando el query actual)
                                     if (!mounted) return;
-                                    await _search(_searchCtrl.text);
+                                    setState(() {
+                                      _users = _filterLocal(_searchCtrl.text);
+                                    });
                                   },
                                 );
                               },

@@ -24,8 +24,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final TextEditingController _apellidoCtrl = TextEditingController();
   final TextEditingController _telefonoCtrl = TextEditingController();
 
-  // Códigos de operadora venezolanos
-  final List<String> _codigosOperadora = ['0412', '0414', '0416', '0424', '0426'];
+  // Códigos de operadora venezolanos (incluye 0422)
+  final List<String> _codigosOperadora = ['0412', '0422', '0416', '0426', '0424', '0414'];
   String _codigoSeleccionado = '0412';
 
   @override
@@ -45,7 +45,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void _showSnack(String msg, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: error ? Colors.red : Colors.green, // éxito: verde
+        backgroundColor: error ? Colors.red : Colors.green,
         content: Text(msg, style: const TextStyle(color: Colors.white)),
       ),
     );
@@ -59,8 +59,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _profile = p;
         _nombreCtrl.text = p.nombre ?? '';
         _apellidoCtrl.text = p.apellido ?? '';
-        
-        // Procesar el teléfono existente para separar código y número
+
+        // Separar código (4 dígitos) y número (7 dígitos)
         final telefonoCompleto = p.telefono ?? '';
         if (telefonoCompleto.length >= 4) {
           final codigo = telefonoCompleto.substring(0, 4);
@@ -85,11 +85,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (!_formKey.currentState!.validate() || _profile == null) return;
     setState(() => _saving = true);
     try {
-      // Combinar código seleccionado con número de teléfono
-      final telefonoCompleto = _telefonoCtrl.text.trim().isEmpty 
-          ? null 
+      final telefonoCompleto = _telefonoCtrl.text.trim().isEmpty
+          ? null
           : _codigoSeleccionado + _telefonoCtrl.text.trim();
-      
+
       final updated = _profile!.copyWith(
         nombre: _nombreCtrl.text.trim().isEmpty ? null : _nombreCtrl.text.trim(),
         apellido: _apellidoCtrl.text.trim().isEmpty ? null : _apellidoCtrl.text.trim(),
@@ -182,71 +181,43 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  // Métodos de validación - AMBOS OBLIGATORIOS
+  // Validaciones (nombre/apellido obligatorios; teléfono opcional con 7 dígitos numéricos)
   String? _validateNombre(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'El nombre es obligatorio'; // ← Obligatorio
+      return 'El nombre es obligatorio';
     }
-    
     final trimmedValue = value.trim();
-    
-    // Validar longitud máxima
-    if (trimmedValue.length > 50) {
-      return 'El nombre no puede tener más de 50 caracteres';
-    }
-    
-    // Validar que solo contenga letras y espacios
+    if (trimmedValue.length > 50) return 'El nombre no puede tener más de 50 caracteres';
     final nombreRegExp = RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$');
-    if (!nombreRegExp.hasMatch(trimmedValue)) {
-      return 'Solo se permiten letras y espacios en el nombre';
-    }
-    
+    if (!nombreRegExp.hasMatch(trimmedValue)) return 'Solo se permiten letras y espacios en el nombre';
     return null;
   }
 
   String? _validateApellido(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'El apellido es obligatorio'; // ← Obligatorio
+      return 'El apellido es obligatorio';
     }
-    
     final trimmedValue = value.trim();
-    
-    // Validar longitud máxima
-    if (trimmedValue.length > 50) {
-      return 'El apellido no puede tener más de 50 caracteres';
-    }
-    
-    // Validar que solo contenga letras y espacios
+    if (trimmedValue.length > 50) return 'El apellido no puede tener más de 50 caracteres';
     final apellidoRegExp = RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$');
-    if (!apellidoRegExp.hasMatch(trimmedValue)) {
-      return 'Solo se permiten letras y espacios en el apellido';
-    }
-    
+    if (!apellidoRegExp.hasMatch(trimmedValue)) return 'Solo se permiten letras y espacios en el apellido';
     return null;
   }
 
   String? _validateTelefono(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null; // Permitir vacío ya que el campo es opcional
-    }
-    
+    if (value == null || value.trim().isEmpty) return null; // opcional
     final trimmedValue = value.trim();
-    
-    // Validar que solo contenga números
     final soloNumerosRegExp = RegExp(r'^[0-9]+$');
     if (!soloNumerosRegExp.hasMatch(trimmedValue)) {
       return 'Solo se permiten números en el teléfono';
     }
-    
-    // Validar longitud (debe tener 7 dígitos después del código)
     if (trimmedValue.length != 7) {
       return 'El número debe tener 7 dígitos (ej: 1234567)';
     }
-    
     return null;
   }
 
-  // Widget para la bandera de Venezuela (versión simple que SÍ se ve)
+  // Bandera simple de Venezuela
   Widget _buildBanderaVenezuela() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -257,7 +228,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Bandera de Venezuela (colores aproximados)
           Container(
             width: 12,
             height: 8,
@@ -271,34 +241,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           const SizedBox(width: 4),
           const Text(
             'VE',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
         ],
       ),
     );
   }
 
-  // Widget para el campo de teléfono con selector de código
+  // Campo Teléfono con selector de código
   Widget _buildTelefonoField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Teléfono',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-            fontSize: 14,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14),
         ),
         const SizedBox(height: 6),
         Row(
           children: [
-            // Selector de código con bandera
+            // Selector de código + bandera
             Container(
               width: 120,
               decoration: BoxDecoration(
@@ -308,24 +270,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               child: Row(
                 children: [
-                  // Bandera de Venezuela
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: _buildBanderaVenezuela(),
                   ),
                   const SizedBox(width: 4),
-                  // Dropdown de códigos
                   Expanded(
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _codigoSeleccionado,
                         isExpanded: true,
                         icon: const Icon(Icons.arrow_drop_down, color: AppColors.unimetBlue, size: 20),
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
                         borderRadius: BorderRadius.circular(12),
                         onChanged: (String? newValue) {
                           if (newValue != null) {
@@ -339,10 +295,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             value: value,
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Text(
-                                value,
-                                style: const TextStyle(fontSize: 14),
-                              ),
+                              child: Text(value, style: const TextStyle(fontSize: 14)),
                             ),
                           );
                         }).toList(),
@@ -353,7 +306,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            // Campo de número de teléfono
+            // Número (7 dígitos)
             Expanded(
               child: TextFormField(
                 controller: _telefonoCtrl,
@@ -382,19 +335,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         const SizedBox(height: 4),
         Text(
           'Teléfono completo: $_codigoSeleccionado${_telefonoCtrl.text.isNotEmpty ? _telefonoCtrl.text : "1234567"}',
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
         ),
         const SizedBox(height: 2),
         Text(
           'Operadoras venezolanas',
-          style: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 10,
-            fontStyle: FontStyle.italic,
-          ),
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 10, fontStyle: FontStyle.italic),
         ),
       ],
     );
@@ -556,7 +502,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         validator: _validateApellido,
                       ),
                       const SizedBox(height: 12),
-                      _buildTelefonoField(), // Campo de teléfono modificado
+                      _buildTelefonoField(),
                     ],
                   ),
                 ),
