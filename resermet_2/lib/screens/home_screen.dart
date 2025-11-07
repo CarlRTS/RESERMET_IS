@@ -69,13 +69,15 @@ class _MainScreenState extends State<MainScreen> {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _selectedIndex == 0 
-                ? AppColors.unimetBlue.withOpacity(0.15) 
+            color: _selectedIndex == 0
+                ? AppColors.unimetBlue.withOpacity(0.15)
                 : Colors.transparent,
           ),
           child: Icon(
             Icons.home_rounded,
-            color: _selectedIndex == 0 ? AppColors.unimetBlue : Colors.grey.shade500,
+            color: _selectedIndex == 0
+                ? AppColors.unimetBlue
+                : Colors.grey.shade500,
             size: _selectedIndex == 0 ? 24 : 22,
           ),
         ),
@@ -102,13 +104,15 @@ class _MainScreenState extends State<MainScreen> {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _selectedIndex == 1 
-                ? AppColors.unimetOrange.withOpacity(0.15) 
+            color: _selectedIndex == 1
+                ? AppColors.unimetOrange.withOpacity(0.15)
                 : Colors.transparent,
           ),
           child: Icon(
             Icons.list_alt_rounded,
-            color: _selectedIndex == 1 ? AppColors.unimetOrange : Colors.grey.shade500,
+            color: _selectedIndex == 1
+                ? AppColors.unimetOrange
+                : Colors.grey.shade500,
             size: _selectedIndex == 1 ? 24 : 22,
           ),
         ),
@@ -138,13 +142,15 @@ class _MainScreenState extends State<MainScreen> {
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _selectedIndex == (_isAdmin ? 2 : 1) 
-                  ? Colors.purple.withOpacity(0.15) 
+              color: _selectedIndex == (_isAdmin ? 2 : 1)
+                  ? Colors.purple.withOpacity(0.15)
                   : Colors.transparent,
             ),
             child: Icon(
               Icons.admin_panel_settings_rounded,
-              color: _selectedIndex == (_isAdmin ? 2 : 1) ? Colors.purple : Colors.grey.shade500,
+              color: _selectedIndex == (_isAdmin ? 2 : 1)
+                  ? Colors.purple
+                  : Colors.grey.shade500,
               size: _selectedIndex == (_isAdmin ? 2 : 1) ? 24 : 22,
             ),
           ),
@@ -615,7 +621,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         context,
                         formScreen: const ReservationFormCubiculo(),
                         title: 'Cubículos de Estudio',
-                        color: AppColors.unimetBlue,
+                        color: AppColors.unimetBlue, // Header azul UNIMET
                       ),
                     ),
                     _buildCircleButton(
@@ -626,18 +632,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         context,
                         formScreen: const ReservationFormConsole(),
                         title: 'Consolas de Videojuegos',
-                        color: AppColors.unimetOrange,
+                        color: AppColors.unimetBlue, // Header azul UNIMET
                       ),
                     ),
                     _buildCircleButton(
                       icon: Icons.sports_soccer_rounded,
                       label: 'Equipos',
-                      color: Colors.blue.shade400,
+                      color: const Color.fromARGB(255, 71, 71, 71), // gris del círculo
                       onTap: () => _navigateToReservationForm(
                         context,
                         formScreen: const ReservationFormEquipment(),
                         title: 'Artículos Deportivos',
-                        color: Colors.blue.shade400,
+                        color: AppColors.unimetBlue, // Header azul UNIMET
                       ),
                     ),
                   ],

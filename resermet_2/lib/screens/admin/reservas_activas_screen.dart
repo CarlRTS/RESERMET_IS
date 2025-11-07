@@ -1,3 +1,4 @@
+// lib/screens/admin/reservas_activas_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:resermet_2/services/reserva_service.dart';
@@ -21,14 +22,19 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
   List<Map<String, dynamic>> _reservas = [];
   bool _isAdmin = false;
 
-  Timer? _tick; // para refrescar el contador en pantalla (sin tocar la BD)
+  Timer? _tick; // refresco de UI para contador
   bool _busyActions = false;
+
+  // Realtime
+  RealtimeChannel? _reservaChannel;
 
   @override
   void initState() {
     super.initState();
     _fetch();
     _loadUserRole();
+    _subscribeRealtime();
+
     // Refrescar la UI cada segundo para el contador
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
@@ -38,7 +44,32 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    // Cerrar canal realtime de forma segura
+    try {
+      _reservaChannel?.unsubscribe();
+      Supabase.instance.client.removeChannel(_reservaChannel!);
+    } catch (_) {}
     super.dispose();
+  }
+
+  // ====== Realtime (API correcta) ======
+  void _subscribeRealtime() {
+    final client = Supabase.instance.client;
+
+    _reservaChannel = client.channel('public:reserva-activas-admin');
+
+    _reservaChannel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'reserva',
+          callback: (payload) async {
+            if (!mounted) return;
+            // Cualquier cambio en "reserva" vuelve a cargar
+            await _fetch();
+          },
+        )
+        .subscribe();
   }
 
   // carga del rol del usuario para mostrar botón solo a administradores
@@ -46,7 +77,6 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     try {
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid == null) return;
-      // Ajusta el nombre de la tabla/columnas a tu esquema
       final row = await Supabase.instance.client
           .from('usuario')
           .select('rol')
@@ -70,11 +100,57 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     });
     try {
       final data = await _reservaService.getReservasActivasRaw();
+
+      // 👇 Juntamos ids de usuarios titulares para traer sus nombres de una sola vez
+      final ids = <String>{};
+      for (final r in data) {
+        final uid = (r['id_usuario'] ?? '').toString();
+        if (uid.isNotEmpty) ids.add(uid);
+      }
+
+      Map<String, Map<String, dynamic>> perfilesMap = {};
+      if (ids.isNotEmpty) {
+        final perfiles = await Supabase.instance.client
+            .from('usuario')
+            .select('id_usuario, nombre, apellido, correo')
+            .inFilter('id_usuario', ids.toList());
+
+        for (final raw in (perfiles as List)) {
+          final u = Map<String, dynamic>.from(raw as Map);
+          final key = (u['id_usuario'] ?? '').toString();
+          if (key.isNotEmpty) {
+            perfilesMap[key] = u;
+          }
+        }
+      }
+
+      // Enriquecer cada reserva con el nombre de usuario
+      final enriched = data.map<Map<String, dynamic>>((raw) {
+        final r = Map<String, dynamic>.from(raw);
+        final uid = (r['id_usuario'] ?? '').toString();
+        String displayName = 'Usuario';
+        final u = perfilesMap[uid];
+        if (u != null) {
+          final nombre = (u['nombre'] ?? '').toString().trim();
+          final apellido = (u['apellido'] ?? '').toString().trim();
+          if (nombre.isNotEmpty || apellido.isNotEmpty) {
+            displayName = ('$nombre $apellido').trim();
+          } else {
+            final correo = (u['correo'] ?? '').toString();
+            if (correo.isNotEmpty) displayName = correo;
+          }
+        }
+        r['_user_name'] = displayName;
+        return r;
+      }).toList();
+
+      if (!mounted) return;
       setState(() {
-        _reservas = data;
+        _reservas = enriched;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = true;
@@ -108,32 +184,29 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
 
     try {
       await _reservaService.finalizarReserva(idReserva: idReserva);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reserva finalizada'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reserva finalizada'),
+          backgroundColor: Colors.green,
+        ),
+      );
       await _fetch();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al finalizar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al finalizar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _verIntegrantes(int idReserva) async {
     try {
-      // 1) Tomamos titular y acompañantes de la reserva (por id)
       final reserva = await Supabase.instance.client
-          .from('reserva') // <-- tu tabla real
+          .from('reserva')
           .select('id_usuario, companions_user_ids')
           .eq('id_reserva', idReserva)
           .single();
@@ -141,9 +214,12 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
       final titularId = (reserva['id_usuario'] as String?) ?? '';
       final companions =
           (reserva['companions_user_ids'] as List?)?.cast<String>() ??
-          const <String>[];
+              const <String>[];
 
-      final ids = <String>[if (titularId.isNotEmpty) titularId, ...companions];
+      final ids = <String>[
+        if (titularId.isNotEmpty) titularId,
+        ...companions,
+      ];
 
       if (ids.isEmpty) {
         if (!mounted) return;
@@ -153,15 +229,13 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
         return;
       }
 
-      // 2) Traer perfiles
       final perfiles = await Supabase.instance.client
-          .from('usuario') //
+          .from('usuario')
           .select('id_usuario, nombre, apellido, correo, rol, foto_url')
           .inFilter('id_usuario', ids);
 
       if (!mounted) return;
 
-      // 3) Mostrar sheet
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -175,13 +249,13 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error cargando integrantes: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cargando integrantes: $e')),
+      );
     }
   }
 
-  // Formatea el tiempo restante hacia hh:mm:ss (o “Vencida”)
+  // ====== Helpers visuales y de tiempo ======
   String _formatRemaining(DateTime finUtc) {
     final nowUtc = DateTime.now().toUtc();
     final diff = finUtc.difference(nowUtc);
@@ -193,8 +267,16 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     return '$hours:$minutes:$seconds';
   }
 
-  // Badge para estado visual
-  Widget _buildEstadoChip(DateTime finUtc) {
+  double _progressBetween(DateTime inicioUtc, DateTime finUtc) {
+    final now = DateTime.now().toUtc();
+    final total = finUtc.difference(inicioUtc).inSeconds;
+    if (total <= 0) return 1;
+    final transcurrido = now.difference(inicioUtc).inSeconds;
+    final p = transcurrido / total;
+    return p.clamp(0.0, 1.0);
+  }
+
+  Widget _estadoChip(DateTime finUtc) {
     final nowUtc = DateTime.now().toUtc();
     final vencida = nowUtc.isAfter(finUtc);
     return Chip(
@@ -208,110 +290,213 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
         vencida ? 'VENCIDA' : 'ACTIVA',
         style: TextStyle(
           color: vencida ? Colors.red : Colors.green.shade800,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
     );
   }
 
-  // Tarjeta de una reserva
-  Widget _buildReservaCard(Map<String, dynamic> r) {
-    final idReserva = r['id_reserva'] as int;
-    final idArticulo = r['id_articulo'] as int?;
-    final estado = (r['estado'] ?? '') as String;
-
-    final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
-    final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
-
-    String nombreArticulo = 'Artículo #${idArticulo ?? '-'}';
-    final articuloObj = r['articulo'];
-    if (articuloObj is Map && articuloObj['nombre'] != null) {
-      nombreArticulo = articuloObj['nombre'].toString();
+  (IconData, Color) _iconoPorArticulo(Map<String, dynamic>? articulo) {
+    final nombre = (articulo?['nombre'] ?? '').toString().toLowerCase();
+    final tipo = (articulo?['tipo'] ??
+            articulo?['categoria'] ??
+            articulo?['tipo_articulo'] ??
+            '')
+        .toString()
+        .toLowerCase();
+    if (nombre.contains('ps') ||
+        nombre.contains('xbox') ||
+        nombre.contains('nintendo') ||
+        nombre.contains('switch') ||
+        nombre.contains('consola') ||
+        tipo.contains('consola')) {
+      return (Icons.sports_esports_rounded, Colors.orange);
     }
+    if (nombre.contains('cubículo') ||
+        nombre.contains('cubiculo') ||
+        nombre.contains('sala') ||
+        nombre.contains('estudio') ||
+        tipo.contains('cubículo') ||
+        tipo.contains('sala')) {
+      return (Icons.meeting_room_rounded, UnimetPalette.primary);
+    }
+    if (nombre.contains('balón') ||
+        nombre.contains('balon') ||
+        nombre.contains('pelota') ||
+        nombre.contains('raqueta') ||
+        nombre.contains('equipo') ||
+        tipo.contains('deportivo') ||
+        tipo.contains('equipo')) {
+      return (Icons.sports_soccer_rounded, Colors.green);
+    }
+    return (Icons.event_available_rounded, Colors.teal);
+  }
 
-    final vencida = fin != null ? DateTime.now().toUtc().isAfter(fin) : false;
-    final restante = fin != null ? _formatRemaining(fin) : '--:--:--';
+  String _fmtHoraCorta(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  // ====== Card estética ======
+  Widget _buildReservaCard(Map<String, dynamic> r) {
+    // id_reserva puede venir como int o num
+    final idReserva = (r['id_reserva'] as num).toInt();
+
+    final articuloObj = (r['articulo'] is Map)
+        ? Map<String, dynamic>.from(r['articulo'])
+        : null;
+    final nombreArticulo = (articuloObj?['nombre'] ?? 'Artículo').toString();
+
+    final inicioUtc = DateTime.tryParse('${r['inicio']}')?.toUtc();
+    final finUtc = DateTime.tryParse('${r['fin']}')?.toUtc();
+
+    final userName = (r['_user_name'] ?? 'Usuario').toString();
+
+    final (icono, colorIcono) = _iconoPorArticulo(articuloObj);
+
+    final vencida =
+        finUtc != null ? DateTime.now().toUtc().isAfter(finUtc) : false;
+    final restante = finUtc != null ? _formatRemaining(finUtc) : '--:--:--';
+    final progress = (inicioUtc != null && finUtc != null)
+        ? _progressBetween(inicioUtc, finUtc)
+        : 0.0;
 
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 5,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Título + estado
+            // Encabezado: icono + título + chip estado
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Flexible(
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: colorIcono.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icono, color: colorIcono, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Text(
                     nombreArticulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
                       color: UnimetPalette.primary,
+                      height: 1.2,
+                      letterSpacing: .2,
+                    ),
+                  ),
+                ),
+                if (finUtc != null) _estadoChip(finUtc),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Titular
+            Row(
+              children: [
+                const Icon(Icons.person_rounded,
+                    size: 18, color: Colors.black54),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Titular: $userName',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (fin != null) _buildEstadoChip(fin),
               ],
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              children: [
-                _kv('Estado', estado),
-                _kv('Inicio (UTC)', inicio?.toIso8601String() ?? '-'),
-                _kv('Fin (UTC)', fin?.toIso8601String() ?? '-'),
-                _kv('Tiempo restante', restante),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // --- Botones de acción ---
-            Wrap(
-              alignment: WrapAlignment.end, // Equivalente a mainAxisAlignment.end
-              spacing: 8.0, // Espacio horizontal (reemplaza tu SizedBox)
-              runSpacing: 4.0, // Espacio vertical (si los botones bajan de línea)
-              children: [
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.group_outlined),
-                  label: const Text('Ver integrantes'),
-                  onPressed: () => _verIntegrantes(idReserva),
-                ),
 
-                // El SizedBox(width: 8) ya no es necesario, 'spacing' se encarga.
-
-                if (vencida)
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.flag),
-                    label: const Text('Finalizar'),
-                    onPressed: () => _finalizar(idReserva),
-                  )
-                else
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Finalizar ahora'),
-                    onPressed: () => _finalizar(idReserva),
+            // Tiempos
+            if (inicioUtc != null && finUtc != null) ...[
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded,
+                      size: 18, color: Colors.black54),
+                const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${_fmtHoraCorta(inicioUtc.toLocal())} - ${_fmtHoraCorta(finUtc.toLocal())}  •  Restante: $restante',
+                      style: TextStyle(
+                        color: vencida
+                            ? Colors.red.shade700
+                            : Colors.grey.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Barra de progreso de la reserva
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: vencida ? 1 : progress,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey.shade200,
+                  color: vencida ? Colors.red : UnimetPalette.primary,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            // Botones
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.group_outlined),
+                    label: const Text('Ver integrantes'),
+                    onPressed: () => _verIntegrantes(idReserva),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: Icon(
+                        vencida ? Icons.flag : Icons.check_circle_outline),
+                    label: Text(vencida ? 'Finalizar' : 'Finalizar ahora'),
+                    onPressed: () => _finalizar(idReserva),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          vencida ? Colors.red : UnimetPalette.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _kv(String k, String v) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('$k: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-        Flexible(child: Text(v)),
-      ],
     );
   }
 
@@ -336,8 +521,8 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
     if (_busyActions) return;
     setState(() => _busyActions = true);
     try {
-      await _syncVencidas(); // finaliza vencidas (si hay) y muestra snackbar
-      await _fetch(); // luego recarga la lista
+      await _syncVencidas();
+      await _fetch();
     } finally {
       if (mounted) setState(() => _busyActions = false);
     }
@@ -372,71 +557,68 @@ class _ReservasActivasScreenState extends State<ReservasActivasScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 40,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_errorMsg ?? 'Error'),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: _fetch,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _fetch,
-              child: _reservas.isEmpty
-                  ? ListView(
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(height: 80),
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 56,
-                          color: theme.disabledColor,
-                        ),
+                        const Icon(Icons.error_outline,
+                            color: Colors.red, size: 40),
                         const SizedBox(height: 8),
-                        Center(
-                          child: Text(
-                            'No hay reservas activas',
-                            style: TextStyle(color: theme.disabledColor),
-                          ),
+                        Text(_errorMsg ?? 'Error'),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _fetch,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Reintentar'),
                         ),
                       ],
-                    )
-                  : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: _reservas.length,
-                      itemBuilder: (_, i) => _buildReservaCard(_reservas[i]),
                     ),
-            ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _fetch,
+                  child: _reservas.isEmpty
+                      ? ListView(
+                          children: [
+                            const SizedBox(height: 80),
+                            Icon(Icons.inbox_outlined,
+                                size: 56, color: theme.disabledColor),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                'No hay reservas activas',
+                                style:
+                                    TextStyle(color: theme.disabledColor),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          physics:
+                              const AlwaysScrollableScrollPhysics(),
+                          itemCount: _reservas.length,
+                          itemBuilder: (_, i) =>
+                              _buildReservaCard(_reservas[i]),
+                        ),
+                ),
     );
   }
 }
 
-// Sheet para mostrar integrantes
+// ====== Sheet integrantes ======
 class _IntegrantesSheet extends StatelessWidget {
   final List<Map<String, dynamic>> integrantes;
   final String titularId;
 
-  const _IntegrantesSheet({required this.integrantes, required this.titularId});
+  const _IntegrantesSheet(
+      {required this.integrantes, required this.titularId});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    // Ordena: titular primero, luego acompañantes
     final ordenados = [...integrantes]
       ..sort((a, b) {
         final aTit = a['id_usuario'] == titularId ? 0 : 1;
@@ -469,46 +651,50 @@ class _IntegrantesSheet extends StatelessWidget {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: ordenados.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1),
                 itemBuilder: (_, i) {
                   final u = ordenados[i];
                   final isTitular = u['id_usuario'] == titularId;
-                  final nombre = (u['nombre'] ?? '').toString().trim();
-                  final apellido = (u['apellido'] ?? '').toString().trim();
-                  final nombreCompleto = ('$nombre $apellido').trim();
+                  final nombre =
+                      (u['nombre'] ?? '').toString().trim();
+                  final apellido =
+                      (u['apellido'] ?? '').toString().trim();
+                  final nombreCompleto =
+                      ('$nombre $apellido').trim();
                   final correo = (u['correo'] ?? '').toString();
                   final rolSistema = (u['rol'] ?? '').toString();
                   final foto = (u['foto_url'] ?? '').toString();
 
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundImage: foto.isNotEmpty
-                          ? NetworkImage(foto)
-                          : null,
+                      backgroundImage:
+                          foto.isNotEmpty ? NetworkImage(foto) : null,
                       child: foto.isEmpty
                           ? Text(
                               (nombreCompleto.isNotEmpty
                                       ? nombreCompleto[0]
-                                      : (correo.isNotEmpty ? correo[0] : 'U'))
+                                      : (correo.isNotEmpty
+                                          ? correo[0]
+                                          : 'U'))
                                   .toUpperCase(),
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  fontWeight: FontWeight.bold),
                             )
                           : null,
                     ),
-                    title: Text(
-                      nombreCompleto.isNotEmpty ? nombreCompleto : correo,
-                    ),
+                    title: Text(nombreCompleto.isNotEmpty
+                        ? nombreCompleto
+                        : correo),
                     subtitle: Text(
-                      '${isTitular ? "Titular" : "Acompañante"} • $rolSistema',
-                    ),
+                        '${isTitular ? "Titular" : "Acompañante"} • $rolSistema'),
                     trailing: isTitular
                         ? Chip(
                             label: const Text('Titular'),
                             backgroundColor: cs.primaryContainer,
                             side: BorderSide(color: cs.primary),
-                            labelStyle: TextStyle(color: cs.onPrimaryContainer),
+                            labelStyle: TextStyle(
+                                color: cs.onPrimaryContainer),
                           )
                         : null,
                   );

@@ -1,4 +1,3 @@
-// lib/screens/admin/admin_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'cubiculos_list_screen.dart';
@@ -6,7 +5,7 @@ import 'consolas_list_screen.dart';
 import 'equipos_list_screen.dart';
 import 'reservas_activas_screen.dart';
 import 'users_list_screen.dart';
-import 'reporte_reservas_screen.dart'; // <-- Mantenemos este import
+import 'reporte_reservas_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -46,7 +45,6 @@ class AdminHomeScreen extends StatelessWidget {
     );
   }
 
-  // Mantenemos esta función
   void _navigateToReportes(BuildContext context) {
     Navigator.push(
       context,
@@ -58,9 +56,9 @@ class AdminHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 100, // Misma altura que el anterior
+        toolbarHeight: 100,
         title: const Padding(
-          padding: EdgeInsets.only(top: 10.0), // Texto bajado
+          padding: EdgeInsets.only(top: 10.0),
           child: Text(
             'Panel de Administración',
             style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
@@ -69,10 +67,10 @@ class AdminHomeScreen extends StatelessWidget {
         backgroundColor: AppColors.unimetBlue,
         foregroundColor: Colors.white,
         centerTitle: true,
-        elevation: 0, // Sin sombra
+        elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(20.0), // Bordes redondeados abajo
+            bottomLeft: Radius.circular(20.0),
             bottomRight: Radius.circular(20.0),
           ),
         ),
@@ -98,70 +96,75 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
-              // Tarjeta de Reportes (la mantenemos)
+              // 1️⃣ Azul
               _buildManagementCard(
                 context,
                 title: 'Reporte de Reservas',
                 subtitle: 'Ver estadísticas de uso por mes',
                 icon: Icons.bar_chart_rounded,
-                color: Colors.teal,
+                color: AppColors.unimetBlue,
                 onTap: () => _navigateToReportes(context),
                 available: true,
               ),
               const SizedBox(height: 20),
 
+              // 2️⃣ Naranja
               _buildManagementCard(
                 context,
                 title: 'Reservas Activas',
                 subtitle: 'Monitorear y finalizar reservas en curso',
                 icon: Icons.schedule_rounded,
-                color: Colors.blueAccent,
+                color: AppColors.unimetOrange,
                 onTap: () => _navigateToReservasActivas(context),
                 available: true,
               ),
               const SizedBox(height: 20),
 
+              // 3️⃣ Azul
               _buildManagementCard(
                 context,
                 title: 'Usuarios',
                 subtitle: 'Buscar y ver perfiles de estudiantes',
                 icon: Icons.people_alt_rounded,
-                color: Colors.purple,
+                color: AppColors.unimetBlue,
                 onTap: () => _navigateToUsers(context),
                 available: true,
               ),
               const SizedBox(height: 20),
 
-              const Divider(height: 20), // Separador
+              const Divider(height: 20),
 
+              // 4️⃣ Naranja
               _buildManagementCard(
                 context,
                 title: 'Cubículos de Estudio',
                 subtitle: 'Gestionar espacios individuales o grupales',
                 icon: Icons.meeting_room_rounded,
-                color: const Color(0xFF0033A0),
+                color: AppColors.unimetOrange,
                 onTap: () => _navigateToCubiculos(context),
                 available: true,
               ),
               const SizedBox(height: 20),
 
+              // 5️⃣ Azul
               _buildManagementCard(
                 context,
                 title: 'Consolas y Juegos',
                 subtitle: 'Gestionar equipos del Centro de Diseño Digital',
                 icon: Icons.gamepad_rounded,
-                color: Colors.green,
+                color: AppColors.unimetBlue,
                 onTap: () => _navigateToConsolas(context),
                 available: true,
               ),
               const SizedBox(height: 20),
 
+              // 6️⃣ Naranja
               _buildManagementCard(
                 context,
                 title: 'Equipos Deportivos',
                 subtitle: 'Gestionar material deportivo y equipos',
                 icon: Icons.sports_baseball_rounded,
-                color: Colors.orange,
+                color: AppColors.unimetOrange,
                 onTap: () => _navigateToEquiposDeportivos(context),
                 available: true,
               ),

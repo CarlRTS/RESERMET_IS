@@ -1,72 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:resermet_2/models/cubiculo.dart';
 import 'package:resermet_2/services/cubiculo_service.dart';
+import 'package:resermet_2/services/reserva_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:resermet_2/models/user_profile.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/toastification.dart';
-import 'package:resermet_2/models/user_profile.dart';
 import 'package:resermet_2/widgets/user_multi_picker_sheet.dart';
-
-// Imports añadidos para la validación
-// import 'package:resermet_2/models/reserva.dart'; // <-- YA NO SE NECESITA EL MODELO AQUÍ
-import 'package:resermet_2/services/reserva_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReservationFormCubiculo extends StatefulWidget {
   const ReservationFormCubiculo({super.key});
 
   @override
-  State<ReservationFormCubiculo> createState() =>
-      _ReservationFormCubiculoState();
+  State<ReservationFormCubiculo> createState() => _ReservationFormCubiculoState();
 }
 
 class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
+  // Paleta y tonos de texto (suaves, no “negro” duro)
+  static const Color _blue = AppColors.unimetBlue;
+  static const Color _surfaceField = Color(0xFFF8FAFF);
+  static const Color _infoBg = Color(0xFFE8F1FC);
+  static const Color _textPrimary = Color(0xFF3F4A58);   // gris azulado oscuro
+  static const Color _textSecondary = Color(0xFF5B677A); // gris azulado medio
+
   final _formKey = GlobalKey<FormState>();
   final CubiculoService _cubiculoService = CubiculoService();
   final ReservaService _reservaService = ReservaService();
 
-  // Controladores
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
   final List<UserProfile> _acompanantes = [];
   static const int _maxAcompanantes = 6;
 
-  // Estado
   List<Cubiculo> _cubiculosDisponibles = [];
-  List<int> _allCubiculoIds = []; // <-- AÑADIDO: Para la verificación rápida
+  List<int> _allCubiculoIds = [];
   Cubiculo? _cubiculoSeleccionado;
   TimeOfDay? _selectedTime;
   String? _selectedDuration = '1 hora';
 
-  // Fecha (hoy)
-  DateTime get _fechaActual => DateTime.now();
-  String get _fechaFormateada =>
-      "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
-
-  // Variables de estado de carga
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _tieneReservaActiva = false;
 
-  // Lógica de duración original
-  final List<String> _allDurations = [
-    '30 min',
-    '1 hora',
-    '1.5 horas',
-    '2 horas',
-  ];
+  DateTime get _fechaActual => DateTime.now();
+  String get _fechaFormateada =>
+      "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
+
+  final List<String> _allDurations = ['30 min', '1 hora', '1.5 horas', '2 horas'];
 
   List<String> get _durationsAvailable {
     if (_selectedTime == null) return _allDurations;
-
     final hora = _selectedTime!.hour;
     final minuto = _selectedTime!.minute;
-
-    final minutosDesdeInicio = (hora - 7) * 60 + minuto;
-    const minutosMaximos = 600;
+    final minutosDesdeInicio = (hora - 7) * 60 + minuto; // 7:00 AM base
+    const minutosMaximos = 600; // hasta 5:00 PM
     final minutosDisponibles = minutosMaximos - minutosDesdeInicio;
-
     return _allDurations.where((d) {
       final m = _duracionAMinutos(d);
       return m <= minutosDisponibles && m > 0;
@@ -101,13 +91,10 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     super.dispose();
   }
 
-  // --- MÉTODO _loadPageData MODIFICADO (Carga secuencial) ---
   Future<void> _loadPageData() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Cargar cubículos PRIMERO (para obtener sus IDs)
       await _cargarCubiculosDisponibles(setLoading: false);
-      // 2. Verificar reservas DESPUÉS (usando los IDs)
       await _verificarReservaActiva(setLoading: false);
     } catch (e) {
       _showSnackbar('Error al cargar datos iniciales: $e', Colors.red);
@@ -116,78 +103,52 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     }
   }
 
-  // --- MÉTODO _verificarReservaActiva MODIFICADO (Lógica rápida) ---
-  Future<void> _verificarReservaActiva({bool setLoading = true}) async {
-    if (setLoading) setState(() => _isLoading = true);
-    try {
-      // 1. Usar el método 'Raw' (más rápido, no carga objetos)
-      final misReservasRaw = await _reservaService.getMisReservasRaw();
-
-      // 2. Comprobar si alguna reserva activa coincide con un ID de cubículo
-      final reservaActiva = misReservasRaw.any((r) {
-        final estado = r['estado'];
-        final idArticulo = r['id_articulo'];
-
-        // La comprobación clave:
-        return estado == 'activa' && _allCubiculoIds.contains(idArticulo);
-      });
-
-      if (mounted) {
-        setState(() => _tieneReservaActiva = reservaActiva);
-      }
-    } catch (e) {
-      if (mounted) {
-        _showSnackbar('Error al verificar sus reservas: $e', Colors.red);
-      }
-    }
-  }
-
-  // --- MÉTODO _cargarCubiculosDisponibles MODIFICADO (Guarda IDs) ---
   Future<void> _cargarCubiculosDisponibles({bool setLoading = true}) async {
     try {
       final cubiculos = await _cubiculoService.getCubiculos();
-      if (mounted) {
-        setState(() {
-          // Guardar TODOS los IDs de cubículos para la verificación
-          _allCubiculoIds = cubiculos.map((c) => c.idObjeto).toList();
-
-          // Filtrar solo los disponibles para el Dropdown
-          _cubiculosDisponibles = cubiculos
-              .where((c) => c.estado == 'disponible')
-              .toList();
-
-          if (_cubiculosDisponibles.isNotEmpty) {
-            _cubiculoSeleccionado = _cubiculosDisponibles.first;
-          }
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _allCubiculoIds = cubiculos.map((c) => c.idObjeto).toList();
+        _cubiculosDisponibles = cubiculos.where((c) => c.estado == 'disponible').toList();
+        if (_cubiculosDisponibles.isNotEmpty) {
+          _cubiculoSeleccionado = _cubiculosDisponibles.first;
+        }
+      });
     } catch (e) {
       if (mounted) _showSnackbar('Error al cargar cubículos: $e', Colors.red);
     }
   }
 
-  // Método _selectTime
+  Future<void> _verificarReservaActiva({bool setLoading = true}) async {
+    try {
+      final reservas = await _reservaService.getMisReservasRaw();
+      final activa = reservas.any(
+        (r) => r['estado'] == 'activa' && _allCubiculoIds.contains(r['id_articulo']),
+      );
+      if (mounted) setState(() => _tieneReservaActiva = activa);
+    } catch (e) {
+      if (mounted) _showSnackbar('Error al verificar reservas: $e', Colors.red);
+    }
+  }
+
   Future<void> _selectTime() async {
     await HorarioPicker.mostrarPicker(
       context: context,
-      onHoraSeleccionada: (TimeOfDay selectedTime) {
+      onHoraSeleccionada: (picked) {
         setState(() {
-          _selectedTime = selectedTime;
-          _timeController.text = selectedTime.format(context);
-
+          _selectedTime = picked;
+          _timeController.text = picked.format(context);
           if (!_durationsAvailable.contains(_selectedDuration)) {
-            _selectedDuration = _durationsAvailable.isNotEmpty
-                ? _durationsAvailable.first
-                : null;
+            _selectedDuration =
+                _durationsAvailable.isNotEmpty ? _durationsAvailable.first : null;
           }
         });
       },
-      horaInicial: _selectedTime,
       titulo: 'Seleccionar Hora de Inicio',
+      colorTitulo: _blue,
     );
   }
 
-  // selector de acompanantes
   Future<void> _pickAcompanantes() async {
     final selected = await showModalBottomSheet<List<UserProfile>>(
       context: context,
@@ -195,27 +156,14 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       useSafeArea: true,
       builder: (_) => UserMultiPickerSheet(initialSelected: _acompanantes),
     );
-
     if (selected != null) {
       final uid = Supabase.instance.client.auth.currentUser?.id;
 
-      // 1) quita duplicados por id
-      final map = <String, UserProfile>{
-        for (final u in selected) u.idUsuario: u,
-      };
-
-      // 2) quita al titular si aparece
+      // Eliminar duplicados y al titular
+      final map = <String, UserProfile>{for (final u in selected) u.idUsuario: u};
       if (uid != null) map.remove(uid);
 
-      // 3) apaga en 6 máximo
-      final list = map.values.toList();
-      if (list.length > _maxAcompanantes) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Máximo 6 acompañantes')));
-        list.removeRange(_maxAcompanantes, list.length);
-      }
-
+      final list = map.values.take(_maxAcompanantes).toList();
       setState(() {
         _acompanantes
           ..clear()
@@ -224,7 +172,6 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
     }
   }
 
-  // --- MÉTODO _submitReservation MODIFICADO  ---
   Future<void> _submitReservation() async {
     if (!_formKey.currentState!.validate() ||
         _cubiculoSeleccionado == null ||
@@ -232,99 +179,38 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
         _selectedDuration == null) {
       return;
     }
-
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       _showSnackbar('Debes iniciar sesión para hacer una reserva', Colors.red);
       return;
     }
 
-    ReservationToastService.showLoading(context, 'Verificando reserva...');
+    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
-    // --- INICIO: VALIDACIÓN MODIFICADA ---
-    bool tieneActiva;
     try {
-      // 1. Usar el método 'Raw'
-      final misReservasRaw = await _reservaService.getMisReservasRaw();
-
-      // 2. Misma lógica de verificación rápida
-      tieneActiva = misReservasRaw.any((r) {
-        final estado = r['estado'];
-        final idArticulo = r['id_articulo'];
-        return estado == 'activa' && _allCubiculoIds.contains(idArticulo);
-      });
-    } catch (e) {
-      ReservationToastService.dismissAll();
-      ReservationToastService.showReservationError(
-        context,
-        'Error al verificar tus reservas existentes.',
-      );
-      _showSnackbar('Error al verificar: $e', Colors.red);
-      setState(() => _isSubmitting = false);
-      return;
-    }
-
-    if (tieneActiva) {
-      ReservationToastService.dismissAll();
-      ReservationToastService.showReservationError(
-        context,
-        'Ya tienes un cubículo con reserva activa.',
-      );
-      _showSnackbar(
-        'No puedes reservar otro cubículo hasta finalizar el actual.',
-        Colors.orange,
-      );
-      setState(() {
-        _tieneReservaActiva = true;
-        _isSubmitting = false;
-      });
-      return;
-    }
-
-    // --- FIN: VALIDACIÓN MODIFICADA ---
-
-    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
-
-    try {
-      // Lógica de creación de reserva
-      final inicioLocal = DateTime(
+      final inicio = DateTime(
         _fechaActual.year,
         _fechaActual.month,
         _fechaActual.day,
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
-      final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
-      final inicioIso = inicioLocal.toUtc().toIso8601String();
-      final finIso = finLocal.toUtc().toIso8601String();
+      final fin = _calcularFechaFin(inicio, _selectedDuration!);
 
-      // Validaciones rápidas
-      if (_acompanantes.length > _maxAcompanantes) {
-        _showSnackbar('Máximo 6 acompañantes', Colors.orange);
-        return;
-      }
-      final uid = Supabase.instance.client.auth.currentUser?.id;
-      if (uid != null && _acompanantes.any((u) => u.idUsuario == uid)) {
-        _showSnackbar('No puedes agregarte como acompañante', Colors.orange);
-        _acompanantes.removeWhere((u) => u.idUsuario == uid);
-        return;
-      }
-
-      final companionIds = _acompanantes.map((u) => u.idUsuario).toList();
-
-      final reservaData = {
+      final data = {
         'id_articulo': _cubiculoSeleccionado!.idObjeto,
         'id_usuario': user.id,
         'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
-        'inicio': inicioIso,
-        'fin': finIso,
+        'inicio': inicio.toUtc().toIso8601String(),
+        'fin': fin.toUtc().toIso8601String(),
         'compromiso_estudiante': _purposeController.text,
         'estado': 'activa',
-        if (companionIds.isNotEmpty) 'companions_user_ids': companionIds,
+        if (_acompanantes.isNotEmpty)
+          'companions_user_ids': _acompanantes.map((a) => a.idUsuario).toList(),
       };
 
-      await Supabase.instance.client.from('reserva').insert(reservaData);
+      await Supabase.instance.client.from('reserva').insert(data);
 
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
@@ -334,53 +220,37 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
 
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.of(context).pop();
-    } on PostgrestException catch (e) {
-      ReservationToastService.dismissAll();
-      ReservationToastService.showReservationError(
-        context,
-        'Error de conexión con la base de datos',
-      );
-      _showSnackbar('Error de Supabase: ${e.message}', Colors.red);
     } catch (e) {
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
-        'Error inesperado al procesar la reserva',
+        'Error al procesar la reserva',
       );
-      _showSnackbar('Error al procesar reserva: $e', Colors.red);
+      _showSnackbar('Error: $e', Colors.red);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  // --- Métodos Helper ---
-  DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
+  DateTime _calcularFechaFin(DateTime inicio, String duracion) {
     switch (duracion) {
       case '30 min':
-        return fechaInicio.add(const Duration(minutes: 30));
+        return inicio.add(const Duration(minutes: 30));
       case '1 hora':
-        return fechaInicio.add(const Duration(hours: 1));
+        return inicio.add(const Duration(hours: 1));
       case '1.5 horas':
-        return fechaInicio.add(const Duration(minutes: 90));
+        return inicio.add(const Duration(minutes: 90));
       case '2 horas':
-        return fechaInicio.add(const Duration(hours: 2));
+        return inicio.add(const Duration(hours: 2));
       default:
-        return fechaInicio.add(const Duration(hours: 1));
+        return inicio;
     }
   }
 
   void _showSnackbar(String message, Color color) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
-  }
-
-  String get _duracionLabelText {
-    if (_selectedTime == null) return 'Duración (Máx. 2 horas)';
-    final maxDuracion = _durationsAvailable.isNotEmpty
-        ? _durationsAvailable.last
-        : 'No disponible';
-    return 'Duración (Máx. $maxDuracion)';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
+    );
   }
 
   @override
@@ -390,7 +260,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       child: Padding(
         padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: _blue))
             : Form(
                 key: _formKey,
                 child: SingleChildScrollView(
@@ -398,277 +268,340 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      Text(
                         'Formulario de Reserva de Cubículo',
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                          color: _blue,
+                          height: 1.22,
+                          letterSpacing: .2,
                         ),
                       ),
                       const SizedBox(height: 15),
 
-                      // 1) Cubículo - CORREGIDO
-                      DropdownButtonFormField<Cubiculo>(
-                        isExpanded: true, // ¡IMPORTANTE!
-                        decoration: const InputDecoration(
-                          labelText: 'Cubículo a Reservar',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.meeting_room),
-                        ),
-                        value: _cubiculoSeleccionado,
-                        hint: const Text('Selecciona un cubículo'),
-                        items: _cubiculosDisponibles.map((Cubiculo cubiculo) {
-                          return DropdownMenuItem<Cubiculo>(
-                            value: cubiculo,
-                            child: Text(
-                              '${cubiculo.nombre} (Cap: ${cubiculo.capacidad} pers.)',
-                              overflow:
-                                  TextOverflow.ellipsis, // Texto muy largo
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (Cubiculo? newValue) {
-                          setState(() => _cubiculoSeleccionado = newValue);
-                        },
-                        validator: (value) =>
-                            value == null ? 'Selecciona un cubículo.' : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 2) Fecha
-                      TextFormField(
-                        initialValue: _fechaFormateada,
-                        readOnly: true,
-                        enabled: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Fecha de Reserva',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.calendar_today),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 3) Hora
-                      TextFormField(
-                        controller: _timeController,
-                        readOnly: true,
-                        onTap: _selectTime,
-                        decoration: const InputDecoration(
-                          labelText: 'Hora de Inicio',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.access_time),
-                        ),
-                        validator: (value) =>
-                            value!.isEmpty ? 'Selecciona una hora.' : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 4) Duración - CORREGIDO
-                      DropdownButtonFormField<String>(
-                        isExpanded: true, // ¡IMPORTANTE!
-                        decoration: InputDecoration(
-                          labelText: _duracionLabelText,
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.timelapse),
-                        ),
-                        value: _durationsAvailable.contains(_selectedDuration)
-                            ? _selectedDuration
-                            : (_durationsAvailable.isNotEmpty
-                                  ? _durationsAvailable.first
-                                  : null),
-                        items: _durationsAvailable.map((String duration) {
-                          return DropdownMenuItem<String>(
-                            value: duration,
-                            child: Text(
-                              duration,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() => _selectedDuration = newValue);
-                        },
-                        validator: (value) =>
-                            value == null ? 'Selecciona una duración.' : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // --- Campo: Acompañantes --- //
-                      GestureDetector(
-                        onTap: _pickAcompanantes,
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Estudiantes acompañantes (opcional)',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            helperText: 'Máximo $_maxAcompanantes estudiantes',
-                          ),
-                          child: _acompanantes.isEmpty
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: const [
-                                    Icon(
-                                      Icons.group_add_outlined,
-                                      color: AppColors.unimetBlue,
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      'Agregar estudiantes',
-                                      style: TextStyle(
-                                        color: AppColors.unimetBlue,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: _acompanantes.map((u) {
-                                        final nombreCompleto = [
-                                          if ((u.nombre ?? '').isNotEmpty)
-                                            u.nombre,
-                                          if ((u.apellido ?? '').isNotEmpty)
-                                            u.apellido,
-                                        ].whereType<String>().join(' ').trim();
-
-                                        return Chip(
-                                          label: Text(
-                                            nombreCompleto.isNotEmpty
-                                                ? nombreCompleto
-                                                : u.correo,
-                                          ),
-                                          onDeleted: () => setState(
-                                            () => _acompanantes.removeWhere(
-                                              (x) => x.idUsuario == u.idUsuario,
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        Icon(
-                                          Icons.edit_outlined,
-                                          color: Colors.grey,
-                                          size: 18,
-                                        ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          'Editar lista',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 6) Propósito
-                      TextFormField(
-                        controller: _purposeController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Propósito de la Reserva (Opcional)',
-                          hintText: 'Ej: Estudio en grupo, trabajo de tesis...',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Padding(
-                            padding: EdgeInsets.only(bottom: 50.0),
-                            child: Icon(Icons.lightbulb_outline),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // Info
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.lightBlue.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.shade100),
-                        ),
-                        child: const Column(
+                      // Cubículo
+                      _modernCard(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            _sectionHeader(
+                              icon: Icons.meeting_room_rounded,
+                              title: 'Seleccionar Cubículo',
+                            ),
+                            const SizedBox(height: 16),
+                            DropdownButtonFormField<Cubiculo>(
+                              isExpanded: true,
+                              value: _cubiculoSeleccionado,
+                              hint: Text('Selecciona un cubículo',
+                                  style: TextStyle(color: _textSecondary)),
+                              menuMaxHeight: 320,
+                              borderRadius: BorderRadius.circular(16),
+                              decoration: _inputDec(
+                                label: 'Cubículo a Reservar',
+                                prefix: Icons.meeting_room_rounded,
+                              ),
+                              items: _cubiculosDisponibles.map((c) {
+                                return DropdownMenuItem<Cubiculo>(
+                                  value: c,
+                                  child: Text(
+                                    '${c.nombre} (Cap: ${c.capacidad} pers.)',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: _textPrimary),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setState(() => _cubiculoSeleccionado = v),
+                              validator: (v) =>
+                                  v == null ? 'Selecciona un cubículo.' : null,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Detalles
+                      _modernCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionHeader(
+                              icon: Icons.calendar_month_rounded,
+                              title: 'Detalles de la Reserva',
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Fecha
+                            TextFormField(
+                              initialValue: _fechaFormateada,
+                              readOnly: true,
+                              enabled: false,
+                              decoration: _inputDec(
+                                label: 'Fecha de Reserva',
+                                prefix: Icons.event_rounded,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Hora
+                            TextFormField(
+                              controller: _timeController,
+                              readOnly: true,
+                              onTap: _selectTime,
+                              decoration: _inputDec(
+                                label: 'Hora de Inicio',
+                                hint: 'Selecciona una hora',
+                                prefix: Icons.access_time_rounded,
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.isEmpty)
+                                      ? 'Selecciona una hora.'
+                                      : null,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Duración
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: _durationsAvailable.contains(_selectedDuration)
+                                  ? _selectedDuration
+                                  : (_durationsAvailable.isNotEmpty
+                                      ? _durationsAvailable.first
+                                      : null),
+                              menuMaxHeight: 320,
+                              borderRadius: BorderRadius.circular(16),
+                              decoration: _inputDec(
+                                label: _duracionLabelText,
+                                prefix: Icons.timelapse_rounded,
+                              ),
+                              items: _durationsAvailable.map((d) {
+                                return DropdownMenuItem<String>(
+                                  value: d,
+                                  child: Text(d, style: const TextStyle(color: _textPrimary)),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setState(() => _selectedDuration = v),
+                              validator: (v) =>
+                                  v == null ? 'Selecciona una duración.' : null,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Acompañantes (sin overflow)
+                      _modernCard(
+                        child: Builder(
+                          builder: (context) {
+                            final maxChipWidth =
+                                MediaQuery.of(context).size.width - 160;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.info,
-                                  color: Colors.lightBlue,
-                                  size: 20,
+                                _sectionHeader(
+                                  icon: Icons.group_rounded,
+                                  title: 'Estudiantes acompañantes (opcional)',
                                 ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Información importante',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.unimetBlue,
+                                const SizedBox(height: 12),
+                                InkWell(
+                                  onTap: _pickAcompanantes,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: _surfaceField,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: _blue, width: 1),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.group_add_rounded, color: _blue),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                'Añadir / editar lista',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: _textPrimary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        if (_acompanantes.isEmpty)
+                                          Text(
+                                            'Agregar estudiantes',
+                                            style: TextStyle(
+                                              color: _textSecondary,
+                                              fontSize: 15,
+                                            ),
+                                          )
+                                        else ...[
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: _acompanantes.map((u) {
+                                              final nombre = [
+                                                if ((u.nombre ?? '').isNotEmpty) u.nombre,
+                                                if ((u.apellido ?? '').isNotEmpty) u.apellido,
+                                              ].whereType<String>().join(' ').trim();
+                                              final etiqueta = nombre.isNotEmpty
+                                                  ? nombre
+                                                  : u.correo;
+                                              return Chip(
+                                                label: ConstrainedBox(
+                                                  constraints: BoxConstraints(
+                                                    maxWidth: maxChipWidth,
+                                                  ),
+                                                  child: Text(
+                                                    etiqueta,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    softWrap: false,
+                                                    style: const TextStyle(
+                                                      color: _textPrimary,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                                onDeleted: () => setState(
+                                                  () => _acompanantes.removeWhere(
+                                                    (x) => x.idUsuario == u.idUsuario),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.edit_outlined,
+                                                  color: _textSecondary, size: 18),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Editar lista',
+                                                style: TextStyle(
+                                                  color: _textSecondary,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Propósito
+                      _modernCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionHeader(
+                              icon: Icons.description_rounded,
+                              title: 'Propósito (opcional)',
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              '• La reserva estará pendiente de confirmación.\n'
-                              '• El tiempo máximo de reserva es de 2 horas.\n'
-                              '• Horario disponible: 7:00 AM - 5:00 PM\n'
-                              '• Debes presentar tu carnet al ocupar el cubículo.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _purposeController,
+                              maxLines: 3,
+                              decoration: _inputDec(
+                                label: 'Propósito de la Reserva (Opcional)',
+                                hint: 'Ej: Estudio en grupo, trabajo de tesis...',
+                                prefix: Icons.lightbulb_outline_rounded,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 25),
 
-                      // --- BOTÓN (Actualizado con la lógica) ---
+                      const SizedBox(height: 18),
+
+                      // Info importante
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _infoBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _blue.withOpacity(.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline_rounded, color: _blue),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '• Máximo 2 horas de uso\n'
+                                '• Horario: 7:00 AM - 5:00 PM\n'
+                                '• Presenta tu carnet al ocupar el cubículo',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      // Botón
                       SizedBox(
                         width: double.infinity,
+                        height: 56,
                         child: ElevatedButton.icon(
                           onPressed: _isSubmitting || _tieneReservaActiva
                               ? null
                               : _submitReservation,
                           icon: _isSubmitting
                               ? const SizedBox(
-                                  height: 20,
                                   width: 20,
+                                  height: 20,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.check_circle_outline),
+                              : const Icon(Icons.check_circle_rounded, color: Colors.white),
                           label: Text(
-                            _isSubmitting
-                                ? 'Procesando...'
-                                : _tieneReservaActiva
+                            _tieneReservaActiva
                                 ? 'Ya tienes una reserva activa'
-                                : 'Solicitar Reserva',
-                            style: const TextStyle(fontSize: 18),
+                                : _isSubmitting
+                                    ? 'Procesando...'
+                                    : 'Solicitar Reserva',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: .2,
+                              height: 1.1,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _tieneReservaActiva
-                                ? Colors.grey
-                                : AppColors.unimetBlue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            backgroundColor:
+                                _tieneReservaActiva ? Colors.grey : _blue,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(16),
                             ),
+                            elevation: 4,
                           ),
                         ),
                       ),
@@ -679,5 +612,103 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
               ),
       ),
     );
+  }
+
+  // === UI helpers ===
+  InputDecoration _inputDec({
+    required String label,
+    String? hint,
+    IconData? prefix,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(
+        color: _textPrimary,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .2,
+      ),
+      hintStyle: const TextStyle(color: _textSecondary),
+      // 🔧 SIN const porque 'prefix' es dinámico
+      prefixIcon: prefix != null ? Icon(prefix, color: _blue) : null,
+      filled: true,
+      fillColor: _surfaceField,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 1),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 2),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _sectionHeader({required IconData icon, required String title}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _surfaceField,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _blue.withOpacity(.12)),
+              ),
+              // 🔧 SIN const porque 'icon' viene por parámetro
+              child: Icon(icon, color: _blue, size: 22),
+            ),
+            const SizedBox(width: 10),
+            // 🔧 Ajuste: permitir que el título se vea completo (hasta 2 líneas)
+            Expanded(
+              child: Text(
+                title,
+                softWrap: true,
+                maxLines: 2,
+                style: const TextStyle(
+                  fontSize: 20,
+                  height: 1.25,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                  letterSpacing: .2,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: 64,
+          height: 3,
+          decoration: BoxDecoration(
+            color: _blue,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Card _modernCard({required Widget child, EdgeInsets? padding}) {
+    return Card(
+      elevation: 5,
+      shadowColor: _blue.withOpacity(.15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+
+  String get _duracionLabelText {
+    if (_selectedTime == null) return 'Duración (Máx. 2 horas)';
+    final maxDuracion =
+        _durationsAvailable.isNotEmpty ? _durationsAvailable.last : 'No disponible';
+    return 'Duración (Máx. $maxDuracion)';
   }
 }

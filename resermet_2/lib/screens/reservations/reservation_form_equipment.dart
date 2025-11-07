@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:resermet_2/models/equipo_deportivo.dart';
 import 'package:resermet_2/services/equipo_deportivo_service.dart';
+import 'package:resermet_2/services/reserva_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
 import 'package:resermet_2/widgets/toastification.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:resermet_2/services/reserva_service.dart';
 
 class ReservationFormEquipment extends StatefulWidget {
   const ReservationFormEquipment({super.key});
 
   @override
-  State<ReservationFormEquipment> createState() =>
-      _ReservationFormEquipmentState();
+  State<ReservationFormEquipment> createState() => _ReservationFormEquipmentState();
 }
 
 class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
+  // ==== Paleta y tipografías (azul UNIMET, letras suaves) ====
+  static const Color _blue = AppColors.unimetBlue;
+  static const Color _blueSoft = Color(0xFFE9F2FF);
+  static const Color _fieldBg = Color(0xFFF8FAFF);
+  static const Color _textPrimary = Color(0xFF3F4A58);
+  static const Color _textSecondary = Color(0xFF5B677A);
+
   final _formKey = GlobalKey<FormState>();
   final EquipoDeportivoService _equipoService = EquipoDeportivoService();
   final ReservaService _reservaService = ReservaService();
@@ -31,7 +37,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
 
-  // 💡 NUEVOS ESTADOS DE DISPONIBILIDAD
+  // Disponibilidad
   int _activeReservations = 0;
   int _stockTotal = 0;
 
@@ -57,35 +63,127 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     _cargarEquiposDisponibles();
   }
 
-  //  LÓGICA DE MARCAR FRANJAS HORARIAS (Stock Disponible, Pocos en Existencia, No Disponible)
+  @override
+  void dispose() {
+    _timeController.dispose();
+    _purposeController.dispose();
+    super.dispose();
+  }
+
+  // ====== UI Helpers ======
+  Card _modernCard({required Widget child, EdgeInsets? padding}) {
+    return Card(
+      elevation: 5,
+      shadowColor: _blue.withOpacity(.12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+
+  InputDecoration _inputDec({
+    required String label,
+    String? hint,
+    IconData? prefix,
+    IconData? suffix,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(
+        color: _textPrimary,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .2,
+      ),
+      hintStyle: const TextStyle(color: _textSecondary),
+      prefixIcon: prefix != null ? Icon(prefix, color: _blue) : null,
+      suffixIcon: suffix != null ? Icon(suffix, color: _textSecondary) : null,
+      filled: true,
+      fillColor: _fieldBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 1),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 2),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _sectionHeader({required IconData icon, required String title}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _fieldBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _blue.withOpacity(.12)),
+              ),
+              child: Icon(icon, color: _blue, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                softWrap: true,
+                maxLines: 2,
+                style: const TextStyle(
+                  fontSize: 20,
+                  height: 1.25,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                  letterSpacing: .2,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: 64,
+          height: 3,
+          decoration: BoxDecoration(
+            color: _blue,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ====== Estado de stock (color + mensaje) ======
   (Color, String) get _stockStatus {
     if (_equipoSeleccionado == null ||
         _selectedTime == null ||
         _selectedDuration == null) {
       return (
-        Colors.grey,
+        _textSecondary,
         'Selecciona hora y duración para verificar la disponibilidad',
       );
     }
 
     final int available = _stockTotal - _activeReservations;
-
-    // Regla: Pocos en existencia si queda < 30% del stock total
-    final int lowStockThreshold = (_stockTotal * 0.3).ceil();
+    final int lowStockThreshold = (_stockTotal * 0.3).ceil(); // <30% es bajo
 
     if (available <= 0) {
-      return (Colors.red, 'No disponible - 0 unidades restantes');
+      return (Colors.red.shade600, 'No disponible - 0 unidades restantes');
     } else if (available <= lowStockThreshold) {
-      return (
-        Colors.orange,
-        'Baja disponibilidad - $available unidades restantes',
-      );
+      return (Colors.orange.shade700, 'Baja disponibilidad - $available unidades');
     } else {
-      return (Colors.green, 'Disponible - $available unidades restantes');
+      return (Colors.green.shade700, 'Disponible - $available unidades');
     }
   }
 
-  // 💡 Calcula disponibilidad para el rango elegido
+  // ====== Lógica de disponibilidad según rango ======
   void _calculateAvailability() async {
     if (_equipoSeleccionado == null ||
         _selectedTime == null ||
@@ -118,39 +216,28 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     });
   }
 
+  // ====== Cargar listado ======
   Future<void> _cargarEquiposDisponibles() async {
     try {
       final equipos = await _equipoService.getEquiposDeportivos();
-
-      final equiposDisponibles = equipos
-          .where((equipo) => equipo.cantidadDisponible > 0)
-          .toList();
+      final equiposDisponibles =
+          equipos.where((equipo) => equipo.cantidadDisponible > 0).toList();
 
       setState(() {
         _equiposDisponibles = equiposDisponibles;
         _isLoading = false;
-
         if (_equiposDisponibles.isNotEmpty) {
           _equipoSeleccionado = _equiposDisponibles[0];
-          _stockTotal = _equipoSeleccionado!.cantidadTotal; // Inicializar stock
+          _stockTotal = _equipoSeleccionado!.cantidadTotal;
         }
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error cargando equipos: $e');
       setState(() => _isLoading = false);
       _mostrarError('Error al cargar los equipos disponibles');
     }
   }
 
-  @override
-  void dispose() {
-    _timeController.dispose();
-    _purposeController.dispose();
-    super.dispose();
-  }
-
-  // Actualiza duraciones según la hora elegida
+  // ====== Duraciones dinámicas ======
   void _actualizarDuracionesDisponibles() {
     if (_selectedTime == null) return;
 
@@ -172,38 +259,31 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     setState(() {});
   }
 
-  // Selector de hora con tu HorarioPicker
+  // ====== Selectores ======
   Future<void> _selectTime(BuildContext context) async {
     HorarioPicker.mostrarPicker(
       context: context,
       horaInicial: _selectedTime ?? TimeOfDay.now(),
       titulo: 'Seleccionar Hora',
-      colorTitulo: AppColors.unimetBlue,
-      colorHoraSeleccionada: AppColors.unimetBlue,
+      colorTitulo: _blue,
+      colorHoraSeleccionada: _blue,
       onHoraSeleccionada: (picked) {
         setState(() {
           _selectedTime = picked;
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
         });
         _actualizarDuracionesDisponibles();
-        _calculateAvailability(); // 💡 calcular al seleccionar hora
+        _calculateAvailability();
       },
     );
   }
 
-  void _mostrarError(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
-    );
-  }
-
-  // ====== CREAR RESERVA CON VALIDACIÓN DE CONFLICTO ======
+  // ====== Crear reserva (con validación de stock) ======
   Future<void> _crearReserva() async {
     if (_equipoSeleccionado == null) {
       _mostrarError('Por favor selecciona un equipo');
       return;
     }
-
     if (_selectedTime == null || _selectedDuration == null) {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
@@ -215,12 +295,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       return;
     }
 
-    // Toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
     try {
-      // 1) INICIO local con la fecha de hoy + hora seleccionada
       final inicioLocal = DateTime(
         _fechaActual.year,
         _fechaActual.month,
@@ -228,11 +306,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
-
-      // 2) FIN local según duración
       final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // 3) VALIDAR STOCK
       final conflictoCount = await _reservaService.getActiveReservationsCount(
         idArticulo: _equipoSeleccionado!.idObjeto,
         inicio: inicioLocal,
@@ -243,30 +318,24 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         ReservationToastService.dismissAll();
         ReservationToastService.showReservationError(
           context,
-          'El Equipo Deportivo "${_equipoSeleccionado!.nombre}" no tiene unidades disponibles en ese horario.',
+          'El equipo "${_equipoSeleccionado!.nombre}" no tiene unidades disponibles en ese horario.',
         );
         if (mounted) setState(() => _isSubmitting = false);
         return;
       }
 
-      // 4) Convertir a UTC
-      final inicioIso = inicioLocal.toUtc().toIso8601String();
-      final finIso = finLocal.toUtc().toIso8601String();
-
-      // 5) Insert
       final reservaData = {
         'id_articulo': _equipoSeleccionado!.idObjeto,
         'id_usuario': user.id,
         'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
-        'inicio': inicioIso,
-        'fin': finIso,
+        'inicio': inicioLocal.toUtc().toIso8601String(),
+        'fin': finLocal.toUtc().toIso8601String(),
         'compromiso_estudiante': _purposeController.text,
         'estado': 'activa',
       };
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // Éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
@@ -294,7 +363,13 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     }
   }
 
-  // Cálculo de fin desde la duración
+  // ====== Utilidades ======
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
   DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
     switch (duracion) {
       case '30 min':
@@ -312,100 +387,63 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtener el status para la UI
     final status = _stockStatus;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.white, AppColors.unimetLightGray],
-        ),
-      ),
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.85,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Título
-                const Text(
-                  'Reserva tu Equipo Deportivo',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.unimetBlue,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Selecciona el equipo y completa los datos de reserva',
-                  style: TextStyle(color: AppColors.unimetBlue, fontSize: 16),
-                ),
-                const SizedBox(height: 30),
-
-                // Tarjeta de selección de equipo
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.sports_soccer,
-                              color: AppColors.unimetBlueSecondary,
-                              size: 24,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Seleccionar item',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.unimetBlueSecondary,
-                              ),
-                            ),
-                          ],
+        padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: _blue))
+            : Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Título
+                      Text(
+                        'Reserva tu Equipo Deportivo',
+                        style: TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                          color: _blue,
+                          height: 1.22,
+                          letterSpacing: .2,
                         ),
-                        const SizedBox(height: 16),
+                      ),
+                      const SizedBox(height: 15),
 
-                        if (_isLoading)
-                          const Center(child: CircularProgressIndicator())
-                        else if (_equiposDisponibles.isEmpty)
-                          const Text(
-                            'No hay equipos disponibles en este momento',
-                            style: TextStyle(color: Colors.grey),
-                          )
-                        else
-                          DropdownButtonFormField<EquipoDeportivo>(
-                            value: _equipoSeleccionado,
-                            isExpanded: true,
-                            itemHeight: null,
-                            menuMaxHeight: 320,
-                            decoration: InputDecoration(
-                              labelText: 'Equipos Disponibles',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.sports_tennis_sharp),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
+                      // Selección de equipo
+                      _modernCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionHeader(
+                              icon: Icons.sports_soccer_rounded,
+                              title: 'Seleccionar Equipo',
                             ),
-                            selectedItemBuilder: (context) =>
-                                _equiposDisponibles.map((e) {
+                            const SizedBox(height: 16),
+                            if (_isLoading)
+                              const Center(child: CircularProgressIndicator())
+                            else if (_equiposDisponibles.isEmpty)
+                              Text(
+                                'No hay equipos disponibles en este momento',
+                                style: TextStyle(color: _textSecondary),
+                              )
+                            else
+                              DropdownButtonFormField<EquipoDeportivo>(
+                                value: _equipoSeleccionado,
+                                isExpanded: true,
+                                itemHeight: null,
+                                menuMaxHeight: 320,
+                                borderRadius: BorderRadius.circular(16),
+                                decoration: _inputDec(
+                                  label: 'Equipos disponibles',
+                                  prefix: Icons.sports_tennis_rounded,
+                                ),
+                                selectedItemBuilder: (context) =>
+                                    _equiposDisponibles.map((e) {
                                   return Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
@@ -414,371 +452,310 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
+                                        color: _textPrimary,
                                       ),
                                     ),
                                   );
                                 }).toList(),
-                            items: _equiposDisponibles.map((equipo) {
-                              return DropdownMenuItem<EquipoDeportivo>(
-                                value: equipo,
-                                child: Column(
+                                items: _equiposDisponibles.map((equipo) {
+                                  return DropdownMenuItem<EquipoDeportivo>(
+                                    value: equipo,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          equipo.nombre,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: _textPrimary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Tipo: ${equipo.tipoEquipo}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _textSecondary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Disponibles: ${equipo.cantidadDisponible}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newValue) {
+                                  setState(() {
+                                    _equipoSeleccionado = newValue;
+                                    _stockTotal =
+                                        _equipoSeleccionado?.cantidadTotal ?? 0;
+                                  });
+                                  _calculateAvailability();
+                                },
+                                validator: (value) =>
+                                    value == null ? 'Por favor selecciona un equipo' : null,
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Info del equipo seleccionado (opcional)
+                      if (_equipoSeleccionado != null)
+                        _modernCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _sectionHeader(
+                                icon: Icons.info_rounded,
+                                title: 'Información del equipo',
+                              ),
+                              const SizedBox(height: 12),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _blueSoft,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.sports_tennis_rounded, color: _blue),
+                                ),
+                                title: Text(
+                                  _equipoSeleccionado!.nombre,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                                subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    Text('Tipo: ${_equipoSeleccionado!.tipoEquipo}',
+                                        style: const TextStyle(color: _textSecondary)),
                                     Text(
-                                      equipo.nombre,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                      'Disponibles ahora: ${_equipoSeleccionado!.cantidadDisponible}',
+                                      style: TextStyle(
+                                        color: _equipoSeleccionado!.cantidadDisponible > 0
+                                            ? Colors.green.shade700
+                                            : Colors.red.shade700,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    Text(
-                                      'Tipo: ${equipo.tipoEquipo}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
+                                    if (_equipoSeleccionado!.cantidadTotal > 0)
+                                      Text(
+                                        'Total en inventario: ${_equipoSeleccionado!.cantidadTotal}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _textSecondary,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      'Disponibles: ${equipo.cantidadDisponible}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green.shade600,
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Detalles de la reserva
+                      _modernCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionHeader(
+                              icon: Icons.calendar_month_rounded,
+                              title: 'Detalles de la Reserva',
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Fecha (hoy, solo lectura)
+                            TextFormField(
+                              initialValue: _fechaFormateada,
+                              readOnly: true,
+                              enabled: false,
+                              decoration: _inputDec(
+                                label: 'Fecha de reserva',
+                                prefix: Icons.event_rounded,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Hora (picker)
+                            TextFormField(
+                              controller: _timeController,
+                              readOnly: true,
+                              onTap: () => _selectTime(context),
+                              decoration: _inputDec(
+                                label: 'Hora de inicio',
+                                hint: 'Selecciona la hora',
+                                prefix: Icons.access_time_rounded,
+                                suffix: Icons.keyboard_arrow_down_rounded,
+                              ),
+                              validator: (value) => (value == null || value.isEmpty)
+                                  ? 'Por favor selecciona una hora'
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Duración (dinámica)
+                            DropdownButtonFormField<String>(
+                              value: _selectedDuration,
+                              menuMaxHeight: 320,
+                              borderRadius: BorderRadius.circular(16),
+                              decoration: _inputDec(
+                                label: 'Duración de uso',
+                                prefix: Icons.timelapse_rounded,
+                              ),
+                              items: _duracionesDisponibles
+                                  .map((duracion) => DropdownMenuItem(
+                                        value: duracion,
+                                        child: Text(
+                                          duracion,
+                                          style: const TextStyle(color: _textPrimary),
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (newValue) {
+                                setState(() => _selectedDuration = newValue);
+                                _calculateAvailability();
+                              },
+                              validator: (value) => (value == null || value.isEmpty)
+                                  ? 'Por favor selecciona una duración'
+                                  : null,
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Indicador de stock
+                            Builder(builder: (context) {
+                              final (color, message) = status;
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: color.withOpacity(.45)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.inventory_2_rounded, color: color),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        message,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: color,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               );
-                            }).toList(),
-                            onChanged: (newValue) {
-                              setState(() {
-                                _equipoSeleccionado = newValue;
-                                _calculateAvailability();
-                              });
-                            },
-                            validator: (value) => value == null
-                                ? 'Por favor selecciona un equipo'
-                                : null,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+                            }),
 
-                const SizedBox(height: 20),
+                            const SizedBox(height: 16),
 
-                // Información del equipo seleccionado
-                if (_equipoSeleccionado != null) ...[
-                  Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            ' Información del item',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.lightBlue,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(8),
+                            // Propósito
+                            TextFormField(
+                              controller: _purposeController,
+                              maxLines: 3,
+                              decoration: _inputDec(
+                                label: 'Propósito de uso',
+                                hint: 'Describe para qué usarás el equipo...',
+                                prefix: Icons.description_rounded,
                               ),
-                              child: const Icon(
-                                Icons.sports_tennis_sharp,
-                                color: Colors.lightBlue,
-                              ),
+                              validator: (value) => (value == null || value.isEmpty)
+                                  ? 'Por favor describe la actividad'
+                                  : null,
                             ),
-                            title: Text(
-                              _equipoSeleccionado!.nombre,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Tipo: ${_equipoSeleccionado!.tipoEquipo}',
-                                ),
-                                Text(
-                                  'Disponibles: ${_equipoSeleccionado!.cantidadDisponible} unidades',
-                                  style: TextStyle(
-                                    color:
-                                        _equipoSeleccionado!.cantidadDisponible >
-                                                0
-                                            ? Colors.green.shade600
-                                            : Colors.red.shade600,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                if (_equipoSeleccionado!.cantidadTotal > 0)
-                                  Text(
-                                    'Total en inventario: ${_equipoSeleccionado!.cantidadTotal}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
 
-                // Campos del formulario
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
+                      const SizedBox(height: 18),
+
+                      // Nota informativa
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _blueSoft,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _blue.withOpacity(.25)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.calendar_today,
-                              color: Colors.orange,
-                              size: 24,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Detalles de la Reserva',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange,
+                            const Icon(Icons.info_outline_rounded, color: _blue),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '• La reserva estará pendiente de confirmación\n'
+                                '• Debes presentar tu identificación y carnet al recoger el equipo\n'
+                                '• Eres responsable del equipo durante el préstamo\n'
+                                '• Reporta cualquier daño o anomalía al personal',
+                                style: const TextStyle(fontSize: 13, color: _textSecondary),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                      ),
 
-                        // Fecha (hoy, solo lectura)
-                        TextFormField(
-                          initialValue: _fechaFormateada,
-                          decoration: InputDecoration(
-                            labelText: 'Fecha de reserva',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.calendar_today),
-                            filled: true,
-                            fillColor: Colors.grey.shade100,
-                          ),
-                          readOnly: true,
-                          enabled: false,
-                        ),
+                      const SizedBox(height: 22),
 
-                        const SizedBox(height: 16),
-
-                        // Hora (picker)
-                        TextFormField(
-                          controller: _timeController,
-                          decoration: InputDecoration(
-                            labelText: 'Hora de inicio',
-                            hintText: 'Selecciona la hora',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            suffixIcon: const Icon(Icons.access_time),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                          ),
-                          readOnly: true,
-                          onTap: () => _selectTime(context),
-                          validator: (value) => (value == null || value.isEmpty)
-                              ? 'Por favor selecciona una hora'
-                              : null,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Duración (dinámica)
-                        DropdownButtonFormField<String>(
-                          value: _selectedDuration,
-                          decoration: InputDecoration(
-                            labelText: 'Duración de uso',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.timer),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                          ),
-                          items: _duracionesDisponibles
-                              .map(
-                                (duracion) => DropdownMenuItem(
-                                  value: duracion,
-                                  child: Text(duracion),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (newValue) {
-                            setState(() => _selectedDuration = newValue);
-                            _calculateAvailability();
-                          },
-                          validator: (value) => (value == null || value.isEmpty)
-                              ? 'Por favor selecciona una duración'
-                              : null,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        //  Indicador de stock
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: status.$1.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: status.$1.withOpacity(0.5),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.inventory_2, color: status.$1),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  status.$2,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: status.$1,
+                      // Botón de confirmación
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ||
+                                  _equiposDisponibles.isEmpty ||
+                                  _stockStatus.$1 == Colors.red.shade600
+                              ? null
+                              : _crearReserva,
+                          icon: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Propósito
-                        TextFormField(
-                          controller: _purposeController,
-                          decoration: InputDecoration(
-                            labelText: 'Actividad o deporte',
-                            hintText:
-                                'Describe la actividad o deporte para el que usarás el equipo...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.description),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                          ),
-                          maxLines: 3,
-                          validator: (value) => (value == null || value.isEmpty)
-                              ? 'Por favor describe la actividad'
-                              : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // Botón de confirmación
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ||
-                            status.$1 == Colors.red ||
-                            _equiposDisponibles.isEmpty
-                        ? null
-                        : _crearReserva,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          _isSubmitting || _equiposDisponibles.isEmpty
-                              ? Colors.grey
-                              : status.$1,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 4,
-                    ),
-                    child: _isSubmitting
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.sports_tennis, color: Colors.white),
-                              SizedBox(width: 10),
-                              Text(
-                                'Confirmar Reserva',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Info extra
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade100),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info, color: Colors.lightBlue, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Información importante',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.unimetBlue,
+                                )
+                              : const Icon(Icons.check_circle_rounded, color: Colors.white),
+                          label: Text(
+                            _isSubmitting ? 'Procesando...' : 'Confirmar Reserva',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: .2,
+                              height: 1.1,
                             ),
                           ),
-                        ],
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isSubmitting ? Colors.grey : _blue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 4,
+                          ),
+                        ),
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        '• La reserva estará pendiente de confirmación\n'
-                        '• Debes presentar tu identificación y carnet al recoger el equipo\n'
-                        '• Eres responsable del equipo durante el tiempo de préstamo\n'
-                        '• Reporta cualquier daño o anomalía al personal',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }

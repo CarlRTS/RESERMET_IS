@@ -15,6 +15,13 @@ class ReservationFormConsole extends StatefulWidget {
 }
 
 class _ReservationFormConsoleState extends State<ReservationFormConsole> {
+  // === Paleta unificada (UNIMET) y tipografías suaves ===
+  static const Color _blue = AppColors.unimetBlue;         // azul UNIMET
+  static const Color _blueSoft = Color(0xFFE9F2FF);        // fondo info suave
+  static const Color _fieldBg = Color(0xFFF8FAFF);         // fondo inputs
+  static const Color _textPrimary = Color(0xFF3F4A58);     // gris-azul legible
+  static const Color _textSecondary = Color(0xFF5B677A);   // gris-azul suave
+
   final _formKey = GlobalKey<FormState>();
   final ConsolaService _consolaService = ConsolaService();
 
@@ -53,10 +60,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   Future<void> _cargarConsolasDisponibles() async {
     try {
       final consolas = await _consolaService.getConsolas();
-
-      final consolasDisponibles = consolas
-          .where((c) => c.cantidadDisponible > 0)
-          .toList();
+      final consolasDisponibles = consolas.where((c) => c.cantidadDisponible > 0).toList();
 
       setState(() {
         _consolasDisponibles = consolasDisponibles;
@@ -66,8 +70,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         }
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error cargando consolas: $e');
       setState(() => _isLoading = false);
       _mostrarError('Error al cargar las consolas disponibles');
     }
@@ -85,21 +87,17 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
     final int totalMinutos = _selectedTime!.hour * 60 + _selectedTime!.minute;
 
-    // Reglas de restricción por hora (ajústalas si cambian los horarios del centro)
+    // Reglas de restricción por hora
     if (totalMinutos > 16 * 60) {
-      // 4:00 PM o después
       _duracionesDisponibles = ['30 min'];
     } else if (totalMinutos > 15 * 60 + 30) {
-      // 3:30 PM o después
       _duracionesDisponibles = ['30 min', '1 hora'];
     } else if (totalMinutos > 15 * 60) {
-      // 3:00 PM o después
       _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas'];
     } else {
       _duracionesDisponibles = ['30 min', '1 hora', '1.5 horas', '2 horas'];
     }
 
-    // Si la duración seleccionada quedó inválida, resetearla
     if (!_duracionesDisponibles.contains(_selectedDuration)) {
       _selectedDuration = null;
     }
@@ -111,8 +109,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       context: context,
       horaInicial: _selectedTime ?? TimeOfDay.now(),
       titulo: 'Seleccionar Hora',
-      colorTitulo: AppColors.unimetBlue,
-      colorHoraSeleccionada: AppColors.unimetBlue,
+      colorTitulo: _blue,
+      colorHoraSeleccionada: _blue,
       onHoraSeleccionada: (picked) {
         setState(() {
           _selectedTime = picked;
@@ -129,7 +127,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     );
   }
 
-  // ====== CREAR RESERVA CON TOASTS ======
+  // ====== CREAR RESERVA (misma lógica, solo UI mejorada) ======
   Future<void> _crearReserva() async {
     if (_consolaSeleccionada == null) {
       _mostrarError('Por favor selecciona una consola');
@@ -146,12 +144,10 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       return;
     }
 
-    // Mostrar toast de carga
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
 
     try {
-      // 1) Construir INICIO local con la fecha de hoy + hora elegida
       final inicioLocal = DateTime(
         _fechaActual.year,
         _fechaActual.month,
@@ -160,14 +156,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         _selectedTime!.minute,
       );
 
-      // 2) Calcular FIN local según la duración
       final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
 
-      // 3) Convertir ambos a UTC antes de guardar
       final inicioIso = inicioLocal.toUtc().toIso8601String();
       final finIso = finLocal.toUtc().toIso8601String();
 
-      // 4) Insert — SIN 'rango' (columna GENERATED) y con fecha_reserva (UTC YYYY-MM-DD)
       final reservaData = {
         'id_articulo': _consolaSeleccionada!.idObjeto,
         'id_usuario': user.id,
@@ -180,36 +173,27 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
       await Supabase.instance.client.from('reserva').insert(reservaData);
 
-      // Cerrar toast de carga y mostrar éxito
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
         _consolaSeleccionada!.nombre,
       );
 
-      // Esperar un poco para que el usuario vea el toast de éxito
       await Future.delayed(const Duration(seconds: 2));
-
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
-      // Cerrar toast de carga y mostrar error
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
         'Error de conexión con la base de datos',
       );
-
-      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
-      // Cerrar toast de carga y mostrar error genérico
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationError(
         context,
         'Error inesperado al procesar la reserva',
       );
-
-      // También mantener el snackbar original para debugging
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -231,6 +215,97 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
+  // ====== Helpers visuales (estilo unificado) ======
+  Card _modernCard({required Widget child, EdgeInsets? padding}) {
+    return Card(
+      elevation: 5,
+      shadowColor: _blue.withOpacity(.15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+
+  InputDecoration _inputDec({
+    required String label,
+    String? hint,
+    IconData? prefix,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(
+        color: _textPrimary,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .2,
+      ),
+      hintStyle: const TextStyle(color: _textSecondary),
+      prefixIcon: prefix != null ? Icon(prefix, color: _blue) : null,
+      filled: true,
+      fillColor: _fieldBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 1),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: _blue, width: 2),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _sectionHeader({
+    required IconData icon,
+    required String title,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _fieldBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _blue.withOpacity(.12)),
+              ),
+              child: Icon(icon, color: _blue, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                softWrap: true,
+                maxLines: 2,
+                style: const TextStyle(
+                  fontSize: 20,
+                  height: 1.25,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                  letterSpacing: .2,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: 64,
+          height: 3,
+          decoration: BoxDecoration(
+            color: _blue,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -245,472 +320,396 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Título principal (🔵 ahora en azul UNIMET)
               Text(
                 'Reserva tu Consola',
                 style: text.titleLarge?.copyWith(
-                  color: cs.primary,
+                  color: _blue, // <- azul UNIMET
                   fontWeight: FontWeight.w800,
+                  fontSize: 23,
+                  height: 1.22,
+                  letterSpacing: .2,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Selecciona la consola y completa los datos de reserva',
                 style: text.bodyMedium?.copyWith(
-                  color: cs.onSurface.withOpacity(.75),
+                  color: _textSecondary,
+                  height: 1.35,
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // Tarjeta de selección de consola
-              Card(
-                elevation: 1.5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.sports_esports,
-                            color: Colors.green,
-                            size: 24,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Seleccionar Consola',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      if (_isLoading)
-                        const Center(child: CircularProgressIndicator())
-                      else if (_consolasDisponibles.isEmpty)
-                        const Text(
-                          'No hay consolas disponibles en este momento',
-                          style: TextStyle(color: Colors.grey),
-                        )
-                      else
-                        DropdownButtonFormField<Consola>(
-                          value: _consolaSeleccionada,
-                          isExpanded: true, // ocupa todo el ancho
-                          itemHeight: null,
-                          menuMaxHeight: 300, // permite items altos en el menú
-                          decoration: InputDecoration(
-                            labelText: 'Consolas Disponibles',
-                            prefixIcon: const Icon(Icons.videogame_asset),
-                            filled: true,
-                            fillColor: Theme.of(
-                              context,
-                            ).colorScheme.surfaceVariant,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                          ),
-                          // Lo que se ve CUANDO ESTÁ CERRADO (una sola línea)
-                          selectedItemBuilder: (context) =>
-                              _consolasDisponibles.map((c) {
-                                return Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    c.nombre,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-
-                          items: _consolasDisponibles.map((consola) {
-                            return DropdownMenuItem<Consola>(
-                              value: consola,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    consola.nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Modelo: ${consola.modelo}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Disponibles: ${consola.cantidadDisponible}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.green.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (newValue) {
-                            setState(() {
-                              _consolaSeleccionada = newValue;
-                              _selectedGame = null;
-                            });
-                          },
-                          validator: (value) => value == null
-                              ? 'Por favor selecciona una consola'
-                              : null,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
               const SizedBox(height: 20),
 
-              // Información de la consola seleccionada
-              if (_consolaSeleccionada != null) ...[
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '📋 Información de la Consola',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ListTile(
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.sports_esports,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          title: Text(
-                            _consolaSeleccionada!.nombre,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Modelo: ${_consolaSeleccionada!.modelo}'),
-                              Text(
-                                'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
-                                style: TextStyle(
-                                  color:
-                                      _consolaSeleccionada!.cantidadDisponible >
-                                          0
-                                      ? Colors.green.shade600
-                                      : Colors.red.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              // ====== Selección de consola ======
+              _modernCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader(
+                      icon: Icons.videogame_asset_rounded,
+                      title: 'Seleccionar Consola',
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
+                    const SizedBox(height: 16),
 
-              // Campos del formulario
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            color: Colors.orange,
-                            size: 24,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Detalles de la Reserva',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Fecha hoy (solo lectura)
-                      TextFormField(
-                        initialValue: _fechaFormateada,
-                        decoration: InputDecoration(
-                          labelText: 'Fecha de reserva',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          prefixIcon: const Icon(Icons.calendar_today),
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                        ),
-                        readOnly: true,
-                        enabled: false,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Hora de inicio (picker)
-                      TextFormField(
-                        controller: _timeController,
-                        decoration: InputDecoration(
-                          labelText: 'Hora de inicio',
-                          hintText: 'Selecciona la hora',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          suffixIcon: const Icon(Icons.access_time),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                        ),
-                        readOnly: true,
-                        onTap: () => _selectTime(context),
-                        validator: (value) => (value == null || value.isEmpty)
-                            ? 'Por favor selecciona una hora'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      if (_selectedTime != null) const SizedBox(height: 8),
-
-                      // Duración (dinámica según la hora)
-                      DropdownButtonFormField<String>(
-                        value: _selectedDuration,
-                        decoration: InputDecoration(
-                          labelText: 'Duración de uso',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          prefixIcon: const Icon(Icons.timer),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                        ),
-                        items: _duracionesDisponibles
-                            .map(
-                              (duracion) => DropdownMenuItem(
-                                value: duracion,
-                                child: Text(duracion),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (newValue) =>
-                            setState(() => _selectedDuration = newValue),
-                        validator: (value) => (value == null || value.isEmpty)
-                            ? 'Por favor selecciona una duración'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Juego opcional (UI actual)
-                      DropdownButtonFormField<String>(
-                        value: _selectedGame,
+                    if (_isLoading)
+                      const Center(child: CircularProgressIndicator(color: _blue))
+                    else if (_consolasDisponibles.isEmpty)
+                      const Text(
+                        'No hay consolas disponibles en este momento',
+                        style: TextStyle(color: _textSecondary),
+                      )
+                    else
+                      DropdownButtonFormField<Consola>(
+                        value: _consolaSeleccionada,
                         isExpanded: true,
                         itemHeight: null,
                         menuMaxHeight: 320,
-                        decoration: InputDecoration(
-                          labelText: 'Juego (opcional)',
-                          hintText: 'Selecciona un juego',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          prefixIcon: const Icon(Icons.games),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
+                        borderRadius: BorderRadius.circular(16),
+                        decoration: _inputDec(
+                          label: 'Consolas disponibles',
+                          hint: 'Elige una consola',
+                          prefix: Icons.videogame_asset_rounded,
                         ),
-                        // Lo que se ve cuando el dropdown está CERRADO (una sola línea)
                         selectedItemBuilder: (context) =>
-                            <String?>[
-                              null,
-                              'FIFA 24',
-                              'Call of Duty: Modern Warfare III',
-                              'Spider-Man 2',
-                              'Otro juego',
-                            ].map((juego) {
-                              final texto = juego ?? 'Ningún juego específico';
-                              return Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  texto,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                            _consolasDisponibles.map((c) {
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              c.nombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: _textPrimary,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        items: _consolasDisponibles.map((consola) {
+                          return DropdownMenuItem<Consola>(
+                            value: consola,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  consola.nombre,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                    color: _textPrimary,
                                   ),
                                 ),
-                              );
-                            }).toList(),
-
-                        items: const [
-                          DropdownMenuItem(
-                            value: null,
-                            child: Text('Ningún juego específico'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'FIFA 24',
-                            child: Text('FIFA 24'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Call of Duty: Modern Warfare III',
-                            child: Text('Call of Duty: Modern Warfare III'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Spider-Man 2',
-                            child: Text('Spider-Man 2'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Otro juego',
-                            child: Text('Otro juego'),
-                          ),
-                        ],
-                        onChanged: (newValue) =>
-                            setState(() => _selectedGame = newValue),
+                                Text(
+                                  'Modelo: ${consola.modelo}',
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    color: _textSecondary,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(Icons.check_circle_rounded,
+                                        size: 14, color: Colors.green.shade700),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Disponibles: ${consola.cantidadDisponible}',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: Colors.green.shade700,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          setState(() {
+                            _consolaSeleccionada = newValue;
+                            _selectedGame = null;
+                          });
+                        },
+                        validator: (value) =>
+                            value == null ? 'Por favor selecciona una consola' : null,
                       ),
-                      const SizedBox(height: 16),
-
-                      // Propósito
-                      TextFormField(
-                        controller: _purposeController,
-                        decoration: InputDecoration(
-                          labelText: 'Propósito de uso',
-                          hintText: 'Describe para qué usarás la consola...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          prefixIcon: const Icon(Icons.description),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                        ),
-                        maxLines: 3,
-                        validator: (value) => (value == null || value.isEmpty)
-                            ? 'Por favor describe el propósito de uso'
-                            : null,
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 16),
 
-              // Botón de confirmación
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting || _consolasDisponibles.isEmpty
-                      ? null
-                      : _crearReserva,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _isSubmitting || _consolasDisponibles.isEmpty
-                        ? Colors.grey
-                        : Colors.green,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 4,
-                  ),
-                  child: _isSubmitting
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+              // ====== Info de la consola seleccionada ======
+              if (_consolaSeleccionada != null) ...[
+                _modernCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionHeader(
+                        icon: Icons.info_rounded,
+                        title: 'Información de la Consola',
+                      ),
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: _blueSoft,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _blue.withOpacity(.12)),
+                          ),
+                          child: const Icon(Icons.sports_esports_rounded, color: _blue),
+                        ),
+                        title: Text(
+                          _consolaSeleccionada!.nombre,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: _textPrimary,
+                            height: 1.2,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.check_circle, color: Colors.white),
-                            SizedBox(width: 10),
+                            const SizedBox(height: 2),
+                            Text('Modelo: ${_consolaSeleccionada!.modelo}',
+                                style: const TextStyle(color: _textSecondary)),
+                            const SizedBox(height: 2),
+                            // ✅ Disponibilidad en VERDE aquí también
                             Text(
-                              'Confirmar Reserva',
+                              'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                              ),
+                            ),
+                            Text(
+                              'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: _textSecondary,
+                                height: 1.2,
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // ====== Detalles de la reserva ======
+              _modernCard(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader(
+                      icon: Icons.calendar_month_rounded,
+                      title: 'Detalles de la Reserva',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Fecha
+                    TextFormField(
+                      initialValue: _fechaFormateada,
+                      readOnly: true,
+                      enabled: false,
+                      decoration: _inputDec(
+                        label: 'Fecha de reserva',
+                        prefix: Icons.event_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Hora
+                    TextFormField(
+                      controller: _timeController,
+                      readOnly: true,
+                      onTap: () => _selectTime(context),
+                      decoration: _inputDec(
+                        label: 'Hora de inicio',
+                        hint: 'Selecciona la hora',
+                        prefix: Icons.access_time_rounded,
+                      ),
+                      validator: (value) =>
+                          (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Duración
+                    DropdownButtonFormField<String>(
+                      value: _selectedDuration,
+                      isExpanded: true,
+                      menuMaxHeight: 320,
+                      borderRadius: BorderRadius.circular(16),
+                      decoration: _inputDec(
+                        label: 'Duración de uso',
+                        prefix: Icons.timer_rounded,
+                      ),
+                      items: _duracionesDisponibles
+                          .map((duracion) => DropdownMenuItem(
+                                value: duracion,
+                                child: Text(
+                                  duracion,
+                                  style: const TextStyle(color: _textPrimary),
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (newValue) => setState(() => _selectedDuration = newValue),
+                      validator: (value) =>
+                          (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Juego (opcional)
+                    DropdownButtonFormField<String>(
+                      value: _selectedGame,
+                      isExpanded: true,
+                      itemHeight: null,
+                      menuMaxHeight: 320,
+                      borderRadius: BorderRadius.circular(16),
+                      decoration: _inputDec(
+                        label: 'Juego (opcional)',
+                        hint: 'Selecciona un juego',
+                        prefix: Icons.games_rounded,
+                      ),
+                      selectedItemBuilder: (context) => <String?>[
+                        null,
+                        'FIFA 24',
+                        'Call of Duty: Modern Warfare III',
+                        'Spider-Man 2',
+                        'Otro juego',
+                      ].map((juego) {
+                        final texto = juego ?? 'Ningún juego específico';
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            texto,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: _textPrimary,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('Ningún juego específico'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'FIFA 24',
+                          child: Text('FIFA 24'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Call of Duty: Modern Warfare III',
+                          child: Text('Call of Duty: Modern Warfare III'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Spider-Man 2',
+                          child: Text('Spider-Man 2'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Otro juego',
+                          child: Text('Otro juego'),
+                        ),
+                      ],
+                      onChanged: (newValue) => setState(() => _selectedGame = newValue),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Propósito
+                    TextFormField(
+                      controller: _purposeController,
+                      maxLines: 3,
+                      decoration: _inputDec(
+                        label: 'Propósito de uso',
+                        hint: 'Describe para qué usarás la consola...',
+                        prefix: Icons.description_rounded,
+                      ),
+                      validator: (value) =>
+                          (value == null || value.isEmpty) ? 'Por favor describe el propósito de uso' : null,
+                    ),
+                  ],
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // Información adicional
+              // ====== Botón de confirmación ======
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: _isSubmitting || _consolasDisponibles.isEmpty
+                      ? null
+                      : _crearReserva,
+                  icon: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_rounded, color: Colors.white),
+                  label: Text(
+                    _isSubmitting ? 'Procesando…' : 'Confirmar Reserva',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: .2,
+                      height: 1.1,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _isSubmitting || _consolasDisponibles.isEmpty ? Colors.grey : _blue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ====== Información adicional ======
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade100),
+                  color: _blueSoft,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _blue.withOpacity(.18)),
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: const [
                     Row(
                       children: [
-                        Icon(Icons.info, color: Colors.blue, size: 20),
+                        Icon(Icons.info_rounded, color: _blue, size: 20),
                         SizedBox(width: 8),
                         Text(
                           'Información importante',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.unimetBlue,
+                            fontWeight: FontWeight.w800,
+                            color: _textPrimary,
                           ),
                         ),
                       ],
@@ -721,7 +720,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                       '• Debes presentar tu identificación y carnet al recoger la consola\n'
                       '• El tiempo de uso comienza a partir de la hora seleccionada\n'
                       '• Puedes solicitar juegos específicos de forma opcional',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: _textSecondary,
+                      ),
                     ),
                   ],
                 ),
