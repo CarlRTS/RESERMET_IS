@@ -55,9 +55,12 @@ class _MainScreenState extends State<MainScreen> {
     final screens = <Widget>[
       const HomeScreen(),
       const MyBookingsScreen(),
+      const UserProfileScreen(), // 👈 PERFIL AGREGADO COMO PANTALLA PRINCIPAL
     ];
+
+    // Si es admin, insertamos la pantalla de admin antes del perfil
     if (_isAdmin) {
-      screens.add(const AdminHomeScreen());
+      screens.insert(2, const AdminHomeScreen());
     }
     return screens;
   }
@@ -134,24 +137,58 @@ class _MainScreenState extends State<MainScreen> {
         ),
         label: 'Mis Reservas',
       ),
+      // 👇 NUEVO ITEM DE PERFIL
+      BottomNavigationBarItem(
+        icon: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _selectedIndex == (_isAdmin ? 3 : 2)
+                ? Colors.teal.withOpacity(0.15)
+                : Colors.transparent,
+          ),
+          child: Icon(
+            Icons.account_circle_rounded,
+            color: _selectedIndex == (_isAdmin ? 3 : 2)
+                ? Colors.teal
+                : Colors.grey.shade500,
+            size: _selectedIndex == (_isAdmin ? 3 : 2) ? 24 : 22,
+          ),
+        ),
+        activeIcon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.teal.withOpacity(0.2),
+            border: Border.all(color: Colors.teal.withOpacity(0.3), width: 1.5),
+          ),
+          child: Icon(
+            Icons.account_circle_rounded,
+            color: Colors.teal,
+            size: 24,
+          ),
+        ),
+        label: 'Perfil',
+      ),
     ];
+
+    // 👇 ITEM DE ADMIN (se inserta antes del perfil)
     if (_isAdmin) {
-      items.add(
+      items.insert(
+        2,
         BottomNavigationBarItem(
           icon: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _selectedIndex == (_isAdmin ? 2 : 1)
+              color: _selectedIndex == 2
                   ? Colors.purple.withOpacity(0.15)
                   : Colors.transparent,
             ),
             child: Icon(
               Icons.admin_panel_settings_rounded,
-              color: _selectedIndex == (_isAdmin ? 2 : 1)
-                  ? Colors.purple
-                  : Colors.grey.shade500,
-              size: _selectedIndex == (_isAdmin ? 2 : 1) ? 24 : 22,
+              color: _selectedIndex == 2 ? Colors.purple : Colors.grey.shade500,
+              size: _selectedIndex == 2 ? 24 : 22,
             ),
           ),
           activeIcon: Container(
@@ -189,10 +226,7 @@ class _MainScreenState extends State<MainScreen> {
       body: MediaQuery.removePadding(
         context: context,
         removeTop: true,
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: _widgetOptions,
-        ),
+        child: IndexedStack(index: _selectedIndex, children: _widgetOptions),
       ),
       bottomNavigationBar: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -212,10 +246,7 @@ class _MainScreenState extends State<MainScreen> {
               offset: const Offset(0, 2),
             ),
           ],
-          border: Border.all(
-            color: Colors.grey.withOpacity(0.1),
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey.withOpacity(0.1), width: 1),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(25),
@@ -285,7 +316,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // Método helper para navegación consistente
-  void _navigateToReservationForm(BuildContext context, {
+  void _navigateToReservationForm(
+    BuildContext context, {
     required Widget formScreen,
     required String title,
     required Color color,
@@ -323,13 +355,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (resp is Map) {
         final map = Map<String, dynamic>.from(resp as Map);
         final nombreCompleto = (map['nombre'] as String?)?.trim() ?? '';
-        
+
         // 👇 TOMAR SOLO EL PRIMER NOMBRE
         if (nombreCompleto.isNotEmpty) {
           final primerNombre = nombreCompleto.split(' ').first;
           return primerNombre;
         }
-        
+
         return 'Usuario';
       }
     } catch (_) {}
@@ -348,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
         if (inicio == null || fin == null) continue;
         final estado = ('${r['estado'] ?? ''}').toLowerCase();
-        
+
         // EXCLUIR tanto canceladas como finalizadas
         if (estado == 'cancelada' || estado == 'finalizada') continue;
 
@@ -398,47 +430,63 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // 👇 FUNCIÓN CORREGIDA - DETERMINAR ICONO Y COLOR
-  (IconData, Color) _obtenerIconoYColor(Map<String, dynamic> reserva, Map<String, dynamic>? articulo) {
+  (IconData, Color) _obtenerIconoYColor(
+    Map<String, dynamic> reserva,
+    Map<String, dynamic>? articulo,
+  ) {
     final etiqueta = reserva['_etiqueta'] as String;
-    
+
     // Si es FUTURA, siempre usar el icono de reloj
     if (etiqueta == 'FUTURA') {
       return (Icons.access_time_rounded, Colors.orange);
     }
-    
+
     // Si es ACTIVA, usar el icono específico del artículo
     final nombre = (articulo?['nombre'] ?? '').toString().toLowerCase();
-    final tipo = (articulo?['tipo'] ?? articulo?['categoria'] ?? articulo?['tipo_articulo'] ?? '')
-        .toString()
-        .toLowerCase();
+    final tipo =
+        (articulo?['tipo'] ??
+                articulo?['categoria'] ??
+                articulo?['tipo_articulo'] ??
+                '')
+            .toString()
+            .toLowerCase();
 
     // Primero verificar por nombre específico
-    if (nombre.contains('ps') || 
-        nombre.contains('xbox') || 
+    if (nombre.contains('ps') ||
+        nombre.contains('xbox') ||
         nombre.contains('nintendo') ||
         nombre.contains('switch') || // ← AGREGADO SWITCH
         nombre.contains('consola') ||
         tipo.contains('consola')) {
-      return (Icons.sports_esports_rounded, AppColors.unimetOrange); // Mando para consolas
+      return (
+        Icons.sports_esports_rounded,
+        AppColors.unimetOrange,
+      ); // Mando para consolas
     }
-    
-    if (nombre.contains('cubículo') || 
-        nombre.contains('cubiculo') || 
+
+    if (nombre.contains('cubículo') ||
+        nombre.contains('cubiculo') ||
         nombre.contains('sala') ||
         nombre.contains('estudio') ||
         tipo.contains('cubículo') ||
         tipo.contains('sala')) {
-      return (Icons.meeting_room_rounded, AppColors.unimetBlue); // Cubículo para cubículos
+      return (
+        Icons.meeting_room_rounded,
+        AppColors.unimetBlue,
+      ); // Cubículo para cubículos
     }
-    
-    if (nombre.contains('balón') || 
-        nombre.contains('balon') || 
+
+    if (nombre.contains('balón') ||
+        nombre.contains('balon') ||
         nombre.contains('pelota') ||
         nombre.contains('raqueta') ||
         nombre.contains('equipo') ||
         tipo.contains('deportivo') ||
         tipo.contains('equipo')) {
-      return (Icons.sports_soccer_rounded, Colors.green); // Balón para equipos deportivos
+      return (
+        Icons.sports_soccer_rounded,
+        Colors.green,
+      ); // Balón para equipos deportivos
     }
 
     // Por defecto para ACTIVAS
@@ -449,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // 🔵 Tarjeta superior MÁS COMPACTA
+        // 🔵 Tarjeta superior MÁS COMPACTA (SOLO CON BOTÓN DE LOGOUT)
         Container(
           width: double.infinity,
           height: MediaQuery.of(context).size.height * 0.22,
@@ -480,7 +528,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-                  
                   FutureBuilder<String>(
                     future: _getNombre(),
                     builder: (context, snap) {
@@ -496,9 +543,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       );
                     },
                   ),
-                  
                   const SizedBox(height: 8),
-                  
                   Text(
                     'Bienvenido a RESERMET',
                     style: TextStyle(
@@ -508,9 +553,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       height: 1.2,
                     ),
                   ),
-                  
                   const SizedBox(height: 6),
-                  
                   const Text(
                     '¿Qué deseas reservar hoy?',
                     style: TextStyle(
@@ -527,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 right: 0,
                 child: Row(
                   children: [
-                    // Icono de perfil con borde sutil
+                    // 👇 SOLO BOTÓN DE LOGOUT (PERFIL SE MUEVE A BARRA INFERIOR)
                     Container(
                       margin: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
@@ -538,41 +581,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.account_circle_rounded,
-                            color: Colors.white, size: 24),
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const UserProfileScreen()),
-                        ).then((_) {
-                          // Recargar reservas al regresar del perfil
-                          if (mounted) {
-                            _cargarReservas();
-                          }
-                        }),
-                      ),
-                    ),
-                    // Icono de logout con borde sutil
-                    Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 0.8,
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                          size: 24,
                         ),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.logout_rounded, 
-                            color: Colors.white, size: 24),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
                               title: const Text('Cerrar sesión'),
-                              content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+                              content: const Text(
+                                '¿Estás seguro que deseas cerrar sesión?',
+                              ),
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
                                   child: const Text('Cancelar'),
                                 ),
                                 TextButton(
@@ -587,7 +612,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             if (mounted) {
                               Navigator.of(context).pushAndRemoveUntil(
                                 MaterialPageRoute(
-                                    builder: (_) => const LoginScreen()),
+                                  builder: (_) => const LoginScreen(),
+                                ),
                                 (route) => false,
                               );
                             }
@@ -616,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     _buildCircleButton(
                       icon: Icons.meeting_room_rounded,
                       label: 'Cubículos',
-                      color: AppColors.unimetBlue,
+                      color: AppColors.unimetOrange,
                       onTap: () => _navigateToReservationForm(
                         context,
                         formScreen: const ReservationFormCubiculo(),
@@ -638,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     _buildCircleButton(
                       icon: Icons.sports_soccer_rounded,
                       label: 'Equipos',
-                      color: const Color.fromARGB(255, 71, 71, 71), // gris del círculo
+                      color: AppColors.unimetOrange,
                       onTap: () => _navigateToReservationForm(
                         context,
                         formScreen: const ReservationFormEquipment(),
@@ -683,28 +709,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 else
                   Column(
                     children: _reservasMostradas.map((r) {
-                      final inicioLocal =
-                          (r['_inicio'] as DateTime).toLocal();
+                      final inicioLocal = (r['_inicio'] as DateTime).toLocal();
                       final finLocal = (r['_fin'] as DateTime).toLocal();
                       String nombre = 'Artículo';
                       Map<String, dynamic>? articulo;
 
                       if (r['articulo'] is Map) {
-                        articulo = Map<String, dynamic>.from(r['articulo'] as Map);
+                        articulo = Map<String, dynamic>.from(
+                          r['articulo'] as Map,
+                        );
                         nombre = (articulo['nombre'] ?? 'Artículo').toString();
                       }
 
                       final etiqueta = r['_etiqueta'] as String;
                       final colorEstado = r['_color'] as Color;
-                      
+
                       // 👇 USAR LA FUNCIÓN CORREGIDA PARA OBTENER ICONO Y COLOR
-                      final (icono, colorIcono) = _obtenerIconoYColor(r, articulo);
+                      final (icono, colorIcono) = _obtenerIconoYColor(
+                        r,
+                        articulo,
+                      );
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         elevation: 3,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Row(
@@ -745,7 +776,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     const SizedBox(height: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: colorEstado.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
@@ -763,8 +796,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 ),
                               ),
                               IconButton(
-                                icon: Icon(Icons.more_vert_rounded, 
-                                    color: Colors.grey.shade500),
+                                icon: Icon(
+                                  Icons.more_vert_rounded,
+                                  color: Colors.grey.shade500,
+                                ),
                                 onPressed: () {},
                               ),
                             ],
@@ -789,12 +824,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 8), // 👈 MENOS ESPACIO
                 ],
-                
+
                 const SizedBox(height: 8), // 👈 ESPACIO REDUCIDO
-                
+
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.unimetBlue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(15),
@@ -804,8 +842,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     child: InkWell(
                       onTap: () {
-                        final mainState =
-                            context.findAncestorStateOfType<_MainScreenState>();
+                        final mainState = context
+                            .findAncestorStateOfType<_MainScreenState>();
                         if (mainState != null && mounted) {
                           mainState._onItemTapped(1); // 👈 Cambiado a índice 1
                         }
@@ -822,8 +860,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Icon(Icons.arrow_forward_rounded,
-                              size: 18, color: AppColors.unimetBlue),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 18,
+                            color: AppColors.unimetBlue,
+                          ),
                         ],
                       ),
                     ),
