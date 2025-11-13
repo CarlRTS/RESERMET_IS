@@ -127,6 +127,62 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     );
   }
 
+  // ======================================================================
+  // ====== ⬇️ 1. FUNCIÓN DE SIMULACIÓN (ACTUALIZADA CON XBOX) ======
+  // ======================================================================
+
+  /// Devuelve una lista de juegos compatibles para la consola seleccionada.
+  List<String> _getJuegosCompatibles(Consola? consola) {
+    if (consola == null) {
+      return []; // Lista vacía si no hay consola
+    }
+
+    // Simulación de datos basada en el nombre de la consola
+    final nombreConsola = consola.nombre.toLowerCase();
+
+    // --- JUEGOS DE PLAYSTATION (PS5 / PS4) ---
+    // (Incluye los "juegos normales" que pediste)
+    if (nombreConsola.contains('ps5') || nombreConsola.contains('ps4') || nombreConsola.contains('playstation')) {
+      return [
+        'FC 24',
+        'FIFA 21',
+        'NBA 2K24',
+        'Mortal Kombat 1',
+        'Spider-Man 2',
+        'Call of Duty: Modern Warfare III',
+        'Otro juego'
+      ];
+    }
+
+    // --- JUEGOS DE NINTENDO SWITCH ---
+    if (nombreConsola.contains('switch') || nombreConsola.contains('nintendo')) {
+      return [
+        'Super Smash Bros.',
+        'Mario Kart',
+        'Zelda: Tears of the Kingdom',
+        'Otro juego'
+      ];
+    }
+
+    // --- JUEGOS DE XBOX ---
+    // (Incluye Halo como pediste)
+    if (nombreConsola.contains('xbox')) {
+      return [
+        'Halo Infinite',
+        'Forza Motorsport',
+        'FC 24', // (Juego Multiplataforma)
+        'Otro juego'
+      ];
+    }
+
+    // Si no coincide con nada, solo "Otro"
+    return ['Otro juego'];
+  }
+  // ======================================================================
+  // ====== ⬆️ FIN DE LA FUNCIÓN DE SIMULACIÓN ======
+  // ======================================================================
+
+
   // ====== CREAR RESERVA (misma lógica, solo UI mejorada) ======
   Future<void> _crearReserva() async {
     if (_consolaSeleccionada == null) {
@@ -135,6 +191,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
     if (_selectedTime == null || _selectedDuration == null) {
       _mostrarError('Por favor completa la hora y duración de la reserva');
+      return;
+    }
+    // El propósito ahora es obligatorio
+    if (_purposeController.text.trim().isEmpty) {
+      _mostrarError('Por favor describe el propósito de uso');
       return;
     }
 
@@ -161,13 +222,25 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       final inicioIso = inicioLocal.toUtc().toIso8601String();
       final finIso = finLocal.toUtc().toIso8601String();
 
+      // Combinamos el propósito y el juego seleccionado (si existe)
+      final String propositoFinal;
+      final textoProposito = _purposeController.text.trim();
+
+      if (_selectedGame != null && _selectedGame!.isNotEmpty && _selectedGame != 'Otro juego') {
+        // Si hay juego específico, se vuelve la parte principal
+        propositoFinal = 'Juego: $_selectedGame. Propósito: $textoProposito';
+      } else {
+        // Si no hay juego, o es "Otro juego", solo es el propósito
+        propositoFinal = textoProposito;
+      }
+
       final reservaData = {
         'id_articulo': _consolaSeleccionada!.idObjeto,
         'id_usuario': user.id,
         'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
         'inicio': inicioIso,
         'fin': finIso,
-        'compromiso_estudiante': _purposeController.text,
+        'compromiso_estudiante': propositoFinal, // <-- Usamos el propósito final
         'estado': 'activa',
       };
 
@@ -373,19 +446,19 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         ),
                         selectedItemBuilder: (context) =>
                             _consolasDisponibles.map((c) {
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              c.nombre,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: _textPrimary,
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                              return Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  c.nombre,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                         items: _consolasDisponibles.map((consola) {
                           return DropdownMenuItem<Consola>(
                             value: consola,
@@ -431,11 +504,12 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         onChanged: (newValue) {
                           setState(() {
                             _consolaSeleccionada = newValue;
+                            // ¡ESTA ES LA LÍNEA CLAVE QUE CUMPLE EL REQUISITO!
                             _selectedGame = null;
                           });
                         },
                         validator: (value) =>
-                            value == null ? 'Por favor selecciona una consola' : null,
+                        value == null ? 'Por favor selecciona una consola' : null,
                       ),
                   ],
                 ),
@@ -542,7 +616,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         prefix: Icons.access_time_rounded,
                       ),
                       validator: (value) =>
-                          (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
+                      (value == null || value.isEmpty) ? 'Por favor selecciona una hora' : null,
                     ),
                     const SizedBox(height: 14),
 
@@ -558,22 +632,24 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                       ),
                       items: _duracionesDisponibles
                           .map((duracion) => DropdownMenuItem(
-                                value: duracion,
-                                child: Text(
-                                  duracion,
-                                  style: const TextStyle(color: _textPrimary),
-                                ),
-                              ))
+                        value: duracion,
+                        child: Text(
+                          duracion,
+                          style: const TextStyle(color: _textPrimary),
+                        ),
+                      ))
                           .toList(),
                       onChanged: (newValue) => setState(() => _selectedDuration = newValue),
                       validator: (value) =>
-                          (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
+                      (value == null || value.isEmpty) ? 'Por favor selecciona una duración' : null,
                     ),
                     const SizedBox(height: 14),
 
-                    // Juego (opcional)
+                    // ======================================================================
+                    // ====== ⬇️ 2. DROPDOWN DE JUEGOS (DINÁMICO) ======
+                    // ======================================================================
                     DropdownButtonFormField<String>(
-                      value: _selectedGame,
+                      value: _selectedGame, // El valor sigue siendo _selectedGame
                       isExpanded: true,
                       itemHeight: null,
                       menuMaxHeight: 320,
@@ -583,51 +659,29 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         hint: 'Selecciona un juego',
                         prefix: Icons.games_rounded,
                       ),
-                      selectedItemBuilder: (context) => <String?>[
-                        null,
-                        'FIFA 24',
-                        'Call of Duty: Modern Warfare III',
-                        'Spider-Man 2',
-                        'Otro juego',
-                      ].map((juego) {
-                        final texto = juego ?? 'Ningún juego específico';
-                        return Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            texto,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: _textPrimary,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      items: const [
-                        DropdownMenuItem(
-                          value: null,
+
+                      // Los 'items' ahora se generan dinámicamente
+                      items: [
+                        // 1. La opción nula ("Ningún juego") siempre está
+                        const DropdownMenuItem(
+                          value: null, // El valor es null para "Ninguno"
                           child: Text('Ningún juego específico'),
                         ),
-                        DropdownMenuItem(
-                          value: 'FIFA 24',
-                          child: Text('FIFA 24'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Call of Duty: Modern Warfare III',
-                          child: Text('Call of Duty: Modern Warfare III'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Spider-Man 2',
-                          child: Text('Spider-Man 2'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Otro juego',
-                          child: Text('Otro juego'),
-                        ),
+                        // 2. El resto de la lista se genera con la función
+                        ..._getJuegosCompatibles(_consolaSeleccionada)
+                            .map((juego) => DropdownMenuItem(
+                          value: juego,
+                          child: Text(juego),
+                        ))
+                            .toList(),
                       ],
+                      // El onChanged sigue igual, solo actualiza _selectedGame
                       onChanged: (newValue) => setState(() => _selectedGame = newValue),
                     ),
+                    // ======================================================================
+                    // ====== ⬆️ FIN DE LA MODIFICACIÓN DEL DROPDOWN ======
+                    // ======================================================================
+
                     const SizedBox(height: 14),
 
                     // Propósito
@@ -639,8 +693,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         hint: 'Describe para qué usarás la consola...',
                         prefix: Icons.description_rounded,
                       ),
+                      // El propósito es obligatorio
                       validator: (value) =>
-                          (value == null || value.isEmpty) ? 'Por favor describe el propósito de uso' : null,
+                      (value == null || value.isEmpty) ? 'Por favor describe el propósito de uso' : null,
                     ),
                   ],
                 ),
@@ -658,13 +713,13 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                       : _crearReserva,
                   icon: _isSubmitting
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
                       : const Icon(Icons.check_circle_rounded, color: Colors.white),
                   label: Text(
                     _isSubmitting ? 'Procesando…' : 'Confirmar Reserva',
@@ -678,7 +733,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        _isSubmitting || _consolasDisponibles.isEmpty ? Colors.grey : _blue,
+                    _isSubmitting || _consolasDisponibles.isEmpty ? Colors.grey : _blue,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -717,9 +772,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     SizedBox(height: 8),
                     Text(
                       '• La reserva estará pendiente de confirmación\n'
-                      '• Debes presentar tu identificación y carnet al recoger la consola\n'
-                      '• El tiempo de uso comienza a partir de la hora seleccionada\n'
-                      '• Puedes solicitar juegos específicos de forma opcional',
+                          '• Debes presentar tu identificación y carnet al recoger la consola\n'
+                          '• El tiempo de uso comienza a partir de la hora seleccionada\n'
+                          '• Puedes solicitar juegos específicos de forma opcional',
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.35,
