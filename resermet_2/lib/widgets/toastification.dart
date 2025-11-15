@@ -34,7 +34,7 @@ class ReservationToastService {
     toastification.show(
       context: context,
       type: ToastificationType.error,
-      style: ToastificationStyle.flatColored,
+      style: ToastificationStyle.flat,
       title: const Text('Error en Reserva'),
       description: Text(errorMessage),
       autoCloseDuration: const Duration(seconds: 6),
@@ -51,12 +51,12 @@ class ReservationToastService {
     toastification.show(
       context: context,
       type: ToastificationType.warning,
-      style: ToastificationStyle.flatColored,
+      style: ToastificationStyle.flat,
       title: const Text('Horario No Disponible'),
       description: Text(message),
       autoCloseDuration: const Duration(seconds: 5),
       borderRadius: BorderRadius.circular(12),
-      primaryColor: Colors.orange,
+      primaryColor: Colors.amber,
       alignment: Alignment.topRight,
       animationDuration: const Duration(milliseconds: 300),
     );
