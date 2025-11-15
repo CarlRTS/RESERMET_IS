@@ -12,7 +12,8 @@ class ReservationFormEquipment extends StatefulWidget {
   const ReservationFormEquipment({super.key});
 
   @override
-  State<ReservationFormEquipment> createState() => _ReservationFormEquipmentState();
+  State<ReservationFormEquipment> createState() =>
+      _ReservationFormEquipmentState();
 }
 
 class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
@@ -57,6 +58,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   bool _isLoading = true;
   bool _isSubmitting = false;
 
+  // Hora límite para reservas (5:00 PM)
+  final TimeOfDay _horaLimite = TimeOfDay(hour: 17, minute: 0);
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +72,19 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     _timeController.dispose();
     _purposeController.dispose();
     super.dispose();
+  }
+
+  // Verificar si ya pasó la hora límite
+  bool get _yaPasoHoraLimite {
+    final now = TimeOfDay.now();
+    return now.hour > _horaLimite.hour ||
+        (now.hour == _horaLimite.hour && now.minute >= _horaLimite.minute);
+  }
+
+  // Verificar si una hora específica pasa el límite
+  bool _esHoraDespuesDeLimite(TimeOfDay hora) {
+    return hora.hour > _horaLimite.hour ||
+        (hora.hour == _horaLimite.hour && hora.minute > _horaLimite.minute);
   }
 
   // ====== UI Helpers ======
@@ -88,29 +105,50 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     String? hint,
     IconData? prefix,
     IconData? suffix,
+    bool? enabled,
   }) {
+    final isDisabled = enabled == false;
+
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: const TextStyle(
-        color: _textPrimary,
+      labelStyle: TextStyle(
+        color: isDisabled ? _textSecondary : _textPrimary,
         fontWeight: FontWeight.w700,
         letterSpacing: .2,
       ),
-      hintStyle: const TextStyle(color: _textSecondary),
-      prefixIcon: prefix != null ? Icon(prefix, color: _blue) : null,
-      suffixIcon: suffix != null ? Icon(suffix, color: _textSecondary) : null,
+      hintStyle: TextStyle(
+        color: isDisabled ? _textSecondary.withOpacity(0.7) : _textSecondary,
+      ),
+      prefixIcon: prefix != null
+          ? Icon(prefix, color: isDisabled ? _textSecondary : _blue)
+          : null,
+      suffixIcon: suffix != null
+          ? Icon(
+              suffix,
+              color: isDisabled
+                  ? _textSecondary.withOpacity(0.7)
+                  : _textSecondary,
+            )
+          : null,
       filled: true,
-      fillColor: _fieldBg,
+      fillColor: isDisabled ? Colors.grey.shade100 : _fieldBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      enabledBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: _blue, width: 1),
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(
+          color: isDisabled ? Colors.grey.shade400 : _blue,
+          width: 1,
+        ),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       focusedBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: _blue, width: 2),
         borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
     );
   }
@@ -177,7 +215,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
     if (available <= 0) {
       return (Colors.red.shade600, 'No disponible - 0 unidades restantes');
     } else if (available <= lowStockThreshold) {
-      return (Colors.orange.shade700, 'Baja disponibilidad - $available unidades');
+      return (
+        Colors.orange.shade700,
+        'Baja disponibilidad - $available unidades',
+      );
     } else {
       return (Colors.green.shade700, 'Disponible - $available unidades');
     }
@@ -220,8 +261,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   Future<void> _cargarEquiposDisponibles() async {
     try {
       final equipos = await _equipoService.getEquiposDeportivos();
-      final equiposDisponibles =
-          equipos.where((equipo) => equipo.cantidadDisponible > 0).toList();
+      final equiposDisponibles = equipos
+          .where((equipo) => equipo.cantidadDisponible > 0)
+          .toList();
 
       setState(() {
         _equiposDisponibles = equiposDisponibles;
@@ -261,6 +303,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   // ====== Selectores ======
   Future<void> _selectTime(BuildContext context) async {
+    // Verificar si ya pasaron las 5 PM
+    if (_yaPasoHoraLimite) {
+      _mostrarHorarioNoDisponible(
+        'No se pueden hacer reservas después de las 5:00 PM',
+      );
+      return;
+    }
+
     HorarioPicker.mostrarPicker(
       context: context,
       horaInicial: _selectedTime ?? TimeOfDay.now(),
@@ -268,6 +318,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       colorTitulo: _blue,
       colorHoraSeleccionada: _blue,
       onHoraSeleccionada: (picked) {
+        // Validar que la hora seleccionada no sea después de las 5 PM
+        if (_esHoraDespuesDeLimite(picked)) {
+          _mostrarHorarioNoDisponible(
+            'No se pueden hacer reservas después de las 5:00 PM',
+          );
+          return;
+        }
+
         setState(() {
           _selectedTime = picked;
           _timeController.text = HorarioPickerHelper.formatearTimeOfDay(picked);
@@ -280,6 +338,21 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   // ====== Crear reserva (con validación de stock) ======
   Future<void> _crearReserva() async {
+    // Validación de hora límite
+    if (_yaPasoHoraLimite) {
+      _mostrarHorarioNoDisponible(
+        'No se pueden hacer reservas después de las 5:00 PM',
+      );
+      return;
+    }
+
+    if (_selectedTime != null && _esHoraDespuesDeLimite(_selectedTime!)) {
+      _mostrarHorarioNoDisponible(
+        'No se pueden hacer reservas después de las 5:00 PM',
+      );
+      return;
+    }
+
     if (_equipoSeleccionado == null) {
       _mostrarError('Por favor selecciona un equipo');
       return;
@@ -365,9 +438,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   // ====== Utilidades ======
   void _mostrarError(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
-    );
+    ReservationToastService.showReservationError(context, mensaje);
+  }
+
+  void _mostrarHorarioNoDisponible(String mensaje) {
+    ReservationToastService.showScheduleWarning(context, mensaje);
   }
 
   DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
@@ -444,24 +519,25 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 ),
                                 selectedItemBuilder: (context) =>
                                     _equiposDisponibles.map((e) {
-                                  return Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      e.nombre,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: _textPrimary,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
+                                      return Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          e.nombre,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: _textPrimary,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
                                 items: _equiposDisponibles.map((equipo) {
                                   return DropdownMenuItem<EquipoDeportivo>(
                                     value: equipo,
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
@@ -497,8 +573,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   });
                                   _calculateAvailability();
                                 },
-                                validator: (value) =>
-                                    value == null ? 'Por favor selecciona un equipo' : null,
+                                validator: (value) => value == null
+                                    ? 'Por favor selecciona un equipo'
+                                    : null,
                               ),
                           ],
                         ),
@@ -525,7 +602,10 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                     color: _blueSoft,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(Icons.sports_tennis_rounded, color: _blue),
+                                  child: const Icon(
+                                    Icons.sports_tennis_rounded,
+                                    color: _blue,
+                                  ),
                                 ),
                                 title: Text(
                                   _equipoSeleccionado!.nombre,
@@ -538,12 +618,19 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Tipo: ${_equipoSeleccionado!.tipoEquipo}',
-                                        style: const TextStyle(color: _textSecondary)),
+                                    Text(
+                                      'Tipo: ${_equipoSeleccionado!.tipoEquipo}',
+                                      style: const TextStyle(
+                                        color: _textSecondary,
+                                      ),
+                                    ),
                                     Text(
                                       'Disponibles ahora: ${_equipoSeleccionado!.cantidadDisponible}',
                                       style: TextStyle(
-                                        color: _equipoSeleccionado!.cantidadDisponible > 0
+                                        color:
+                                            _equipoSeleccionado!
+                                                    .cantidadDisponible >
+                                                0
                                             ? Colors.green.shade700
                                             : Colors.red.shade700,
                                         fontWeight: FontWeight.w600,
@@ -593,16 +680,32 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             TextFormField(
                               controller: _timeController,
                               readOnly: true,
-                              onTap: () => _selectTime(context),
+                              onTap: () {
+                                if (_yaPasoHoraLimite) {
+                                  _mostrarHorarioNoDisponible(
+                                    'No se pueden hacer reservas después de las 5:00 PM',
+                                  );
+                                } else {
+                                  _selectTime(context);
+                                }
+                              },
                               decoration: _inputDec(
                                 label: 'Hora de inicio',
-                                hint: 'Selecciona la hora',
+                                hint: _yaPasoHoraLimite
+                                    ? 'Horario no disponible después de 5:00 PM'
+                                    : 'Selecciona la hora',
                                 prefix: Icons.access_time_rounded,
                                 suffix: Icons.keyboard_arrow_down_rounded,
+                                enabled: !_yaPasoHoraLimite,
                               ),
-                              validator: (value) => (value == null || value.isEmpty)
-                                  ? 'Por favor selecciona una hora'
-                                  : null,
+                              validator: (value) {
+                                if (_yaPasoHoraLimite) {
+                                  return 'No se permiten reservas después de las 5:00 PM';
+                                }
+                                return (value == null || value.isEmpty)
+                                    ? 'Por favor selecciona una hora'
+                                    : null;
+                              },
                             ),
                             const SizedBox(height: 14),
 
@@ -616,19 +719,24 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 prefix: Icons.timelapse_rounded,
                               ),
                               items: _duracionesDisponibles
-                                  .map((duracion) => DropdownMenuItem(
-                                        value: duracion,
-                                        child: Text(
-                                          duracion,
-                                          style: const TextStyle(color: _textPrimary),
+                                  .map(
+                                    (duracion) => DropdownMenuItem(
+                                      value: duracion,
+                                      child: Text(
+                                        duracion,
+                                        style: const TextStyle(
+                                          color: _textPrimary,
                                         ),
-                                      ))
+                                      ),
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (newValue) {
                                 setState(() => _selectedDuration = newValue);
                                 _calculateAvailability();
                               },
-                              validator: (value) => (value == null || value.isEmpty)
+                              validator: (value) =>
+                                  (value == null || value.isEmpty)
                                   ? 'Por favor selecciona una duración'
                                   : null,
                             ),
@@ -636,32 +744,39 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             const SizedBox(height: 16),
 
                             // Indicador de stock
-                            Builder(builder: (context) {
-                              final (color, message) = status;
-                              return Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: color.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: color.withOpacity(.45)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.inventory_2_rounded, color: color),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        message,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: color,
+                            Builder(
+                              builder: (context) {
+                                final (color, message) = status;
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: color.withOpacity(.45),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.inventory_2_rounded,
+                                        color: color,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          message,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: color,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
 
                             const SizedBox(height: 16),
 
@@ -674,7 +789,8 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 hint: 'Describe para qué usarás el equipo...',
                                 prefix: Icons.description_rounded,
                               ),
-                              validator: (value) => (value == null || value.isEmpty)
+                              validator: (value) =>
+                                  (value == null || value.isEmpty)
                                   ? 'Por favor describe la actividad'
                                   : null,
                             ),
@@ -695,15 +811,22 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.info_outline_rounded, color: _blue),
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              color: _blue,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 '• La reserva estará pendiente de confirmación\n'
                                 '• Debes presentar tu identificación y carnet al recoger el equipo\n'
                                 '• Eres responsable del equipo durante el préstamo\n'
-                                '• Reporta cualquier daño o anomalía al personal',
-                                style: const TextStyle(fontSize: 13, color: _textSecondary),
+                                '• Reporta cualquier daño o anomalía al personal\n'
+                                '• No se permiten reservas después de las 5:00 PM',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: _textSecondary,
+                                ),
                               ),
                             ),
                           ],
@@ -717,9 +840,11 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton.icon(
-                          onPressed: _isSubmitting ||
+                          onPressed:
+                              _isSubmitting ||
                                   _equiposDisponibles.isEmpty ||
-                                  _stockStatus.$1 == Colors.red.shade600
+                                  _stockStatus.$1 == Colors.red.shade600 ||
+                                  _yaPasoHoraLimite
                               ? null
                               : _crearReserva,
                           icon: _isSubmitting
@@ -731,9 +856,16 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.check_circle_rounded, color: Colors.white),
+                              : const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Colors.white,
+                                ),
                           label: Text(
-                            _isSubmitting ? 'Procesando...' : 'Confirmar Reserva',
+                            _yaPasoHoraLimite
+                                ? 'Reservas cerradas después de 5:00 PM'
+                                : _isSubmitting
+                                ? 'Procesando...'
+                                : 'Confirmar Reserva',
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -743,7 +875,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _isSubmitting ? Colors.grey : _blue,
+                            backgroundColor: _isSubmitting || _yaPasoHoraLimite
+                                ? Colors.grey
+                                : _blue,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),

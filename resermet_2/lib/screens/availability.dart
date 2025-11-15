@@ -206,7 +206,6 @@ import 'dart:async'; // Necesario para StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:resermet_2/screens/reservations/reservation_form_cubiculo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Necesario para SupabaseClient
-import 'package:resermet_2/screens/reservations/reservation_screen.dart';
 import '../utils/app_colors.dart';
 import '../models/cubiculo.dart';
 import '../services/cubiculo_service.dart';
@@ -237,10 +236,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     _fetchCubicles();
 
     // 💡 CONFIGURACIÓN REALTIME
-    _sub = _client
-        .from('cubiculo')
-        .stream(primaryKey: ['id_articulo'])
-        .listen((_) {
+    _sub = _client.from('cubiculo').stream(primaryKey: ['id_articulo']).listen((
+      _,
+    ) {
       _fetchCubicles();
     });
   }
@@ -259,7 +257,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     try {
       final cubicles = await _cubiculoService.getCubiculos();
       setState(() {
-        _cubicles = cubicles.where((c) => c.estado != 'en_mantenimiento').toList();
+        _cubicles = cubicles
+            .where((c) => c.estado != 'en_mantenimiento')
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -353,7 +353,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
             )
           else if (_cubicles.isEmpty)
-            const Center(child: Text('No hay cubículos disponibles o registrados.'))
+            const Center(
+              child: Text('No hay cubículos disponibles o registrados.'),
+            )
           else
             Expanded(
               child: ListView.builder(
