@@ -724,6 +724,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       final etiqueta = r['_etiqueta'] as String;
                       final colorEstado = r['_color'] as Color;
 
+                      // 👇 saber si es invitado en esta reserva
+                      final bool esInvitado = (r['es_invitado'] == true);
+
                       // 👇 USAR LA FUNCIÓN CORREGIDA PARA OBTENER ICONO Y COLOR
                       final (icono, colorIcono) = _obtenerIconoYColor(
                         r,
@@ -774,23 +777,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: colorEstado.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        etiqueta,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: colorEstado,
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                colorEstado.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            etiqueta,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: colorEstado,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        if (esInvitado) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.purple
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.purple
+                                                    .withOpacity(0.4),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'INVITADO',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.purple,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ],
                                 ),

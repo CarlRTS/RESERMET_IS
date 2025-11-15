@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:resermet_2/services/reserva_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_colors.dart';
 
 /// Pantalla: Mis Reservas (estudiante)
@@ -166,6 +167,58 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
+  Future<void> _verIntegrantes(int idReserva) async {
+    try {
+      final reserva = await Supabase.instance.client
+          .from('reserva')
+          .select('id_usuario, companions_user_ids')
+          .eq('id_reserva', idReserva)
+          .single();
+
+      final titularId = (reserva['id_usuario'] as String?) ?? '';
+      final companions =
+          (reserva['companions_user_ids'] as List?)?.cast<String>() ??
+              const <String>[];
+
+      final ids = <String>[
+        if (titularId.isNotEmpty) titularId,
+        ...companions,
+      ];
+
+      if (ids.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Esta reserva no tiene integrantes')),
+        );
+        return;
+      }
+
+      final perfiles = await Supabase.instance.client
+          .from('usuario')
+          .select('id_usuario, nombre, apellido, correo, rol, foto_url')
+          .inFilter('id_usuario', ids);
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _IntegrantesSheet(
+          integrantes: (perfiles as List).cast<Map<String, dynamic>>(),
+          titularId: titularId,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cargando integrantes: $e')),
+      );
+    }
+  }
+
   // ---------- Filtros ----------
   List<Map<String, dynamic>> _filtrarActivas() {
     final now = DateTime.now().toUtc();
@@ -174,7 +227,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
       if (inicio == null || fin == null) return false;
       return _esActiva(now, inicio, fin) && (r['estado'] == 'activa');
-    }).toList()..sort((a, b) => '${a['fin']}'.compareTo('${b['fin']}'));
+    }).toList()
+      ..sort((a, b) => '${a['fin']}'.compareTo('${b['fin']}'));
   }
 
   List<Map<String, dynamic>> _filtrarFuturas() {
@@ -183,14 +237,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
       if (inicio == null) return false;
       return _esFutura(now, inicio) && (r['estado'] != 'cancelada');
-    }).toList()..sort((a, b) => '${a['inicio']}'.compareTo('${b['inicio']}'));
+    }).toList()
+      ..sort((a, b) => '${a['inicio']}'.compareTo('${b['inicio']}'));
   }
 
   List<Map<String, dynamic>> _filtrarHistorial() {
     return _reservas.where((r) {
       final estado = (r['estado'] ?? '').toString();
       return estado == 'finalizada' || estado == 'cancelada';
-    }).toList()..sort((a, b) => '${b['inicio']}'.compareTo('${a['inicio']}'));
+    }).toList()
+      ..sort((a, b) => '${b['inicio']}'.compareTo('${a['inicio']}'));
   }
 
   // ---------- UI ----------
@@ -410,9 +466,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 final idReserva = r['id_reserva'] as int;
                 final nombreArticulo =
                     (r['articulo'] is Map && r['articulo']['nombre'] != null)
-                    ? r['articulo']['nombre'].toString()
-                    : 'Artículo';
+                        ? r['articulo']['nombre'].toString()
+                        : 'Artículo';
                 final estado = (r['estado'] ?? '').toString();
+
+                // 👉 saber si el usuario es invitado en esta reserva
+                final bool esInvitado = (r['es_invitado'] == true);
 
                 final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
                 final fin = DateTime.tryParse('${r['fin']}')?.toUtc();
@@ -521,6 +580,32 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
                           const SizedBox(height: 12),
 
+                          // Chip de INVITADO (si aplica)
+                          if (esInvitado) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: Colors.purple.withOpacity(0.4),
+                                ),
+                              ),
+                              child: const Text(
+                                'INVITADO',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.purple,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+
                           // Información de tiempo - DISEÑO VERTICAL PARA TODOS (EVITA OVERFLOW)
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,13 +629,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
                           const SizedBox(height: 12),
 
-                          // Acciones
-                          if (tipo != _TipoLista.historial)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Wrap(
-                                spacing: 8,
-                                children: [
+                          // Acciones:
+                          // - Siempre: Ver integrantes
+                          // - Solo titular y no historial: Cancelar / Finalizar
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Wrap(
+                              spacing: 8,
+                              children: [
+                                _buildActionButtonCompact(
+                                  icon: Icons.group_outlined,
+                                  label: 'Ver integrantes',
+                                  color: AppColors.unimetBlue,
+                                  onPressed: () => _verIntegrantes(idReserva),
+                                ),
+                                if (tipo != _TipoLista.historial && !esInvitado) ...[
                                   if (tipo == _TipoLista.futuras)
                                     _buildActionButtonCompact(
                                       icon: Icons.cancel_rounded,
@@ -567,8 +660,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                           _finalizarAhora(idReserva),
                                     ),
                                 ],
-                              ),
+                              ],
                             ),
+                          ),
                         ],
                       ),
                     ),
@@ -794,3 +888,108 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 }
 
 enum _TipoLista { activas, futuras, historial }
+
+class _IntegrantesSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> integrantes;
+  final String titularId;
+
+  const _IntegrantesSheet({
+    required this.integrantes,
+    required this.titularId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    final ordenados = [...integrantes]
+      ..sort((a, b) {
+        final aTit = a['id_usuario'] == titularId ? 0 : 1;
+        final bTit = b['id_usuario'] == titularId ? 0 : 1;
+        return aTit.compareTo(bTit);
+      });
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: cs.outlineVariant,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const Text(
+              'Integrantes de la reserva',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: ordenados.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final u = ordenados[i];
+                  final isTitular = u['id_usuario'] == titularId;
+                  final nombre = (u['nombre'] ?? '').toString().trim();
+                  final apellido = (u['apellido'] ?? '').toString().trim();
+                  final nombreCompleto = ('$nombre $apellido').trim();
+                  final correo = (u['correo'] ?? '').toString();
+                  final rolSistema = (u['rol'] ?? '').toString();
+                  final foto = (u['foto_url'] ?? '').toString();
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage:
+                          foto.isNotEmpty ? NetworkImage(foto) : null,
+                      child: foto.isEmpty
+                          ? Text(
+                              (nombreCompleto.isNotEmpty
+                                      ? nombreCompleto[0]
+                                      : (correo.isNotEmpty ? correo[0] : 'U'))
+                                  .toUpperCase(),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            )
+                          : null,
+                    ),
+                    title: Text(
+                      nombreCompleto.isNotEmpty ? nombreCompleto : correo,
+                    ),
+                    subtitle: Text(
+                      '${isTitular ? "Titular" : "Acompañante"} • $rolSistema',
+                    ),
+                    trailing: isTitular
+                        ? Chip(
+                            label: const Text('Titular'),
+                            backgroundColor: cs.primaryContainer,
+                            side: BorderSide(color: cs.primary),
+                            labelStyle: TextStyle(
+                              color: cs.onPrimaryContainer,
+                            ),
+                          )
+                        : null,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+              label: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+  
