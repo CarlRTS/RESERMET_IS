@@ -26,7 +26,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String? _selectedRol = 'estudiante';
   String? _selectedCarrera;
   String _selectedOperadora = '0412';
 
@@ -88,7 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final nombre = _nombreController.text.trim();
     final apellido = _apellidoController.text.trim();
     final telefono = '$_selectedOperadora${_telefonoController.text.trim()}';
-    final rol = _selectedRol!;
+    const rol = 'estudiante'; // 🔹 Siempre estudiante
     final carrera = _selectedCarrera!;
 
     try {
@@ -109,16 +108,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'rol': rol,
         });
 
-        if (rol == 'estudiante') {
-          await Supabase.instance.client.from('estudiante').insert({
-            'id_usuario': user.id,
-            'carrera': carrera,
-          });
-        } else if (rol == 'administrador') {
-          await Supabase.instance.client.from('administrador').insert({
-            'id_usuario': user.id,
-          });
-        }
+        // 🔹 Siempre insertamos en estudiante (ya no se crean admins aquí)
+        await Supabase.instance.client.from('estudiante').insert({
+          'id_usuario': user.id,
+          'carrera': carrera,
+        });
       }
 
       LoginToastService.showRegistrationSuccess(context);
@@ -132,6 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           message: 'Este correo ya está registrado',
         );
       } else {
+        // 🔹 Mantenemos tu comportamiento actual
         LoginToastService.showRegistrationSuccess(context);
         await Future.delayed(const Duration(milliseconds: 600));
         if (mounted) Navigator.of(context).pop();
@@ -318,58 +313,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 12),
 
+                          // 🔹 Carrera siempre visible (todos son estudiantes)
                           DropdownButtonFormField<String>(
-                            value: _selectedRol,
+                            value: _selectedCarrera,
                             decoration: const InputDecoration(
-                              labelText: 'Tipo de Usuario',
-                              prefixIcon: Icon(Icons.people),
+                              labelText: 'Carrera',
+                              prefixIcon: Icon(Icons.school),
                               isDense: true,
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'estudiante',
-                                child: Text('Estudiante'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'administrador',
-                                child: Text('Administrador'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() => _selectedRol = value);
-                            },
-                            validator: (value) {
-                              if (value == null) {
-                                return 'Seleccione un tipo de usuario';
-                              }
-                              return null;
-                            },
+                            dropdownColor: Colors.white,
+                            isExpanded: true,
+                            items: _carreras
+                                .map(
+                                  (c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(c),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _selectedCarrera = v),
                           ),
                           const SizedBox(height: 12),
-
-                          if (_selectedRol == 'estudiante') ...[
-                            DropdownButtonFormField<String>(
-                              value: _selectedCarrera,
-                              decoration: const InputDecoration(
-                                labelText: 'Carrera',
-                                prefixIcon: Icon(Icons.school),
-                                isDense: true,
-                              ),
-                              dropdownColor: Colors.white,
-                              isExpanded: true,
-                              items: _carreras
-                                  .map(
-                                    (c) => DropdownMenuItem(
-                                      value: c,
-                                      child: Text(c),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedCarrera = v),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
 
                           _buildPasswordField(
                             controller: _passwordController,
@@ -386,8 +351,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             controller: _confirmPasswordController,
                             label: 'Confirmar contraseña',
                             obscureText: _obscureConfirmPassword,
-                            onToggle: () => setState(() => _obscureConfirmPassword =
-                                !_obscureConfirmPassword),
+                            onToggle: () => setState(
+                                () => _obscureConfirmPassword =
+                                    !_obscureConfirmPassword),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
                                 return 'Confirme su contraseña';
