@@ -154,6 +154,44 @@ class ReservationToastService {
     );
   }
 
+  // 👤 TOASTS PARA PERFIL DE USUARIO
+  static void showProfileUpdateSuccess(BuildContext context) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      style: ToastificationStyle.fillColored,
+      title: const Text('Perfil Actualizado'),
+      description: const Text('Tus datos se han guardado correctamente'),
+      autoCloseDuration: const Duration(seconds: 4),
+      showProgressBar: true,
+      borderRadius: BorderRadius.circular(12),
+      primaryColor: AppColors.toastificationGreen,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      alignment: Alignment.topRight,
+      animationDuration: const Duration(milliseconds: 300),
+      icon: const Icon(Icons.person, color: Colors.white, size: 24),
+    );
+  }
+
+  static void showProfileUpdateError(
+    BuildContext context,
+    String errorMessage,
+  ) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      style: ToastificationStyle.flat,
+      title: const Text('Error al Actualizar'),
+      description: Text(errorMessage),
+      autoCloseDuration: const Duration(seconds: 5),
+      showProgressBar: true,
+      borderRadius: BorderRadius.circular(12),
+      primaryColor: Colors.red,
+      alignment: Alignment.topRight,
+      animationDuration: const Duration(milliseconds: 300),
+    );
+  }
+
   static void dismissAll() {
     toastification.dismissAll(); // ← Sin parámetros
   }
