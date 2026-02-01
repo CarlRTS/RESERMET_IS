@@ -30,12 +30,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedOperadora = '0412';
 
   final List<String> _operadoras = [
-    '0412', // Digitel
-    '0422', // Digitel
-    '0416', // Movilnet
-    '0426', // Movilnet
-    '0424', // Movistar
-    '0414', // Movistar
+    '0412',
+    '0422',
+    '0416',
+    '0426',
+    '0424',
+    '0414',
   ];
 
   final List<String> _carreras = const [
@@ -87,32 +87,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final nombre = _nombreController.text.trim();
     final apellido = _apellidoController.text.trim();
     final telefono = '$_selectedOperadora${_telefonoController.text.trim()}';
-    const rol = 'estudiante'; // 🔹 Siempre estudiante
+    // final rol = 'estudiante'; // Ya lo maneja el SQL por defecto
     final carrera = _selectedCarrera!;
 
     try {
+      // 1. Crear el usuario en Auth
+      // Nota: Agregamos 'data' como respaldo por si la confirmación de correo está activa
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
+        data: {
+          'nombre': nombre,
+          'apellido': apellido,
+          'telefono': telefono,
+          'carrera': carrera,
+        },
       );
 
       final user = authResponse.user;
 
       if (user != null) {
-        await Supabase.instance.client.from('usuario').insert({
-          'id_usuario': user.id,
-          'correo': user.email,
-          'nombre': nombre,
-          'apellido': apellido,
-          'telefono': telefono,
-          'rol': rol,
-        });
+        // 🟢 SOLUCIÓN FINAL: Llamar a la función RPC (SQL)
+        // Esto ejecuta el guardado desde el servidor con permisos de Admin,
+        // ignorando las reglas RLS que te daban error 42501.
 
-        // 🔹 Siempre insertamos en estudiante (ya no se crean admins aquí)
-        await Supabase.instance.client.from('estudiante').insert({
-          'id_usuario': user.id,
-          'carrera': carrera,
-        });
+        // Solo intentamos guardar si tenemos sesión (por si el email requiere confirmación)
+        if (authResponse.session != null) {
+          await Supabase.instance.client.rpc(
+            'registrar_usuario_completo',
+            params: {
+              'p_nombre': nombre,
+              'p_apellido': apellido,
+              'p_telefono': telefono,
+              'p_carrera': carrera,
+            },
+          );
+        } else {
+          // Si no hay sesión (porque se requiere confirmar correo),
+          // los datos se guardaron en los metadatos del usuario (paso 1)
+          // y se podrán recuperar luego o el trigger los moverá.
+          debugPrint('Esperando confirmación de correo. Datos en metadata.');
+        }
       }
 
       LoginToastService.showRegistrationSuccess(context);
@@ -126,12 +141,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           message: 'Este correo ya está registrado',
         );
       } else {
-        // 🔹 Mantenemos tu comportamiento actual
-        LoginToastService.showRegistrationSuccess(context);
-        await Future.delayed(const Duration(milliseconds: 600));
-        if (mounted) Navigator.of(context).pop();
+        // Si falló el RPC pero el usuario se creó en Auth,
+        // consideramos éxito parcial y dejamos que inicie sesión.
+        debugPrint('Error en guardado de datos (posiblemente Auth): $e');
+        LoginToastService.showRegistrationError(
+          context,
+          message: 'Error al registrar: ${e.message}',
+        );
       }
     } catch (e) {
+      // Error genérico (ej. conexión)
       LoginToastService.showRegistrationError(
         context,
         message: 'Error inesperado: $e',
@@ -178,9 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Crea tu cuenta Resermet',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   color: cs.primary,
                                   fontWeight: FontWeight.w700,
@@ -190,9 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Usa tu correo institucional UNIMET',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: cs.onSurface.withOpacity(.75),
                                 ),
@@ -256,8 +271,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           Row(
                             children: [
                               Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border.all(
                                     color: cs.outlineVariant,
@@ -341,7 +357,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             label: 'Contraseña (min. 6 caracteres)',
                             obscureText: _obscurePassword,
                             onToggle: () => setState(
-                                () => _obscurePassword = !_obscurePassword),
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                             validator: (v) => (v == null || v.length < 6)
                                 ? 'Mínimo 6 caracteres'
                                 : null,
@@ -352,8 +369,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             label: 'Confirmar contraseña',
                             obscureText: _obscureConfirmPassword,
                             onToggle: () => setState(
-                                () => _obscureConfirmPassword =
-                                    !_obscureConfirmPassword),
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
                                 return 'Confirme su contraseña';

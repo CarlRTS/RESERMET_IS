@@ -178,10 +178,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (ok != true) return;
 
     try {
+      // 1. Borramos la foto en el servidor (Storage y Base de Datos)
       await _service.deleteAvatar();
-      if (mounted) {
-        setState(() => _profile = _profile?.copyWith(fotoUrl: null));
-      }
+
+      // 2. CORRECCIÓN: Recargamos los datos del servidor.
+      // Al traer el perfil "fresco", el campo fotoUrl vendrá null y la UI se actualizará sola.
+      await _load();
+
       _showSuccessToast('Foto eliminada');
     } catch (e) {
       _showErrorToast('Error eliminando foto: $e');

@@ -785,10 +785,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color:
-                                                colorEstado.withOpacity(0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
+                                            color: colorEstado.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                           child: Text(
                                             etiqueta,
@@ -807,8 +807,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               vertical: 4,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Colors.purple
-                                                  .withOpacity(0.08),
+                                              color: Colors.purple.withOpacity(
+                                                0.08,
+                                              ),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                               border: Border.all(
@@ -830,13 +831,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                                   ],
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.more_vert_rounded,
-                                  color: Colors.grey.shade500,
-                                ),
-                                onPressed: () {},
                               ),
                             ],
                           ),

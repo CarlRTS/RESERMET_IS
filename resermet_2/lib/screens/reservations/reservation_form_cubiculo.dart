@@ -147,11 +147,27 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
   Future<void> _verificarReservaActiva({bool setLoading = true}) async {
     try {
       final reservas = await _reservaService.getMisReservasRaw();
-      final activa = reservas.any(
-        (r) =>
-            r['estado'] == 'activa' &&
-            _allCubiculoIds.contains(r['id_articulo']),
-      );
+      final now = DateTime.now()
+          .toUtc(); // 👈 IMPORTANTE: Usar UTC para comparar con Supabase
+
+      final activa = reservas.any((r) {
+        // 1. Verificar si es del tipo 'activa' según la BD
+        final esStatusActivo = r['estado'] == 'activa';
+
+        // 2. Verificar si es un cubículo
+        final esCubiculo = _allCubiculoIds.contains(r['id_articulo']);
+
+        // 3. 🛑 NUEVA VALIDACIÓN: Verificar si el tiempo YA expiró
+        // Si la hora actual es después de la hora 'fin', NO la contamos como activa
+        final finStr = r['fin'].toString();
+        final finTime = DateTime.tryParse(finStr)?.toUtc();
+
+        final tiempoVigente = finTime != null && now.isBefore(finTime);
+
+        // Solo devolvemos true si cumple las 3 condiciones
+        return esStatusActivo && esCubiculo && tiempoVigente;
+      });
+
       if (mounted) setState(() => _tieneReservaActiva = activa);
     } catch (e) {
       if (mounted) _showErrorToast('Error al verificar reservas: $e');
@@ -223,21 +239,19 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
   }
 
   Future<void> _submitReservation() async {
-    // Validación de hora límite
+    // 1. Validaciones básicas (existentes)
     if (_yaPasoHoraLimite) {
       _mostrarHorarioNoDisponible(
         'No se pueden hacer reservas después de las 5:00 PM',
       );
       return;
     }
-
     if (_selectedTime != null && _esHoraDespuesDeLimite(_selectedTime!)) {
       _mostrarHorarioNoDisponible(
         'No se pueden hacer reservas después de las 5:00 PM',
       );
       return;
     }
-
     if (!_formKey.currentState!.validate() ||
         _cubiculoSeleccionado == null ||
         _selectedTime == null ||
@@ -250,10 +264,14 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       return;
     }
 
-    ReservationToastService.showLoading(context, 'Procesando tu reserva...');
+    ReservationToastService.showLoading(
+      context,
+      'Verificando disponibilidad...',
+    );
     setState(() => _isSubmitting = true);
 
     try {
+      // Calcular fechas
       final inicio = DateTime(
         _fechaActual.year,
         _fechaActual.month,
@@ -263,6 +281,29 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       );
       final fin = _calcularFechaFin(inicio, _selectedDuration!);
 
+      // ============================================================
+      // 🛑 NUEVA VALIDACIÓN: Verificar choque de horarios en la BD
+      // ============================================================
+      final colision = await Supabase.instance.client
+          .from('reserva')
+          .select('id_reserva')
+          .eq('id_articulo', _cubiculoSeleccionado!.idObjeto) // Mismo cubículo
+          .eq('estado', 'activa') // Solo reservas activas
+          // Lógica de superposición: (InicioA < FinB) Y (FinA > InicioB)
+          .lt('inicio', fin.toUtc().toIso8601String())
+          .gt('fin', inicio.toUtc().toIso8601String())
+          .maybeSingle(); // Si devuelve algo, es que hay choque
+
+      if (colision != null) {
+        ReservationToastService.dismissAll();
+        _showErrorToast(
+          'Este cubículo ya está reservado en ese horario. Por favor elige otro.',
+        );
+        return; // ⛔ DETENEMOS EL PROCESO AQUÍ
+      }
+      // ============================================================
+
+      // Si pasamos la validación, preparamos los datos
       final data = {
         'id_articulo': _cubiculoSeleccionado!.idObjeto,
         'id_usuario': user.id,
@@ -275,6 +316,7 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
           'companions_user_ids': _acompanantes.map((a) => a.idUsuario).toList(),
       };
 
+      // Guardamos
       await Supabase.instance.client.from('reserva').insert(data);
 
       ReservationToastService.dismissAll();
@@ -287,11 +329,16 @@ class _ReservationFormCubiculoState extends State<ReservationFormCubiculo> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       ReservationToastService.dismissAll();
-      ReservationToastService.showReservationError(
-        context,
-        'Error al procesar la reserva',
-      );
-      _showErrorToast('Error: $e');
+      // Si el error viene de la base de datos (por ejemplo, restricción SQL)
+      if (e.toString().contains('violates')) {
+        _showErrorToast('El cubículo ya fue ocupado hace un instante.');
+      } else {
+        ReservationToastService.showReservationError(
+          context,
+          'Error al procesar reserva',
+        );
+        debugPrint('Error: $e');
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
