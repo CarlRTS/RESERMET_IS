@@ -5,7 +5,7 @@ import 'package:resermet_2/services/reserva_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/models/user_profile.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
-import 'package:resermet_2/widgets/toastification.dart'; // Importamos el servicio de Toasts
+import 'package:resermet_2/widgets/toastification.dart';
 import 'package:resermet_2/widgets/user_multi_picker_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
