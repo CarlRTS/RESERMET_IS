@@ -54,6 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Comunicación Social',
     'Estudios Liberales',
     'Estudios Internacionales',
+    'Otros',
   ];
 
   @override
@@ -107,10 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final user = authResponse.user;
 
       if (user != null) {
-        // 🟢 SOLUCIÓN FINAL: Llamar a la función RPC (SQL)
-        // Esto ejecuta el guardado desde el servidor con permisos de Admin,
-        // ignorando las reglas RLS que te daban error 42501.
-
+        // REVISAR ESE DOBLE IF PARA SABER SI ES LA MEJOR FORMA DE IMPLEMENTARLO
         // Solo intentamos guardar si tenemos sesión (por si el email requiere confirmación)
         if (authResponse.session != null) {
           await Supabase.instance.client.rpc(
