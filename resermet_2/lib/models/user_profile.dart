@@ -81,11 +81,12 @@ class UserProfile {
     String? fotoUrl,
     int? cedula,
     int? carnet,
+    String? rol,
   }) {
     return UserProfile(
       idUsuario: idUsuario,
       correo: correo,
-      rol: rol,
+      rol: rol ?? this.rol,
       nombre: nombre ?? this.nombre,
       apellido: apellido ?? this.apellido,
       telefono: telefono ?? this.telefono,
