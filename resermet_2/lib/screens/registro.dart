@@ -56,6 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Comunicación Social',
     'Estudios Liberales',
     'Estudios Internacionales',
+    'Otro',
   ];
 
   @override
