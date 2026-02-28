@@ -1,5 +1,6 @@
 // lib/screens/admin/user_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:resermet_2/models/user_profile.dart';
 import 'package:resermet_2/services/usuario_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,14 +21,25 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   String? _error;
   UserProfile? _user;
 
-  // 🔹 Gestión de rol
+  // 🔹 Gestión de rol y datos de admin
   String _selectedRole = 'estudiante';
-  bool _savingRole = false;
+  bool _savingChanges = false;
+
+  // 🔹 Controladores para edición de administrador
+  final _cedulaCtrl = TextEditingController();
+  final _carnetCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetch();
+  }
+
+  @override
+  void dispose() {
+    _cedulaCtrl.dispose();
+    _carnetCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _fetch() async {
@@ -51,7 +63,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
       setState(() {
         _user = data;
-        _selectedRole = data.rol; // rol no-nullable en tu modelo
+        _selectedRole = data.rol;
+        // 🔹 Inicializamos los controladores con los datos actuales
+        _cedulaCtrl.text = data.cedula.toString();
+        _carnetCtrl.text = data.carnet.toString();
         _loading = false;
       });
     } catch (e) {
@@ -77,45 +92,69 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     }
   }
 
-  // 🔹 Actualizar rol en Supabase (tabla usuario) y refrescar
-  Future<void> _updateUserRole(String newRole) async {
+  // 🔹 Actualizar todos los datos sensibles (Rol, Cédula, Carnet)
+  Future<void> _updateAdminData() async {
     final user = _user;
     if (user == null) return;
 
+    // Validaciones básicas antes de enviar
+    final int? nuevaCedula = int.tryParse(_cedulaCtrl.text.trim());
+    final int? nuevoCarnet = int.tryParse(_carnetCtrl.text.trim());
+
+    if (nuevaCedula == null || nuevaCedula <= 0) {
+      _showError('Cédula inválida');
+      return;
+    }
+    if (nuevoCarnet == null || _carnetCtrl.text.trim().length != 11) {
+      _showError('El carnet debe tener exactamente 11 dígitos');
+      return;
+    }
+
     setState(() {
-      _savingRole = true;
+      _savingChanges = true;
     });
 
     try {
+      // Usamos el toUpdateMap que configuramos para que incluya cedula y carnet
+      final updatedUser = user.copyWith(
+        rol: _selectedRole,
+        cedula: nuevaCedula,
+        carnet: nuevoCarnet,
+      );
+
+      final updateData = updatedUser.toUpdateMap();
+
       await Supabase.instance.client
           .from('usuario')
-          .update({'rol': newRole}).eq('id_usuario', user.idUsuario);
+          .update(updateData)
+          .eq('id_usuario', user.idUsuario);
 
       await _fetch();
 
       if (!mounted) return;
       setState(() {
-        _savingRole = false;
+        _savingChanges = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Rol actualizado correctamente'),
+          content: Text('Datos del usuario actualizados correctamente'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _savingRole = false;
+        _savingChanges = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al actualizar rol: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Error al actualizar datos: $e');
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   @override
@@ -133,17 +172,25 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       if (user == null) {
         body = const Center(child: Text('Usuario no encontrado'));
       } else {
-        final telefono = user.telefono; // puede ser null
+        final telefono = user.telefono;
 
-        body = Padding(
+        // 🔹 Verificamos si hubo algún cambio en los datos para habilitar el botón
+        final bool roleChanged = _selectedRole != user.rol;
+        final bool cedulaChanged =
+            _cedulaCtrl.text.trim() != user.cedula.toString();
+        final bool carnetChanged =
+            _carnetCtrl.text.trim() != user.carnet.toString();
+        final bool hasChanges = roleChanged || cedulaChanged || carnetChanged;
+
+        body = SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
               // Header con avatar
               CircleAvatar(
                 radius: 42,
-                backgroundImage: (user.fotoUrl != null &&
-                        user.fotoUrl!.isNotEmpty)
+                backgroundImage:
+                    (user.fotoUrl != null && user.fotoUrl!.isNotEmpty)
                     ? NetworkImage(user.fotoUrl!)
                     : null,
                 child: (user.fotoUrl == null || user.fotoUrl!.isEmpty)
@@ -166,19 +213,17 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
               const SizedBox(height: 6),
               Chip(
-                label: Text(
-                  user.rol.toUpperCase(),
-                ),
+                label: Text(user.rol.toUpperCase()),
                 backgroundColor: cs.primaryContainer,
                 labelStyle: TextStyle(color: cs.onPrimaryContainer),
               ),
               const SizedBox(height: 16),
 
-              // Info de contacto
+              // Info de contacto (Solo lectura)
               _infoTile(
                 icon: Icons.alternate_email,
                 label: 'Correo',
-                value: user.correo, // correo es no-nullable
+                value: user.correo,
                 action: user.correo.isNotEmpty
                     ? () => _launchEmail(user.correo)
                     : null,
@@ -196,16 +241,70 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
 
               const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
 
-              // 🔹 Gestión de rol (Estudiante / Administrador)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Gestión de rol',
+                  'Datos Administrativos (Modificables)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: cs.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 🔹 Edición de Cédula
+              TextField(
+                controller: _cedulaCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (_) =>
+                    setState(() {}), // Para actualizar el estado del botón
+                decoration: InputDecoration(
+                  labelText: 'Cédula de Identidad',
+                  prefixIcon: const Icon(Icons.badge_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 🔹 Edición de Carnet
+              TextField(
+                controller: _carnetCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(11),
+                ],
+                onChanged: (_) =>
+                    setState(() {}), // Para actualizar el estado del botón
+                decoration: InputDecoration(
+                  labelText: 'Carnet Estudiantil (11 dígitos)',
+                  prefixIcon: const Icon(Icons.credit_card),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 🔹 Gestión de rol
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Nivel de Acceso',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface.withOpacity(0.8),
                   ),
                 ),
               ),
@@ -235,25 +334,26 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
+
+              // 🔹 Botón Unificado de Guardado
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _savingRole || _selectedRole == user.rol
+                  onPressed: _savingChanges || !hasChanges
                       ? null
-                      : () => _updateUserRole(_selectedRole),
-                  icon: _savingRole
+                      : _updateAdminData,
+                  icon: _savingChanges
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save),
-                  label: const Text('Guardar cambios de rol'),
+                  label: const Text('Guardar cambios'),
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         );
@@ -313,9 +413,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

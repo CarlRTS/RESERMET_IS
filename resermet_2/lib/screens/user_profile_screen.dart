@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:resermet_2/models/user_profile.dart';
 import 'package:resermet_2/services/usuario_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
-import 'package:resermet_2/widgets/toastification.dart'; // Importamos el servicio de Toasts
+import 'package:resermet_2/widgets/toastification.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -61,9 +61,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (!mounted) return;
     ReservationToastService.showProfileUpdateError(context, message);
   }
-  // ======================================================================
-  // ====== ⬆️ FIN DE LA ACTUALIZACIÓN ⬆️ ======
-  // ======================================================================
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -178,13 +175,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (ok != true) return;
 
     try {
-      // 1. Borramos la foto en el servidor (Storage y Base de Datos)
       await _service.deleteAvatar();
-
-      // 2. CORRECCIÓN: Recargamos los datos del servidor.
-      // Al traer el perfil "fresco", el campo fotoUrl vendrá null y la UI se actualizará sola.
       await _load();
-
       _showSuccessToast('Foto eliminada');
     } catch (e) {
       _showErrorToast('Error eliminando foto: $e');
@@ -216,7 +208,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  // Validaciones (nombre/apellido obligatorios; teléfono opcional con 7 dígitos numéricos)
   String? _validateNombre(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'El nombre es obligatorio';
@@ -244,7 +235,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   String? _validateTelefono(String? value) {
-    if (value == null || value.trim().isEmpty) return null; // opcional
+    if (value == null || value.trim().isEmpty) return null;
     final trimmedValue = value.trim();
     final soloNumerosRegExp = RegExp(r'^[0-9]+$');
     if (!soloNumerosRegExp.hasMatch(trimmedValue)) {
@@ -256,7 +247,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return null;
   }
 
-  // Bandera simple de Venezuela
   Widget _buildBanderaVenezuela() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -295,7 +285,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  // Campo Teléfono con selector de código
   Widget _buildTelefonoField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,7 +300,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         const SizedBox(height: 6),
         Row(
           children: [
-            // Selector de código + bandera
             Container(
               width: 120,
               decoration: BoxDecoration(
@@ -372,7 +360,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            // Número (7 dígitos)
             Expanded(
               child: TextFormField(
                 controller: _telefonoCtrl,
@@ -493,7 +480,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             color: AppColors.unimetBlue,
           ),
         ),
-        const SizedBox(height: 8), // Espacio entre nombre y correo
+        const SizedBox(height: 8),
         if (correo.isNotEmpty)
           SelectableText(
             correo,
@@ -531,22 +518,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        resizeToAvoidBottomInset: false, // Evita que la UI se redimensione
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: const Text(
             'Mi Perfil',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ), // <-- Título en negritas
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           backgroundColor: AppColors.unimetBlue,
           foregroundColor: Colors.white,
           elevation: 0,
-          toolbarHeight: 90.0, // <-- 1. Altura intermedia
+          toolbarHeight: 90.0,
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(
-              bottom: Radius.circular(30), // <-- Esquinas redondeadas
-            ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
           ),
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -554,22 +537,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     return Scaffold(
-      resizeToAvoidBottomInset: false, // Evita que la UI se redimensione
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text(
           'Mi Perfil',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ), // <-- Título en negritas
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.unimetBlue,
         foregroundColor: Colors.white,
         elevation: 0,
-        toolbarHeight: 90.0, // <-- 1. Altura intermedia
+        toolbarHeight: 90.0,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(30), // <-- Esquinas redondeadas
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
         ),
       ),
       body: SingleChildScrollView(
@@ -579,13 +558,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 24),
+
+            // Tarjeta de datos Editables (Nombre, Apellido, Teléfono)
             Card(
               elevation: 0,
-              color: Colors.white, // Aseguramos color de fondo
-              surfaceTintColor: Colors.white, // Evita tinte en Material 3
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: Colors.grey.shade200), // Borde sutil
+                side: BorderSide(color: Colors.grey.shade200),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -612,20 +593,47 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
+
+            // Tarjeta de datos de Solo Lectura (Rol, Carnet, Cédula)
             Card(
               elevation: 0,
-              color: Colors.white, // Aseguramos color de fondo
-              surfaceTintColor: Colors.white, // Evita tinte en Material 3
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: Colors.grey.shade200), // Borde sutil
+                side: BorderSide(color: Colors.grey.shade200),
               ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: _ReadOnlyRow(icon: Icons.badge_outlined, label: 'Rol'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Column(
+                  children: [
+                    _ReadOnlyRow(
+                      icon: Icons.badge_outlined,
+                      label: 'Rol',
+                      value: (_profile?.rol ?? 'estudiante').toUpperCase(),
+                    ),
+                    Divider(color: Colors.grey.shade200, height: 16),
+                    _ReadOnlyRow(
+                      icon: Icons.credit_card,
+                      label: 'Carnet',
+                      value: _profile?.carnet.toString() ?? 'N/A',
+                    ),
+                    Divider(color: Colors.grey.shade200, height: 16),
+                    _ReadOnlyRow(
+                      icon: Icons.credit_score_outlined,
+                      label: 'Cédula',
+                      value: _profile?.cedula.toString() ?? 'N/A',
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
+
+            // Botón de Guardar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -642,7 +650,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     : const Icon(Icons.save_outlined),
                 label: Text(_saving ? 'Guardando...' : 'Guardar cambios'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.unimetBlue, // Color primario
+                  backgroundColor: AppColors.unimetBlue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -651,10 +659,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
             ),
-            // ⬇️ INICIO DEL CAMBIO ⬇️
-            // Espacio extra al final (REDUCIDO A 5%)
             SizedBox(height: MediaQuery.of(context).size.height * 0.05),
-            // ⬆️ FIN DEL CAMBIO ⬆️
           ],
         ),
       ),
@@ -662,20 +667,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 }
 
+// REFACTORIZADO: _ReadOnlyRow ahora acepta el 'value' directamente
+// para ser reutilizable en Rol, Carnet y Cédula.
 class _ReadOnlyRow extends StatelessWidget {
-  const _ReadOnlyRow({required this.icon, required this.label});
+  const _ReadOnlyRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    // Busca el _profile en el estado ancestro
-    final profile = context
-        .findAncestorStateOfType<_UserProfileScreenState>()
-        ?._profile;
-    final value = (profile?.rol ?? 'estudiante').toUpperCase();
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -685,7 +691,14 @@ class _ReadOnlyRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
           const Spacer(),
-          Text(value, style: TextStyle(color: Colors.black.withOpacity(.7))),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.black.withOpacity(.7),
+              fontWeight:
+                  FontWeight.w500, // Un poco más oscuro para que se lea mejor
+            ),
+          ),
         ],
       ),
     );
