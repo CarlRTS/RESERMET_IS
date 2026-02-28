@@ -6,6 +6,8 @@ class UserProfile {
   final String? telefono;
   final String rol; // 'estudiante' | 'administrador'
   final String? fotoUrl;
+  final int cedula;
+  final int carnet;
 
   UserProfile({
     required this.idUsuario,
@@ -15,6 +17,8 @@ class UserProfile {
     this.apellido,
     this.telefono,
     this.fotoUrl,
+    required this.cedula,
+    required this.carnet,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
@@ -26,6 +30,8 @@ class UserProfile {
       apellido: map['apellido']?.toString(),
       telefono: map['telefono']?.toString(),
       fotoUrl: map['foto_url']?.toString(),
+      cedula: int.tryParse(map['cedula']?.toString() ?? '0') ?? 0,
+      carnet: int.tryParse(map['carnet']?.toString() ?? '0') ?? 0,
     );
   }
 
@@ -38,10 +44,12 @@ class UserProfile {
       'apellido': apellido,
       'telefono': telefono,
       'foto_url': fotoUrl,
+      'cedula': cedula,
+      'carnet': carnet,
     };
   }
 
-  /// Para updates del estudiante (no toca correo/rol)
+  /// Para updates del estudiante (no modifica correo/rol/cedula/carnet)
   Map<String, dynamic> toStudentUpdateMap() {
     final m = <String, dynamic>{};
     if (nombre != null) m['nombre'] = nombre;
@@ -51,7 +59,7 @@ class UserProfile {
     return m;
   }
 
-  /// Para updates genéricos (admin) – usa este si necesitas desde admin.
+  /// Para updates genéricos (admin)
   Map<String, dynamic> toUpdateMap() {
     final m = <String, dynamic>{};
     m['nombre'] = nombre;
@@ -60,6 +68,9 @@ class UserProfile {
     m['correo'] = correo;
     m['rol'] = rol;
     m['foto_url'] = fotoUrl;
+    //El administrador sí debe poder corregir una cédula o carnet mal ingresado.
+    m['cedula'] = cedula;
+    m['carnet'] = carnet;
     return m;
   }
 
@@ -68,6 +79,8 @@ class UserProfile {
     String? apellido,
     String? telefono,
     String? fotoUrl,
+    int? cedula,
+    int? carnet,
   }) {
     return UserProfile(
       idUsuario: idUsuario,
@@ -77,6 +90,8 @@ class UserProfile {
       apellido: apellido ?? this.apellido,
       telefono: telefono ?? this.telefono,
       fotoUrl: fotoUrl ?? this.fotoUrl,
+      cedula: cedula ?? this.cedula,
+      carnet: carnet ?? this.carnet,
     );
   }
 }

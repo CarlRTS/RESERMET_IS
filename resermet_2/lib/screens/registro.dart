@@ -22,6 +22,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final _cedulaController = TextEditingController();
+  final _carnetController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -70,6 +72,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _telefonoController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _cedulaController.dispose(); // Agregado
+    _carnetController.dispose(); // Agregado
     super.dispose();
   }
 
@@ -87,12 +91,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final nombre = _nombreController.text.trim();
     final apellido = _apellidoController.text.trim();
     final telefono = '$_selectedOperadora${_telefonoController.text.trim()}';
-    // final rol = 'estudiante'; // Ya lo maneja el SQL por defecto
     final carrera = _selectedCarrera!;
+    final cedula = int.parse(_cedulaController.text.trim());
+    final carnet = int.parse(_carnetController.text.trim());
 
     try {
       // 1. Crear el usuario en Auth
-      // Nota: Agregamos 'data' como respaldo por si la confirmación de correo está activa
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
@@ -101,16 +105,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'apellido': apellido,
           'telefono': telefono,
           'carrera': carrera,
+          'cedula': cedula,
+          'carnet': carnet,
         },
       );
 
       final user = authResponse.user;
 
       if (user != null) {
-        // 🟢 SOLUCIÓN FINAL: Llamar a la función RPC (SQL)
-        // Esto ejecuta el guardado desde el servidor con permisos de Admin,
-        // ignorando las reglas RLS que te daban error 42501.
-
         // Solo intentamos guardar si tenemos sesión (por si el email requiere confirmación)
         if (authResponse.session != null) {
           await Supabase.instance.client.rpc(
@@ -120,12 +122,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               'p_apellido': apellido,
               'p_telefono': telefono,
               'p_carrera': carrera,
+              'p_cedula': cedula,
+              'p_carnet': carnet,
             },
           );
         } else {
-          // Si no hay sesión (porque se requiere confirmar correo),
-          // los datos se guardaron en los metadatos del usuario (paso 1)
-          // y se podrán recuperar luego o el trigger los moverá.
           debugPrint('Esperando confirmación de correo. Datos en metadata.');
         }
       }
@@ -141,8 +142,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           message: 'Este correo ya está registrado',
         );
       } else {
-        // Si falló el RPC pero el usuario se creó en Auth,
-        // consideramos éxito parcial y dejamos que inicie sesión.
         debugPrint('Error en guardado de datos (posiblemente Auth): $e');
         LoginToastService.showRegistrationError(
           context,
@@ -150,7 +149,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } catch (e) {
-      // Error genérico (ej. conexión)
       LoginToastService.showRegistrationError(
         context,
         message: 'Error inesperado: $e',
@@ -267,6 +265,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
 
+                          // 🔹 NUEVO: Cédula
+                          _buildTextFormField(
+                            controller: _cedulaController,
+                            label: 'Cédula',
+                            icon: Icons.badge,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'La cédula es obligatoria';
+                              }
+                              final n = int.tryParse(value);
+                              if (n == null || n <= 0) return 'Cédula inválida';
+                              return null;
+                            },
+                          ),
+
+                          // 🔹 NUEVO: Carnet
+                          _buildTextFormField(
+                            controller: _carnetController,
+                            label: 'Carnet (11 dígitos)',
+                            icon: Icons.credit_card,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(11),
+                            ],
+                            validator: (value) {
+                              if (value == null || value.length != 11) {
+                                return 'El carnet debe tener exactamente 11 dígitos';
+                              }
+                              return null;
+                            },
+                          ),
+
                           // Teléfono con dropdown
                           Row(
                             children: [
@@ -329,7 +364,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 12),
 
-                          // 🔹 Carrera siempre visible (todos son estudiantes)
+                          // Carrera
                           DropdownButtonFormField<String>(
                             value: _selectedCarrera,
                             decoration: const InputDecoration(
@@ -427,11 +462,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  // 🔹 Modificado para aceptar inputFormatters
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     required String? Function(String?)? validator,
   }) {
     return Column(
@@ -444,6 +481,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             isDense: true,
           ),
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           validator: validator,
         ),
         const SizedBox(height: 12),
