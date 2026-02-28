@@ -72,8 +72,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _telefonoController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _cedulaController.dispose(); // Agregado
-    _carnetController.dispose(); // Agregado
+    _cedulaController.dispose();
+    _carnetController.dispose();
     super.dispose();
   }
 
@@ -284,10 +284,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
 
-                          // 🔹 NUEVO: Carnet
                           _buildTextFormField(
                             controller: _carnetController,
-                            label: 'Carnet (11 dígitos)',
+                            label: 'Carnet',
                             icon: Icons.credit_card,
                             keyboardType: TextInputType.number,
                             inputFormatters: [
@@ -462,7 +461,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // 🔹 Modificado para aceptar inputFormatters
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
