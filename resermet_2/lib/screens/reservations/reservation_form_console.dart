@@ -399,7 +399,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Selecciona la consola y completa los datos de reserva',
+                'Este es un formulario para realizar la solicitud de una consola al Decanato de Estudiantes para disfrutar del espacio de la GAME ROOM ',
                 style: text.bodyMedium?.copyWith(
                   color: _textSecondary,
                   height: 1.35,
