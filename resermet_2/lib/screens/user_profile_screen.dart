@@ -559,7 +559,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             _buildHeader(),
             const SizedBox(height: 24),
 
-            // Tarjeta de datos Editables (Nombre, Apellido, Teléfono)
+            // 1. Tarjeta de datos Editables (Nombre, Apellido, Teléfono)
             Card(
               elevation: 0,
               color: Colors.white,
@@ -592,9 +592,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
-            // Tarjeta de datos de Solo Lectura (Rol, Carnet, Cédula)
+            // 2. Botón de Guardar (Movido justo debajo de lo editable)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(_saving ? 'Guardando...' : 'Guardar cambios'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.unimetBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // 3. Tarjeta de datos de Solo Lectura (Rol, Carnet, Cédula)
             Card(
               elevation: 0,
               color: Colors.white,
@@ -631,34 +659,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
 
-            // Botón de Guardar
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: Text(_saving ? 'Guardando...' : 'Guardar cambios'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.unimetBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
             SizedBox(height: MediaQuery.of(context).size.height * 0.05),
           ],
         ),

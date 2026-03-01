@@ -36,6 +36,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   String? _selectedDuration;
   String? _selectedGame;
 
+  // 🟢 NUEVO: Estado para el checkbox del acuerdo
+  bool _aceptoAcuerdo = false;
+
   DateTime get _fechaActual => DateTime.now();
   String get _fechaFormateada =>
       "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
@@ -61,7 +64,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
   Future<void> _cargarConsolasDisponibles() async {
     try {
-      // 1. EL SERVICIO AHORA TRAE LOS JUEGOS DENTRO DEL OBJETO 'Consola'
       final consolas = await _consolaService.getConsolas();
       final consolasDisponibles = consolas
           .where((c) => c.cantidadDisponible > 0)
@@ -87,7 +89,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     super.dispose();
   }
 
-  // (Lógica de hora límite sin cambios)
   bool get _yaPasoHoraLimite {
     final now = TimeOfDay.now();
     return now.hour > _horaLimite.hour ||
@@ -154,10 +155,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     ReservationToastService.showScheduleWarning(context, mensaje);
   }
 
-  // ====== ⛔ 2. FUNCIÓN DE SIMULACIÓN ELIMINADA ⛔ ======
-  // (Ya no la necesitamos, los datos vienen del objeto 'Consola')
-
-  // ====== CREAR RESERVA (Lógica sin cambios) ======
+  // ====== CREAR RESERVA ======
   Future<void> _crearReserva() async {
     if (_yaPasoHoraLimite) {
       _mostrarHorarioNoDisponible(
@@ -183,11 +181,20 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       _mostrarError('Por favor describe el propósito de uso');
       return;
     }
+    // 🟢 NUEVO: Validación del checkbox de acuerdo
+    if (!_aceptoAcuerdo) {
+      _mostrarError(
+        'Debes aceptar el acuerdo de responsabilidad para continuar',
+      );
+      return;
+    }
+
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       _mostrarError('Debes iniciar sesión para hacer una reserva');
       return;
     }
+
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
     try {
@@ -203,6 +210,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       final finIso = finLocal.toUtc().toIso8601String();
       final String propositoFinal;
       final textoProposito = _purposeController.text.trim();
+
       if (_selectedGame != null &&
           _selectedGame!.isNotEmpty &&
           _selectedGame != 'Otro juego') {
@@ -210,6 +218,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       } else {
         propositoFinal = textoProposito;
       }
+
       final reservaData = {
         'id_articulo': _consolaSeleccionada!.idObjeto,
         'id_usuario': user.id,
@@ -219,7 +228,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         'compromiso_estudiante': propositoFinal,
         'estado': 'activa',
       };
+
       await Supabase.instance.client.from('reserva').insert(reservaData);
+
       ReservationToastService.dismissAll();
       ReservationToastService.showReservationSuccess(
         context,
@@ -261,7 +272,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     }
   }
 
-  // ====== Helpers visuales (Sin cambios) ======
+  // ====== Helpers visuales ======
   Card _modernCard({required Widget child, EdgeInsets? padding}) {
     return Card(
       elevation: 5,
@@ -396,7 +407,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               ),
               const SizedBox(height: 20),
 
-              // ====== Selección de consola (Sin cambios en la UI) ======
+              // ====== Selección de consola ======
               _modernCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,10 +501,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         onChanged: (newValue) {
                           setState(() {
                             _consolaSeleccionada = newValue;
-                            // ¡ESTA ES LA LÍNEA CLAVE QUE CUMPLE EL REQUISITO!
                             _selectedGame = null;
-                            // (Ya no necesitamos llamar a _fetchJuegosCompatibles
-                            // porque la lista ya viene en el objeto 'newValue')
                           });
                         },
                         validator: (value) => value == null
@@ -505,7 +513,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               ),
               const SizedBox(height: 16),
 
-              // ====== Info de la consola seleccionada (Sin cambios en la UI) ======
+              // ====== Info de la consola seleccionada ======
               if (_consolaSeleccionada != null) ...[
                 _modernCard(
                   child: Column(
@@ -609,7 +617,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                       decoration: _inputDec(
                         label: 'Hora de inicio',
                         hint: _yaPasoHoraLimite
-                            ? 'Horario no disponible después de 5:00 PM'
+                            ? 'Horario no disponible'
                             : 'Selecciona la hora',
                         prefix: Icons.access_time_rounded,
                         enabled: !_yaPasoHoraLimite,
@@ -654,9 +662,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     ),
                     const SizedBox(height: 14),
 
-                    // ======================================================================
-                    // ====== ⬇️ 3. DROPDOWN DE JUEGOS MODIFICADO (LEE DESDE LA BD) ⬇️ ======
-                    // ======================================================================
                     DropdownButtonFormField<String>(
                       value: _selectedGame,
                       isExpanded: true,
@@ -680,14 +685,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           : (newValue) =>
                                 setState(() => _selectedGame = newValue),
 
-                      // Los 'items' ahora se generan dinámicamente
                       items: [
                         const DropdownMenuItem(
                           value: null,
                           child: Text('Ningún juego específico'),
                         ),
-
-                        // Lee la lista desde el objeto _consolaSeleccionada
                         ...(_consolaSeleccionada?.juegosCompatibles ?? [])
                             .map(
                               (juego) => DropdownMenuItem(
@@ -696,18 +698,12 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               ),
                             )
                             .toList(),
-
-                        // Añade "Otro juego"
                         const DropdownMenuItem(
                           value: 'Otro juego',
                           child: Text('Otro juego (no listado)'),
                         ),
                       ],
                     ),
-
-                    // ======================================================================
-                    // ====== ⬆️ FIN DE LA MODIFICACIÓN DEL DROPDOWN ⬆️ ======
-                    // ======================================================================
                     const SizedBox(height: 14),
                     TextFormField(
                       controller: _purposeController,
@@ -726,7 +722,99 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // ====== 🟢 ACUERDO REUBICADO CON CHECKBOX 🟢 ======
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _blueSoft,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _blue.withOpacity(.18)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.info_rounded, color: _blue, size: 20),
+                        SizedBox(width: 8),
+                        // 🟢 EXPANDED PARA EVITAR EL OVERFLOW
+                        Expanded(
+                          child: Text(
+                            'Acuerdo de responsabilidad del estudiante',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: _textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n\n'
+                      'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n'
+                      'LOS JUEGOS NO SON TRANSFERIBLES A OTROS ESTUDIANTES. (Debe ser entregado por el solicitante)\n\n'
+                      'Cuidemos nuestros espacios para poder seguirlos disfrutando.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: _textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // 🟢 CAJA INTERACTIVA DEL CHECKBOX
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _aceptoAcuerdo = !_aceptoAcuerdo;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _aceptoAcuerdo,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _aceptoAcuerdo = val ?? false;
+                                  });
+                                },
+                                activeColor: _blue,
+                                side: const BorderSide(color: _blue, width: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Acepto el acuerdo de responsabilidad',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: _textPrimary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ====== BOTÓN DE CONFIRMACIÓN ======
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -752,7 +840,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         ),
                   label: Text(
                     _yaPasoHoraLimite
-                        ? 'Reservas cerradas (5:00 PM)'
+                        ? 'Reservas cerradas'
                         : _isSubmitting
                         ? 'Procesando…'
                         : 'Confirmar Reserva',
@@ -779,46 +867,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                 ),
               ),
               const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _blueSoft,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: _blue.withOpacity(.18)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Row(
-                      children: [
-                        Icon(Icons.info_rounded, color: _blue, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Información importante',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: _textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '• La reserva estará pendiente de confirmación\n'
-                      '• Debes presentar tu identificación y carnet al recoger la consola\n'
-                      '• El tiempo de uso comienza a partir de la hora seleccionada\n'
-                      '• Puedes solicitar juegos específicos de forma opcional\n'
-                      '• No se permiten reservas después de las 5:00 PM',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.35,
-                        color: _textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
