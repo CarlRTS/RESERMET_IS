@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 
 class AppColors {
   // --- Colores de la UNIMET ---
@@ -8,5 +7,10 @@ class AppColors {
   static const Color unimetLightGray = Color(0xFFF5F5F5);
   static const Color unimetBlueSecondary = Color(0xFF1859A9);
   static const Color toastificationGreen = Color(0xFF10B981);
-  //Fondos
+
+  // --- Colores para Formularios y Textos ---
+  static const Color blueSoft = Color(0xFFE9F2FF); // fondo info suave
+  static const Color fieldBg = Color(0xFFF8FAFF); // fondo inputs
+  static const Color textPrimary = Color(0xFF3F4A58); // gris-azul legible
+  static const Color textSecondary = Color(0xFF5B677A); // gris-azul suave
 }

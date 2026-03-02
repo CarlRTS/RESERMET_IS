@@ -17,13 +17,6 @@ class ReservationFormEquipment extends StatefulWidget {
 }
 
 class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
-  // ==== Paleta y tipografías (azul UNIMET, letras suaves) ====
-  static const Color _blue = AppColors.unimetBlue;
-  static const Color _blueSoft = Color(0xFFE9F2FF);
-  static const Color _fieldBg = Color(0xFFF8FAFF);
-  static const Color _textPrimary = Color(0xFF3F4A58);
-  static const Color _textSecondary = Color(0xFF5B677A);
-
   final _formKey = GlobalKey<FormState>();
   final EquipoDeportivoService _equipoService = EquipoDeportivoService();
   final ReservaService _reservaService = ReservaService();
@@ -38,7 +31,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
 
-  // 🟢 NUEVO: Estado para el checkbox del acuerdo
+  // Estado para el checkbox del acuerdo
   bool _aceptoAcuerdo = false;
 
   // Disponibilidad
@@ -94,7 +87,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   Card _modernCard({required Widget child, EdgeInsets? padding}) {
     return Card(
       elevation: 5,
-      shadowColor: _blue.withOpacity(.12),
+      shadowColor: AppColors.unimetBlue.withOpacity(.12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: padding ?? const EdgeInsets.all(16),
@@ -116,37 +109,44 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       labelText: label,
       hintText: hint,
       labelStyle: TextStyle(
-        color: isDisabled ? _textSecondary : _textPrimary,
+        color: isDisabled ? AppColors.textSecondary : AppColors.textPrimary,
         fontWeight: FontWeight.w700,
         letterSpacing: .2,
       ),
       hintStyle: TextStyle(
-        color: isDisabled ? _textSecondary.withOpacity(0.7) : _textSecondary,
+        color: isDisabled
+            ? AppColors.textSecondary.withOpacity(0.7)
+            : AppColors.textSecondary,
       ),
       prefixIcon: prefix != null
-          ? Icon(prefix, color: isDisabled ? _textSecondary : _blue)
+          ? Icon(
+              prefix,
+              color: isDisabled
+                  ? AppColors.textSecondary
+                  : AppColors.unimetBlue,
+            )
           : null,
       suffixIcon: suffix != null
           ? Icon(
               suffix,
               color: isDisabled
-                  ? _textSecondary.withOpacity(0.7)
-                  : _textSecondary,
+                  ? AppColors.textSecondary.withOpacity(0.7)
+                  : AppColors.textSecondary,
             )
           : null,
       filled: true,
-      fillColor: isDisabled ? Colors.grey.shade100 : _fieldBg,
+      fillColor: isDisabled ? Colors.grey.shade100 : AppColors.fieldBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       enabledBorder: OutlineInputBorder(
         borderSide: BorderSide(
-          color: isDisabled ? Colors.grey.shade400 : _blue,
+          color: isDisabled ? Colors.grey.shade400 : AppColors.unimetBlue,
           width: 1,
         ),
         borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: _blue, width: 2),
+        borderSide: BorderSide(color: AppColors.unimetBlue, width: 2),
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
       disabledBorder: OutlineInputBorder(
@@ -165,11 +165,13 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _fieldBg,
+                color: AppColors.fieldBg,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _blue.withOpacity(.12)),
+                border: Border.all(
+                  color: AppColors.unimetBlue.withOpacity(.12),
+                ),
               ),
-              child: Icon(icon, color: _blue, size: 22),
+              child: Icon(icon, color: AppColors.unimetBlue, size: 22),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -181,7 +183,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                   fontSize: 20,
                   height: 1.25,
                   fontWeight: FontWeight.w800,
-                  color: _textPrimary,
+                  color: AppColors.textPrimary,
                   letterSpacing: .2,
                 ),
               ),
@@ -193,7 +195,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
           width: 64,
           height: 3,
           decoration: BoxDecoration(
-            color: _blue,
+            color: AppColors.unimetBlue,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -207,7 +209,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         _selectedTime == null ||
         _selectedDuration == null) {
       return (
-        _textSecondary,
+        AppColors.textSecondary,
         'Selecciona hora y duración para verificar la disponibilidad',
       );
     }
@@ -306,7 +308,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   // ====== Selectores ======
   Future<void> _selectTime(BuildContext context) async {
-    // Verificar si ya pasaron las 5 PM
     if (_yaPasoHoraLimite) {
       _mostrarHorarioNoDisponible(
         'No se pueden hacer reservas después de las 5:00 PM',
@@ -318,10 +319,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       context: context,
       horaInicial: _selectedTime ?? TimeOfDay.now(),
       titulo: 'Seleccionar Hora',
-      colorTitulo: _blue,
-      colorHoraSeleccionada: _blue,
+      colorTitulo: AppColors.unimetBlue,
+      colorHoraSeleccionada: AppColors.unimetBlue,
       onHoraSeleccionada: (picked) {
-        // Validar que la hora seleccionada no sea después de las 5 PM
         if (_esHoraDespuesDeLimite(picked)) {
           _mostrarHorarioNoDisponible(
             'No se pueden hacer reservas después de las 5:00 PM',
@@ -341,7 +341,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
   // ====== Crear reserva (con validación de stock) ======
   Future<void> _crearReserva() async {
-    // Validación de hora límite
     if (_yaPasoHoraLimite) {
       _mostrarHorarioNoDisponible(
         'No se pueden hacer reservas después de las 5:00 PM',
@@ -364,6 +363,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
+
     // Validación del checkbox de acuerdo
     if (!_aceptoAcuerdo) {
       _mostrarError(
@@ -407,13 +407,18 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
         return;
       }
 
+      // Manejo opcional del propósito
+      final textoProposito = _purposeController.text.trim().isEmpty
+          ? 'Sin especificar'
+          : _purposeController.text.trim();
+
       final reservaData = {
         'id_articulo': _equipoSeleccionado!.idObjeto,
         'id_usuario': user.id,
         'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
         'inicio': inicioLocal.toUtc().toIso8601String(),
         'fin': finLocal.toUtc().toIso8601String(),
-        'compromiso_estudiante': _purposeController.text,
+        'compromiso_estudiante': textoProposito,
         'estado': 'activa',
       };
 
@@ -479,7 +484,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       child: Padding(
         padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: _blue))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.unimetBlue),
+              )
             : Form(
                 key: _formKey,
                 child: SingleChildScrollView(
@@ -492,7 +499,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                         style: TextStyle(
                           fontSize: 23,
                           fontWeight: FontWeight.w800,
-                          color: _blue,
+                          color: AppColors.unimetBlue,
                           height: 1.22,
                           letterSpacing: .2,
                         ),
@@ -514,7 +521,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             else if (_equiposDisponibles.isEmpty)
                               const Text(
                                 'No hay equipos disponibles en este momento',
-                                style: TextStyle(color: _textSecondary),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               )
                             else
                               DropdownButtonFormField<EquipoDeportivo>(
@@ -537,7 +546,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w600,
-                                            color: _textPrimary,
+                                            color: AppColors.textPrimary,
                                           ),
                                         ),
                                       );
@@ -554,14 +563,14 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                           equipo.nombre,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: _textPrimary,
+                                            color: AppColors.textPrimary,
                                           ),
                                         ),
                                         Text(
                                           'Tipo: ${equipo.tipoEquipo}',
                                           style: const TextStyle(
                                             fontSize: 12,
-                                            color: _textSecondary,
+                                            color: AppColors.textSecondary,
                                           ),
                                         ),
                                         Text(
@@ -609,12 +618,12 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 leading: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: _blueSoft,
+                                    color: AppColors.blueSoft,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(
                                     Icons.sports_tennis_rounded,
-                                    color: _blue,
+                                    color: AppColors.unimetBlue,
                                   ),
                                 ),
                                 title: Text(
@@ -622,7 +631,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 16,
-                                    color: _textPrimary,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 subtitle: Column(
@@ -631,7 +640,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                     Text(
                                       'Tipo: ${_equipoSeleccionado!.tipoEquipo}',
                                       style: const TextStyle(
-                                        color: _textSecondary,
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                     Text(
@@ -651,7 +660,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                         'Total en inventario: ${_equipoSeleccionado!.cantidadTotal}',
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          color: _textSecondary,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                   ],
@@ -735,7 +744,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                       child: Text(
                                         duracion,
                                         style: const TextStyle(
-                                          color: _textPrimary,
+                                          color: AppColors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -790,15 +799,16 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                             const SizedBox(height: 16),
 
-                            // Propósito
+                            // 🟢 CAMPO OPCIONAL DE PROPÓSITO
                             TextFormField(
                               controller: _purposeController,
                               maxLines: 3,
                               decoration: _inputDec(
-                                label: 'Propósito de uso',
+                                label: 'Propósito de uso (Opcional)',
                                 hint: 'Describe para qué usarás el equipo...',
                                 prefix: Icons.description_rounded,
                               ),
+                              // Se eliminó el validator para hacerlo opcional
                             ),
                           ],
                         ),
@@ -806,21 +816,26 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                       const SizedBox(height: 18),
 
-                      // 🟢 ACUERDO REUBICADO CON CHECKBOX 🟢
+                      // ====== ACUERDO CON CHECKBOX ======
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _blueSoft,
+                          color: AppColors.blueSoft,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: _blue.withOpacity(.25)),
+                          border: Border.all(
+                            color: AppColors.unimetBlue.withOpacity(.25),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.info_outline_rounded, color: _blue),
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  color: AppColors.unimetBlue,
+                                ),
                                 SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -828,7 +843,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: _blue,
+                                      color: AppColors.unimetBlue,
                                     ),
                                   ),
                                 ),
@@ -837,17 +852,16 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             const SizedBox(height: 8),
                             const Text(
                               'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n'
-                              'Debes presentar tu identificación y carnet al recoger el equipo\n'
-                              'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n'
+                              '• Debes presentar tu identificación y carnet al recoger el equipo\n\n'
+                              'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n\n'
                               'Cuidemos nuestros espacios para poder seguir disfrutando.',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: _textSecondary,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                             const SizedBox(height: 16),
 
-                            // 🟢 CAJA INTERACTIVA DEL CHECKBOX
                             InkWell(
                               onTap: () {
                                 setState(() {
@@ -871,9 +885,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                             _aceptoAcuerdo = val ?? false;
                                           });
                                         },
-                                        activeColor: _blue,
+                                        activeColor: AppColors.unimetBlue,
                                         side: const BorderSide(
-                                          color: _blue,
+                                          color: AppColors.unimetBlue,
                                           width: 2,
                                         ),
                                         shape: RoundedRectangleBorder(
@@ -889,7 +903,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                         'Acepto el acuerdo de responsabilidad',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
-                                          color: _textPrimary,
+                                          color: AppColors.textPrimary,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -946,7 +960,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _isSubmitting || _yaPasoHoraLimite
                                 ? Colors.grey
-                                : _blue,
+                                : AppColors.unimetBlue,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),

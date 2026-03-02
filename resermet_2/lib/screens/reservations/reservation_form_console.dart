@@ -15,13 +15,6 @@ class ReservationFormConsole extends StatefulWidget {
 }
 
 class _ReservationFormConsoleState extends State<ReservationFormConsole> {
-  // === Paleta unificada (UNIMET) y tipografías suaves ===
-  static const Color _blue = AppColors.unimetBlue; // azul UNIMET
-  static const Color _blueSoft = Color(0xFFE9F2FF); // fondo info suave
-  static const Color _fieldBg = Color(0xFFF8FAFF); // fondo inputs
-  static const Color _textPrimary = Color(0xFF3F4A58); // gris-azul legible
-  static const Color _textSecondary = Color(0xFF5B677A); // gris-azul suave
-
   final _formKey = GlobalKey<FormState>();
   final ConsolaService _consolaService = ConsolaService();
 
@@ -36,7 +29,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   String? _selectedDuration;
   String? _selectedGame;
 
-  // 🟢 NUEVO: Estado para el checkbox del acuerdo
+  // Estado para el checkbox del acuerdo
   bool _aceptoAcuerdo = false;
 
   DateTime get _fechaActual => DateTime.now();
@@ -129,8 +122,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       context: context,
       horaInicial: _selectedTime ?? TimeOfDay.now(),
       titulo: 'Seleccionar Hora',
-      colorTitulo: _blue,
-      colorHoraSeleccionada: _blue,
+      colorTitulo: AppColors.unimetBlue,
+      colorHoraSeleccionada: AppColors.unimetBlue,
       onHoraSeleccionada: (picked) {
         if (_esHoraDespuesDeLimite(picked)) {
           _mostrarHorarioNoDisponible(
@@ -177,6 +170,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
+
     // Validación del checkbox de acuerdo
     if (!_aceptoAcuerdo) {
       _mostrarError(
@@ -205,7 +199,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       final inicioIso = inicioLocal.toUtc().toIso8601String();
       final finIso = finLocal.toUtc().toIso8601String();
       final String propositoFinal;
-      final textoProposito = _purposeController.text.trim();
+
+      // Manejo opcional del propósito
+      final textoProposito = _purposeController.text.trim().isEmpty
+          ? 'Sin especificar'
+          : _purposeController.text.trim();
 
       if (_selectedGame != null &&
           _selectedGame!.isNotEmpty &&
@@ -272,7 +270,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   Card _modernCard({required Widget child, EdgeInsets? padding}) {
     return Card(
       elevation: 5,
-      shadowColor: _blue.withOpacity(.15),
+      shadowColor: AppColors.unimetBlue.withOpacity(.15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: padding ?? const EdgeInsets.all(16),
@@ -292,29 +290,36 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       labelText: label,
       hintText: hint,
       labelStyle: TextStyle(
-        color: isDisabled ? _textSecondary : _textPrimary,
+        color: isDisabled ? AppColors.textSecondary : AppColors.textPrimary,
         fontWeight: FontWeight.w700,
         letterSpacing: .2,
       ),
       hintStyle: TextStyle(
-        color: isDisabled ? _textSecondary.withOpacity(0.7) : _textSecondary,
+        color: isDisabled
+            ? AppColors.textSecondary.withOpacity(0.7)
+            : AppColors.textSecondary,
       ),
       prefixIcon: prefix != null
-          ? Icon(prefix, color: isDisabled ? _textSecondary : _blue)
+          ? Icon(
+              prefix,
+              color: isDisabled
+                  ? AppColors.textSecondary
+                  : AppColors.unimetBlue,
+            )
           : null,
       filled: true,
-      fillColor: isDisabled ? Colors.grey.shade100 : _fieldBg,
+      fillColor: isDisabled ? Colors.grey.shade100 : AppColors.fieldBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       enabledBorder: OutlineInputBorder(
         borderSide: BorderSide(
-          color: isDisabled ? Colors.grey.shade400 : _blue,
+          color: isDisabled ? Colors.grey.shade400 : AppColors.unimetBlue,
           width: 1,
         ),
         borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: _blue, width: 2),
+        borderSide: BorderSide(color: AppColors.unimetBlue, width: 2),
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
       disabledBorder: OutlineInputBorder(
@@ -333,11 +338,13 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _fieldBg,
+                color: AppColors.fieldBg,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _blue.withOpacity(.12)),
+                border: Border.all(
+                  color: AppColors.unimetBlue.withOpacity(.12),
+                ),
               ),
-              child: Icon(icon, color: _blue, size: 22),
+              child: Icon(icon, color: AppColors.unimetBlue, size: 22),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -349,7 +356,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                   fontSize: 20,
                   height: 1.25,
                   fontWeight: FontWeight.w800,
-                  color: _textPrimary,
+                  color: AppColors.textPrimary,
                   letterSpacing: .2,
                 ),
               ),
@@ -361,7 +368,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
           width: 64,
           height: 3,
           decoration: BoxDecoration(
-            color: _blue,
+            color: AppColors.unimetBlue,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -386,7 +393,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               Text(
                 'Reserva tu Consola',
                 style: text.titleLarge?.copyWith(
-                  color: _blue,
+                  color: AppColors.unimetBlue,
                   fontWeight: FontWeight.w800,
                   fontSize: 23,
                   height: 1.22,
@@ -397,7 +404,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
               Text(
                 'Este es un formulario para realizar la solicitud de una consola al Decanato de Estudiantes para disfrutar del espacio de la GAME ROOM ',
                 style: text.bodyMedium?.copyWith(
-                  color: _textSecondary,
+                  color: AppColors.textSecondary,
                   height: 1.35,
                 ),
               ),
@@ -415,12 +422,14 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     const SizedBox(height: 16),
                     if (_isLoading)
                       const Center(
-                        child: CircularProgressIndicator(color: _blue),
+                        child: CircularProgressIndicator(
+                          color: AppColors.unimetBlue,
+                        ),
                       )
                     else if (_consolasDisponibles.isEmpty)
                       const Text(
                         'No hay consolas disponibles en este momento',
-                        style: TextStyle(color: _textSecondary),
+                        style: TextStyle(color: AppColors.textSecondary),
                       )
                     else
                       DropdownButtonFormField<Consola>(
@@ -444,7 +453,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: _textPrimary,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                               );
@@ -461,14 +470,14 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 15,
-                                    color: _textPrimary,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 Text(
                                   'Modelo: ${consola.modelo}',
                                   style: const TextStyle(
                                     fontSize: 12.5,
-                                    color: _textSecondary,
+                                    color: AppColors.textSecondary,
                                     height: 1.2,
                                   ),
                                 ),
@@ -525,13 +534,15 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         leading: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: _blueSoft,
+                            color: AppColors.blueSoft,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: _blue.withOpacity(.12)),
+                            border: Border.all(
+                              color: AppColors.unimetBlue.withOpacity(.12),
+                            ),
                           ),
                           child: const Icon(
                             Icons.sports_esports_rounded,
-                            color: _blue,
+                            color: AppColors.unimetBlue,
                           ),
                         ),
                         title: Text(
@@ -539,7 +550,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
-                            color: _textPrimary,
+                            color: AppColors.textPrimary,
                             height: 1.2,
                           ),
                         ),
@@ -549,7 +560,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             const SizedBox(height: 2),
                             Text(
                               'Modelo: ${_consolaSeleccionada!.modelo}',
-                              style: const TextStyle(color: _textSecondary),
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -564,7 +577,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
                               style: const TextStyle(
                                 fontSize: 12.5,
-                                color: _textSecondary,
+                                color: AppColors.textSecondary,
                                 height: 1.2,
                               ),
                             ),
@@ -643,7 +656,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                               value: duracion,
                               child: Text(
                                 duracion,
-                                style: const TextStyle(color: _textPrimary),
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
                           )
@@ -670,7 +685,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         prefix: Icons.games_rounded,
                         enabled: !_yaPasoHoraLimite,
                       ),
-
                       disabledHint: Text(
                         _yaPasoHoraLimite
                             ? 'Horario no disponible'
@@ -680,7 +694,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                           ? null
                           : (newValue) =>
                                 setState(() => _selectedGame = newValue),
-
                       items: [
                         const DropdownMenuItem(
                           value: null,
@@ -701,45 +714,53 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                       ],
                     ),
                     const SizedBox(height: 14),
+
+                    // 🟢 CAMPO OPCIONAL DE PROPÓSITO
                     TextFormField(
                       controller: _purposeController,
                       maxLines: 3,
                       enabled: !_yaPasoHoraLimite,
                       decoration: _inputDec(
-                        label: 'Propósito de uso',
+                        label: 'Propósito de uso (Opcional)',
                         hint: 'Describe para qué usarás la consola...',
                         prefix: Icons.description_rounded,
                         enabled: !_yaPasoHoraLimite,
                       ),
+                      // Se eliminó el validator para hacerlo opcional
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              // ====== 🟢 ACUERDO REUBICADO CON CHECKBOX 🟢 ======
+              // ====== ACUERDO REUBICADO CON CHECKBOX ======
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _blueSoft,
+                  color: AppColors.blueSoft,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: _blue.withOpacity(.18)),
+                  border: Border.all(
+                    color: AppColors.unimetBlue.withOpacity(.18),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.info_rounded, color: _blue, size: 20),
+                        Icon(
+                          Icons.info_rounded,
+                          color: AppColors.unimetBlue,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
-                        // 🟢 EXPANDED PARA EVITAR EL OVERFLOW
                         Expanded(
                           child: Text(
                             'Acuerdo de responsabilidad del estudiante',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: _textPrimary,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
@@ -747,18 +768,17 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n'
+                      'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n\n'
                       'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n'
-                      'LOS JUEGOS NO SON TRANSFERIBLES A OTROS ESTUDIANTES. (Debe ser entregado por el solicitante)\n'
+                      'LOS JUEGOS NO SON TRANSFERIBLES A OTROS ESTUDIANTES. (Debe ser entregado por el solicitante)\n\n'
                       'Cuidemos nuestros espacios para poder seguirlos disfrutando.',
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.35,
-                        color: _textSecondary,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // 🟢 CAJA INTERACTIVA DEL CHECKBOX
                     InkWell(
                       onTap: () {
                         setState(() {
@@ -780,8 +800,11 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                     _aceptoAcuerdo = val ?? false;
                                   });
                                 },
-                                activeColor: _blue,
-                                side: const BorderSide(color: _blue, width: 2),
+                                activeColor: AppColors.unimetBlue,
+                                side: const BorderSide(
+                                  color: AppColors.unimetBlue,
+                                  width: 2,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -793,7 +816,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                                 'Acepto el acuerdo de responsabilidad',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: _textPrimary,
+                                  color: AppColors.textPrimary,
                                   fontSize: 14,
                                 ),
                               ),
@@ -851,7 +874,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                             _consolasDisponibles.isEmpty ||
                             _yaPasoHoraLimite
                         ? Colors.grey
-                        : _blue,
+                        : AppColors.unimetBlue,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
