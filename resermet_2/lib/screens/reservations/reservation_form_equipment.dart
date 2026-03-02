@@ -38,6 +38,9 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
 
+  // 🟢 NUEVO: Estado para el checkbox del acuerdo
+  bool _aceptoAcuerdo = false;
+
   // Disponibilidad
   int _activeReservations = 0;
   int _stockTotal = 0;
@@ -361,6 +364,13 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
+    // Validación del checkbox de acuerdo
+    if (!_aceptoAcuerdo) {
+      _mostrarError(
+        'Debes aceptar el acuerdo de responsabilidad para continuar',
+      );
+      return;
+    }
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
@@ -477,7 +487,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Título
-                      Text(
+                      const Text(
                         'Reserva tu Equipo Deportivo',
                         style: TextStyle(
                           fontSize: 23,
@@ -502,7 +512,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                             if (_isLoading)
                               const Center(child: CircularProgressIndicator())
                             else if (_equiposDisponibles.isEmpty)
-                              Text(
+                              const Text(
                                 'No hay equipos disponibles en este momento',
                                 style: TextStyle(color: _textSecondary),
                               )
@@ -549,7 +559,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                         ),
                                         Text(
                                           'Tipo: ${equipo.tipoEquipo}',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             fontSize: 12,
                                             color: _textSecondary,
                                           ),
@@ -789,10 +799,6 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
                                 hint: 'Describe para qué usarás el equipo...',
                                 prefix: Icons.description_rounded,
                               ),
-                              validator: (value) =>
-                                  (value == null || value.isEmpty)
-                                  ? 'Por favor describe la actividad'
-                                  : null,
                             ),
                           ],
                         ),
@@ -800,32 +806,95 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                       const SizedBox(height: 18),
 
-                      // Nota informativa
+                      // 🟢 ACUERDO REUBICADO CON CHECKBOX 🟢
                       Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: _blueSoft,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: _blue.withOpacity(.25)),
                         ),
-                        child: Row(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.info_outline_rounded,
-                              color: _blue,
+                            const Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, color: _blue),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Acuerdo de responsabilidad del estudiante',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _blue,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '• La reserva estará pendiente de confirmación\n'
-                                '• Debes presentar tu identificación y carnet al recoger el equipo\n'
-                                '• Eres responsable del equipo durante el préstamo\n'
-                                '• Reporta cualquier daño o anomalía al personal\n'
-                                '• No se permiten reservas después de las 5:00 PM',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: _textSecondary,
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n'
+                              'Debes presentar tu identificación y carnet al recoger el equipo\n'
+                              'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n'
+                              'Cuidemos nuestros espacios para poder seguir disfrutando.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: _textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 🟢 CAJA INTERACTIVA DEL CHECKBOX
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _aceptoAcuerdo = !_aceptoAcuerdo;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Checkbox(
+                                        value: _aceptoAcuerdo,
+                                        onChanged: (val) {
+                                          setState(() {
+                                            _aceptoAcuerdo = val ?? false;
+                                          });
+                                        },
+                                        activeColor: _blue,
+                                        side: const BorderSide(
+                                          color: _blue,
+                                          width: 2,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Text(
+                                        'Acepto el acuerdo de responsabilidad',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: _textPrimary,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -835,7 +904,7 @@ class _ReservationFormEquipmentState extends State<ReservationFormEquipment> {
 
                       const SizedBox(height: 22),
 
-                      // Botón de confirmación
+                      // Botón de confirmación (posicionado al final)
                       SizedBox(
                         width: double.infinity,
                         height: 56,

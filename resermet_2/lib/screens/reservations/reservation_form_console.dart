@@ -177,11 +177,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
-    if (_purposeController.text.trim().isEmpty) {
-      _mostrarError('Por favor describe el propósito de uso');
-      return;
-    }
-    // 🟢 NUEVO: Validación del checkbox de acuerdo
+    // Validación del checkbox de acuerdo
     if (!_aceptoAcuerdo) {
       _mostrarError(
         'Debes aceptar el acuerdo de responsabilidad para continuar',
@@ -715,9 +711,6 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                         prefix: Icons.description_rounded,
                         enabled: !_yaPasoHoraLimite,
                       ),
-                      validator: (value) => (value == null || value.isEmpty)
-                          ? 'Por favor describe el propósito de uso'
-                          : null,
                     ),
                   ],
                 ),
@@ -754,9 +747,9 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n\n'
+                      'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n'
                       'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n'
-                      'LOS JUEGOS NO SON TRANSFERIBLES A OTROS ESTUDIANTES. (Debe ser entregado por el solicitante)\n\n'
+                      'LOS JUEGOS NO SON TRANSFERIBLES A OTROS ESTUDIANTES. (Debe ser entregado por el solicitante)\n'
                       'Cuidemos nuestros espacios para poder seguirlos disfrutando.',
                       style: TextStyle(
                         fontSize: 13,
