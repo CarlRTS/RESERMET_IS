@@ -39,6 +39,15 @@ class UsuarioService {
     if (rows.isNotEmpty) {
       final row = Map<String, dynamic>.from(rows.first);
       row['correo'] ??= correoAuth;
+
+      // Leer es_seleccion desde tabla estudiante
+      final estudianteData = await _sb
+          .from('estudiante')
+          .select('es_seleccion')
+          .eq('id_usuario', uid)
+          .maybeSingle();
+      row['es_seleccion'] = (estudianteData?['es_seleccion'] as bool?) ?? false;
+
       return UserProfile.fromMap(row);
     }
 
@@ -57,6 +66,7 @@ class UsuarioService {
         .single();
 
     final inserted = _asMap(insertedDyn);
+    inserted['es_seleccion'] = false;
     return UserProfile.fromMap(inserted);
   }
 
@@ -64,7 +74,7 @@ class UsuarioService {
     final user = _sb.auth.currentUser;
     if (user == null) throw Exception('No hay sesión activa.');
 
-    final updates = data.toStudentUpdateMap(); // nombre, apellido, telefono, foto_url
+    final updates = data.toStudentUpdateMap();
     if (updates.isEmpty) return;
 
     await _sb.from('usuario').update(updates).eq('id_usuario', user.id);
@@ -81,7 +91,17 @@ class UsuarioService {
 
     final rows = _asListOfMap(rowsDyn);
     if (rows.isNotEmpty) {
-      return UserProfile.fromMap(rows.first);
+      final row = Map<String, dynamic>.from(rows.first);
+
+      // Leer es_seleccion desde tabla estudiante
+      final estudianteData = await _sb
+          .from('estudiante')
+          .select('es_seleccion')
+          .eq('id_usuario', idUsuario)
+          .maybeSingle();
+      row['es_seleccion'] = (estudianteData?['es_seleccion'] as bool?) ?? false;
+
+      return UserProfile.fromMap(row);
     }
     return null;
   }
@@ -110,8 +130,6 @@ class UsuarioService {
   // ====== AVATAR (bucket AVATARS) ======
   static const String _bucket = 'avatars';
 
-  /// Sube bytes a `<uid>/avatar_<timestamp>.<ext>`, borra la anterior (si hay),
-  /// guarda la nueva `foto_url` y devuelve una URL con cache-busting (?v=...).
   Future<String> uploadAvatarBytes({
     required Uint8List bytes,
     required String fileExt,
@@ -120,7 +138,6 @@ class UsuarioService {
     if (user == null) throw Exception('No hay sesión activa.');
     final uid = user.id;
 
-    // Cargar perfil actual para conocer foto previa
     final current = await getCurrentUserProfile();
     final oldUrl = current.fotoUrl;
 
@@ -128,32 +145,28 @@ class UsuarioService {
     final ext = (fileExt.trim().isEmpty ? 'jpg' : fileExt.trim()).toLowerCase();
     final newPath = '$uid/avatar_$ts.$ext';
 
-    // Subir (no usamos upsert a mismo path; creamos archivo nuevo para romper caché)
     await _sb.storage.from(_bucket).uploadBinary(
           newPath,
           bytes,
           fileOptions: FileOptions(
             upsert: false,
-            cacheControl: '0', // no cachear en CDN
+            cacheControl: '0',
             contentType: 'image/$ext',
           ),
         );
 
-    // Borrar anterior si existía
     if (oldUrl != null && oldUrl.isNotEmpty) {
       final prevPath = _extractPathFromPublicUrl(oldUrl);
       if (prevPath != null) {
         try {
           await _sb.storage.from(_bucket).remove([prevPath]);
-        } catch (_) {/* ignorar */}
+        } catch (_) {}
       }
     }
 
-    // Nueva URL pública + query para bust de caché en la app
     final baseUrl = _sb.storage.from(_bucket).getPublicUrl(newPath);
     final publicUrl = '$baseUrl?v=$ts';
 
-    // Guardar en BD
     await _sb
         .from('usuario')
         .update({'foto_url': publicUrl})
@@ -162,7 +175,6 @@ class UsuarioService {
     return publicUrl;
   }
 
-  /// Elimina la imagen actual del usuario y pone foto_url = null.
   Future<void> deleteAvatar() async {
     final user = _sb.auth.currentUser;
     if (user == null) throw Exception('No hay sesión activa.');
@@ -176,7 +188,7 @@ class UsuarioService {
       if (path != null) {
         try {
           await _sb.storage.from(_bucket).remove([path]);
-        } catch (_) {/* ignorar */}
+        } catch (_) {}
       }
     }
 
@@ -186,12 +198,10 @@ class UsuarioService {
         .eq('id_usuario', uid);
   }
 
-  /// Extrae `<uid>/archivo.ext` desde una public URL de Storage.
   String? _extractPathFromPublicUrl(String url) {
     try {
       final u = Uri.parse(url);
       final seg = u.pathSegments;
-      // .../object/public/AVATARS/<AQUI VA EL PATH>
       final idx = seg.indexOf(_bucket);
       if (idx == -1 || idx + 1 >= seg.length) return null;
       final rel = seg.sublist(idx + 1).join('/');
@@ -200,8 +210,7 @@ class UsuarioService {
       return null;
     }
   }
-    /// Lista TODOS los usuarios ordenados alfabéticamente.
-  /// Orden: nombre ASC, luego apellido ASC, luego correo ASC.
+
   Future<List<UserProfile>> listAllUsersOrdered() async {
     final rowsDyn = await _sb
         .from('usuario')
@@ -213,6 +222,37 @@ class UsuarioService {
     final rows = _asListOfMap(rowsDyn);
     return rows.map((e) => UserProfile.fromMap(e)).toList();
   }
+
+  // ====== SELECCIÓN DEPORTIVA ======
+
+  /// Obtiene el perfil completo del estudiante incluyendo es_seleccion
+  Future<UserProfile> getUserProfileWithSeleccion(String idUsuario) async {
+    final usuarioData = await _sb
+        .from('usuario')
+        .select()
+        .eq('id_usuario', idUsuario)
+        .single();
+
+    final estudianteData = await _sb
+        .from('estudiante')
+        .select('es_seleccion')
+        .eq('id_usuario', idUsuario)
+        .maybeSingle();
+
+    final map = Map<String, dynamic>.from(_asMap(usuarioData));
+    map['es_seleccion'] = (estudianteData?['es_seleccion'] as bool?) ?? false;
+
+    return UserProfile.fromMap(map);
+  }
+
+  /// Admin actualiza es_seleccion en la tabla estudiante
+  Future<void> updateSeleccionDeportiva({
+    required String idUsuario,
+    required bool esSeleccion,
+  }) async {
+    await _sb
+        .from('estudiante')
+        .update({'es_seleccion': esSeleccion})
+        .eq('id_usuario', idUsuario);
+  }
 }
-
-

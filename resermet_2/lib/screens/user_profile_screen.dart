@@ -24,7 +24,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final TextEditingController _apellidoCtrl = TextEditingController();
   final TextEditingController _telefonoCtrl = TextEditingController();
 
-  // Códigos de operadora venezolanos (incluye 0422)
   final List<String> _codigosOperadora = [
     '0412',
     '0422',
@@ -49,9 +48,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     super.dispose();
   }
 
-  // ======================================================================
-  // ====== ⬇️ FUNCIÓN _showSnack REEMPLAZADA POR TOASTS ⬇️ ======
-  // ======================================================================
   void _showSuccessToast(String message) {
     if (!mounted) return;
     ReservationToastService.showProfileUpdateSuccess(context);
@@ -72,7 +68,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _nombreCtrl.text = p.nombre ?? '';
         _apellidoCtrl.text = p.apellido ?? '';
 
-        // Separar código (4 dígitos) y número (7 dígitos)
         final telefonoCompleto = p.telefono ?? '';
         if (telefonoCompleto.length >= 4) {
           final codigo = telefonoCompleto.substring(0, 4);
@@ -242,172 +237,44 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       return 'Solo se permiten números en el teléfono';
     }
     if (trimmedValue.length != 7) {
-      return 'El número debe tener 7 dígitos (ej: 1234567)';
+      return 'El teléfono debe tener 7 dígitos';
     }
     return null;
   }
 
-  Widget _buildBanderaVenezuela() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 12,
-            height: 8,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFFCF142B),
-                  Color(0xFF00247D),
-                  Color(0xFFFCE300),
-                ],
-                stops: [0.33, 0.66, 1.0],
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Text(
-            'VE',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTelefonoField() {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Teléfono',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-            fontSize: 14,
+        Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _codigoSeleccionado,
+              items: _codigosOperadora
+                  .map(
+                    (c) => DropdownMenuItem(value: c, child: Text(c)),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _codigoSeleccionado = v);
+              },
+            ),
           ),
         ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Container(
-              width: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: _buildBanderaVenezuela(),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _codigoSeleccionado,
-                        isExpanded: true,
-                        icon: const Icon(
-                          Icons.arrow_drop_down,
-                          color: AppColors.unimetBlue,
-                          size: 20,
-                        ),
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _codigoSeleccionado = newValue;
-                            });
-                          }
-                        },
-                        items: _codigosOperadora.map<DropdownMenuItem<String>>((
-                          String value,
-                        ) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: Text(
-                                value,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: _telefonoCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: '1234567',
-                  prefixIcon: const Icon(
-                    Icons.phone_iphone,
-                    color: AppColors.unimetBlue,
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(
-                      color: AppColors.unimetBlue,
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 12,
-                  ),
-                ),
-                validator: _validateTelefono,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Teléfono completo: $_codigoSeleccionado${_telefonoCtrl.text.isNotEmpty ? _telefonoCtrl.text : "..."}',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Operadoras venezolanas',
-          style: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 10,
-            fontStyle: FontStyle.italic,
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextFormField(
+            controller: _telefonoCtrl,
+            decoration: _input('Teléfono (7 dígitos)', Icons.phone),
+            keyboardType: TextInputType.phone,
+            validator: _validateTelefono,
           ),
         ),
       ],
@@ -415,57 +282,51 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildHeader() {
-    final String foto = _profile?.fotoUrl ?? '';
-    final String initials = _initials(_profile?.nombre, _profile?.apellido);
-    final String name =
-        ((_profile?.nombre ?? '').isEmpty && (_profile?.apellido ?? '').isEmpty)
-        ? 'Estudiante'
-        : '${_profile?.nombre ?? ''} ${_profile?.apellido ?? ''}';
-    final String correo = _profile?.correo ?? '';
+    final p = _profile;
+    final name = '${p?.nombre ?? ''} ${p?.apellido ?? ''}'.trim();
+    final correo = p?.correo ?? '';
+    final foto = p?.fotoUrl ?? '';
 
     return Column(
       children: [
         Stack(
-          clipBehavior: Clip.none,
+          alignment: Alignment.center,
           children: [
             CircleAvatar(
               radius: 48,
-              backgroundColor: Colors.white,
-              child: CircleAvatar(
-                radius: 44,
-                backgroundColor: AppColors.unimetBlue.withOpacity(.08),
-                backgroundImage: foto.isNotEmpty ? NetworkImage(foto) : null,
-                child: foto.isEmpty
-                    ? Text(
-                        initials,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.unimetBlue,
-                        ),
-                      )
-                    : null,
-              ),
+              backgroundColor: AppColors.unimetBlue.withOpacity(0.1),
+              backgroundImage: foto.isNotEmpty ? NetworkImage(foto) : null,
+              child: foto.isEmpty
+                  ? Text(
+                      _initials(p?.nombre, p?.apellido),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.unimetBlue,
+                      ),
+                    )
+                  : null,
             ),
             Positioned(
-              bottom: -6,
-              right: -6,
+              bottom: 0,
+              right: 0,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _avatarAction(
                     icon: Icons.camera_alt,
                     tooltip: 'Cambiar foto',
                     onTap: _pickAndUploadAvatar,
-                    bg: AppColors.unimetBlue,
                   ),
-                  const SizedBox(width: 8),
-                  if (foto.isNotEmpty)
+                  if (foto.isNotEmpty) ...[
+                    const SizedBox(width: 4),
                     _avatarAction(
                       icon: Icons.delete_outline,
                       tooltip: 'Eliminar foto',
                       onTap: _removeAvatar,
                       bg: Colors.red,
                     ),
+                  ],
                 ],
               ),
             ),
@@ -473,7 +334,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ),
         const SizedBox(height: 18),
         Text(
-          name,
+          name.isEmpty ? 'Mi perfil' : name,
           style: const TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 20,
@@ -559,7 +420,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             _buildHeader(),
             const SizedBox(height: 24),
 
-            // 1. Tarjeta de datos Editables (Nombre, Apellido, Teléfono)
+            // Tarjeta de datos editables
             Card(
               elevation: 0,
               color: Colors.white,
@@ -594,7 +455,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 2. Botón de Guardar (Movido justo debajo de lo editable)
+            // Botón Guardar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -622,7 +483,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 3. Tarjeta de datos de Solo Lectura (Rol, Carnet, Cédula)
+            // Tarjeta de datos de solo lectura
             Card(
               elevation: 0,
               color: Colors.white,
@@ -655,6 +516,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       label: 'Cédula',
                       value: _profile?.cedula.toString() ?? 'N/A',
                     ),
+                    // ← NUEVO: Solo visible si es estudiante
+                    if (_profile?.rol == 'estudiante') ...[
+                      Divider(color: Colors.grey.shade200, height: 16),
+                      _ReadOnlyRow(
+                        icon: Icons.sports,
+                        label: 'Selección deportiva',
+                        value: (_profile?.esSeleccion ?? false)
+                            ? 'Sí, pertenezco'
+                            : 'No pertenezco',
+                        valueColor: (_profile?.esSeleccion ?? false)
+                            ? Colors.green.shade600
+                            : null,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -668,18 +543,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 }
 
-// REFACTORIZADO: _ReadOnlyRow ahora acepta el 'value' directamente
-// para ser reutilizable en Rol, Carnet y Cédula.
 class _ReadOnlyRow extends StatelessWidget {
   const _ReadOnlyRow({
     required this.icon,
     required this.label,
     required this.value,
+    this.valueColor,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final Color? valueColor; // ← NUEVO parámetro opcional
 
   @override
   Widget build(BuildContext context) {
@@ -695,9 +570,8 @@ class _ReadOnlyRow extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: Colors.black.withOpacity(.7),
-              fontWeight:
-                  FontWeight.w500, // Un poco más oscuro para que se lea mejor
+              color: valueColor ?? Colors.black.withOpacity(.7),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
