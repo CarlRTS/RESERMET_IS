@@ -39,6 +39,7 @@ class _CatalogConsolaScreenState extends State<CatalogConsolaScreen> {
   }
 
   Future<void> _loadOnce() async {
+    await _reservaService.finalizarVencidas(); // ← NUEVO
     final consolas = await _consolaService.getConsolas();
     consolas.sort(
       (a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),

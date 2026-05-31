@@ -39,6 +39,7 @@ class _CatalogEquipoDeportivoScreenState
   }
 
   Future<void> _loadOnce() async {
+    await _reservaService.finalizarVencidas(); // ← NUEVO
     final rows = await _client
         .from('equipo_deportivo')
         .select('*, articulo(*)');
