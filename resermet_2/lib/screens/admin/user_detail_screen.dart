@@ -1,4 +1,3 @@
-// lib/screens/admin/user_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:resermet_2/models/user_profile.dart';
@@ -21,11 +20,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   String? _error;
   UserProfile? _user;
 
-  // 🔹 Gestión de rol y datos de admin
   String _selectedRole = 'estudiante';
   bool _savingChanges = false;
+  bool _esSeleccion = false; // ← NUEVO
 
-  // 🔹 Controladores para edición de administrador
   final _cedulaCtrl = TextEditingController();
   final _carnetCtrl = TextEditingController();
 
@@ -64,7 +62,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       setState(() {
         _user = data;
         _selectedRole = data.rol;
-        // 🔹 Inicializamos los controladores con los datos actuales
+        _esSeleccion = data.esSeleccion; // ← NUEVO
         _cedulaCtrl.text = data.cedula.toString();
         _carnetCtrl.text = data.carnet.toString();
         _loading = false;
@@ -92,12 +90,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     }
   }
 
-  // 🔹 Actualizar todos los datos sensibles (Rol, Cédula, Carnet)
   Future<void> _updateAdminData() async {
     final user = _user;
     if (user == null) return;
 
-    // Validaciones básicas antes de enviar
     final int? nuevaCedula = int.tryParse(_cedulaCtrl.text.trim());
     final int? nuevoCarnet = int.tryParse(_carnetCtrl.text.trim());
 
@@ -110,31 +106,33 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       return;
     }
 
-    setState(() {
-      _savingChanges = true;
-    });
+    setState(() => _savingChanges = true);
 
     try {
-      // Usamos el toUpdateMap que configuramos para que incluya cedula y carnet
+      // Actualizar usuario (rol, cedula, carnet)
       final updatedUser = user.copyWith(
         rol: _selectedRole,
         cedula: nuevaCedula,
         carnet: nuevoCarnet,
       );
 
-      final updateData = updatedUser.toUpdateMap();
-
       await Supabase.instance.client
           .from('usuario')
-          .update(updateData)
+          .update(updatedUser.toUpdateMap())
           .eq('id_usuario', user.idUsuario);
+
+      // ← NUEVO: Actualizar es_seleccion en tabla estudiante
+      if (_selectedRole == 'estudiante') {
+        await _service.updateSeleccionDeportiva(
+          idUsuario: user.idUsuario,
+          esSeleccion: _esSeleccion,
+        );
+      }
 
       await _fetch();
 
       if (!mounted) return;
-      setState(() {
-        _savingChanges = false;
-      });
+      setState(() => _savingChanges = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -144,17 +142,15 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _savingChanges = false;
-      });
+      setState(() => _savingChanges = false);
       _showError('Error al actualizar datos: $e');
     }
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
   }
 
   @override
@@ -174,13 +170,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       } else {
         final telefono = user.telefono;
 
-        // 🔹 Verificamos si hubo algún cambio en los datos para habilitar el botón
         final bool roleChanged = _selectedRole != user.rol;
-        final bool cedulaChanged =
-            _cedulaCtrl.text.trim() != user.cedula.toString();
-        final bool carnetChanged =
-            _carnetCtrl.text.trim() != user.carnet.toString();
-        final bool hasChanges = roleChanged || cedulaChanged || carnetChanged;
+        final bool cedulaChanged = _cedulaCtrl.text.trim() != user.cedula.toString();
+        final bool carnetChanged = _carnetCtrl.text.trim() != user.carnet.toString();
+        final bool seleccionChanged = _esSeleccion != user.esSeleccion; // ← NUEVO
+        final bool hasChanges = roleChanged || cedulaChanged || carnetChanged || seleccionChanged; // ← NUEVO
 
         body = SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -212,14 +206,35 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Chip(
-                label: Text(user.rol.toUpperCase()),
-                backgroundColor: cs.primaryContainer,
-                labelStyle: TextStyle(color: cs.onPrimaryContainer),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Chip(
+                    label: Text(user.rol.toUpperCase()),
+                    backgroundColor: cs.primaryContainer,
+                    labelStyle: TextStyle(color: cs.onPrimaryContainer),
+                  ),
+                  // ← NUEVO: Badge selección deportiva
+                  if (user.esSeleccion) ...[
+                    const SizedBox(width: 8),
+                    Chip(
+                      avatar: const Icon(
+                        Icons.sports,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Selección',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.green.shade600,
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 16),
 
-              // Info de contacto (Solo lectura)
+              // Info de contacto
               _infoTile(
                 icon: Icons.alternate_email,
                 label: 'Correo',
@@ -257,13 +272,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 🔹 Edición de Cédula
+              // Edición de Cédula
               TextField(
                 controller: _cedulaCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) =>
-                    setState(() {}), // Para actualizar el estado del botón
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: 'Cédula de Identidad',
                   prefixIcon: const Icon(Icons.badge_outlined),
@@ -275,7 +289,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
               const SizedBox(height: 12),
 
-              // 🔹 Edición de Carnet
+              // Edición de Carnet
               TextField(
                 controller: _carnetCtrl,
                 keyboardType: TextInputType.number,
@@ -283,8 +297,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(11),
                 ],
-                onChanged: (_) =>
-                    setState(() {}), // Para actualizar el estado del botón
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: 'Carnet Estudiantil (11 dígitos)',
                   prefixIcon: const Icon(Icons.credit_card),
@@ -296,7 +309,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 🔹 Gestión de rol
+              // Nivel de acceso
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -334,9 +347,57 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // 🔹 Botón Unificado de Guardado
+              // ← NUEVO: Toggle selección deportiva (solo visible si es estudiante)
+              if (_selectedRole == 'estudiante') ...[
+                const Divider(),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Selección Deportiva',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface.withOpacity(0.8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: cs.outlineVariant),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text('Pertenece a una selección deportiva'),
+                    subtitle: Text(
+                      _esSeleccion
+                          ? 'El estudiante es parte de una selección'
+                          : 'El estudiante no pertenece a ninguna selección',
+                      style: TextStyle(
+                        color: _esSeleccion
+                            ? Colors.green.shade600
+                            : cs.onSurface.withOpacity(0.5),
+                        fontSize: 12,
+                      ),
+                    ),
+                    secondary: Icon(
+                      Icons.sports,
+                      color: _esSeleccion
+                          ? Colors.green.shade600
+                          : cs.onSurface.withOpacity(0.4),
+                    ),
+                    value: _esSeleccion,
+                    activeColor: Colors.green.shade600,
+                    onChanged: (val) => setState(() => _esSeleccion = val),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Botón Guardar
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(

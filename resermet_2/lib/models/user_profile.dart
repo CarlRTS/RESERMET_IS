@@ -4,10 +4,11 @@ class UserProfile {
   final String? apellido;
   final String correo;
   final String? telefono;
-  final String rol; // 'estudiante' | 'administrador'
+  final String rol;
   final String? fotoUrl;
   final int cedula;
   final int carnet;
+  final bool esSeleccion; // ← NUEVO
 
   UserProfile({
     required this.idUsuario,
@@ -19,6 +20,7 @@ class UserProfile {
     this.fotoUrl,
     required this.cedula,
     required this.carnet,
+    this.esSeleccion = false, // ← NUEVO
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
@@ -32,6 +34,7 @@ class UserProfile {
       fotoUrl: map['foto_url']?.toString(),
       cedula: int.tryParse(map['cedula']?.toString() ?? '0') ?? 0,
       carnet: int.tryParse(map['carnet']?.toString() ?? '0') ?? 0,
+      esSeleccion: (map['es_seleccion'] as bool?) ?? false, // ← NUEVO
     );
   }
 
@@ -46,6 +49,7 @@ class UserProfile {
       'foto_url': fotoUrl,
       'cedula': cedula,
       'carnet': carnet,
+      'es_seleccion': esSeleccion, // ← NUEVO
     };
   }
 
@@ -68,7 +72,6 @@ class UserProfile {
     m['correo'] = correo;
     m['rol'] = rol;
     m['foto_url'] = fotoUrl;
-    //El administrador sí debe poder corregir una cédula o carnet mal ingresado.
     m['cedula'] = cedula;
     m['carnet'] = carnet;
     return m;
@@ -82,6 +85,7 @@ class UserProfile {
     int? cedula,
     int? carnet,
     String? rol,
+    bool? esSeleccion, // ← NUEVO
   }) {
     return UserProfile(
       idUsuario: idUsuario,
@@ -93,6 +97,7 @@ class UserProfile {
       fotoUrl: fotoUrl ?? this.fotoUrl,
       cedula: cedula ?? this.cedula,
       carnet: carnet ?? this.carnet,
+      esSeleccion: esSeleccion ?? this.esSeleccion, // ← NUEVO
     );
   }
 }
