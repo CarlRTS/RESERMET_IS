@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:resermet_2/models/consola.dart';
 import 'package:resermet_2/services/consola_service.dart';
+import 'package:resermet_2/services/reserva_service.dart';
 import 'package:resermet_2/utils/app_colors.dart';
 import 'package:resermet_2/widgets/horario_picker.dart';
 import 'package:resermet_2/widgets/horario_picker_helper.dart';
@@ -17,36 +18,28 @@ class ReservationFormConsole extends StatefulWidget {
 class _ReservationFormConsoleState extends State<ReservationFormConsole> {
   final _formKey = GlobalKey<FormState>();
   final ConsolaService _consolaService = ConsolaService();
+  final ReservaService _reservaService = ReservaService();
 
-  // Controladores
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
 
-  // Estado
   List<Consola> _consolasDisponibles = [];
   Consola? _consolaSeleccionada;
   TimeOfDay? _selectedTime;
   String? _selectedDuration;
   String? _selectedGame;
-
-  // Estado para el checkbox del acuerdo
   bool _aceptoAcuerdo = false;
+  bool _isLoading = true;
+  bool _isSubmitting = false;
 
   DateTime get _fechaActual => DateTime.now();
   String get _fechaFormateada =>
       "${_fechaActual.day}/${_fechaActual.month}/${_fechaActual.year}";
 
   List<String> _duracionesDisponibles = [
-    '30 min',
-    '1 hora',
-    '1.5 horas',
-    '2 horas',
+    '30 min', '1 hora', '1.5 horas', '2 horas',
   ];
 
-  bool _isLoading = true;
-  bool _isSubmitting = false;
-
-  // Hora límite para reservas (5:00 PM)
   final TimeOfDay _horaLimite = TimeOfDay(hour: 17, minute: 0);
 
   @override
@@ -55,31 +48,26 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     _cargarConsolasDisponibles();
   }
 
-  Future<void> _cargarConsolasDisponibles() async {
-    try {
-      final consolas = await _consolaService.getConsolas();
-      final consolasDisponibles = consolas
-          .where((c) => c.cantidadDisponible > 0)
-          .toList();
-
-      setState(() {
-        _consolasDisponibles = consolasDisponibles;
-        _isLoading = false;
-        if (_consolasDisponibles.isNotEmpty) {
-          _consolaSeleccionada = _consolasDisponibles.first;
-        }
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _mostrarError('Error al cargar las consolas disponibles');
-    }
-  }
-
   @override
   void dispose() {
     _timeController.dispose();
     _purposeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _cargarConsolasDisponibles() async {
+    try {
+      final consolas = await _consolaService.getConsolas();
+      final disponibles = consolas.where((c) => c.cantidadDisponible > 0).toList();
+      setState(() {
+        _consolasDisponibles = disponibles;
+        _isLoading = false;
+        if (disponibles.isNotEmpty) _consolaSeleccionada = disponibles.first;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _mostrarError('Error al cargar las consolas disponibles');
+    }
   }
 
   bool get _yaPasoHoraLimite {
@@ -113,9 +101,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
   Future<void> _selectTime(BuildContext context) async {
     if (_yaPasoHoraLimite) {
-      _mostrarHorarioNoDisponible(
-        'No se pueden hacer reservas después de las 5:00 PM',
-      );
+      _mostrarHorarioNoDisponible('No se pueden hacer reservas después de las 5:00 PM');
       return;
     }
     HorarioPicker.mostrarPicker(
@@ -126,9 +112,7 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       colorHoraSeleccionada: AppColors.unimetBlue,
       onHoraSeleccionada: (picked) {
         if (_esHoraDespuesDeLimite(picked)) {
-          _mostrarHorarioNoDisponible(
-            'No se pueden hacer reservas después de las 5:00 PM',
-          );
+          _mostrarHorarioNoDisponible('No se pueden hacer reservas después de las 5:00 PM');
           return;
         }
         setState(() {
@@ -140,26 +124,19 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
     );
   }
 
-  void _mostrarError(String mensaje) {
-    ReservationToastService.showReservationError(context, mensaje);
-  }
+  void _mostrarError(String mensaje) =>
+      ReservationToastService.showReservationError(context, mensaje);
 
-  void _mostrarHorarioNoDisponible(String mensaje) {
-    ReservationToastService.showScheduleWarning(context, mensaje);
-  }
+  void _mostrarHorarioNoDisponible(String mensaje) =>
+      ReservationToastService.showScheduleWarning(context, mensaje);
 
-  // ====== CREAR RESERVA ======
   Future<void> _crearReserva() async {
     if (_yaPasoHoraLimite) {
-      _mostrarHorarioNoDisponible(
-        'No se pueden hacer reservas después de las 5:00 PM',
-      );
+      _mostrarHorarioNoDisponible('No se pueden hacer reservas después de las 5:00 PM');
       return;
     }
     if (_selectedTime != null && _esHoraDespuesDeLimite(_selectedTime!)) {
-      _mostrarHorarioNoDisponible(
-        'No se pueden hacer reservas después de las 5:00 PM',
-      );
+      _mostrarHorarioNoDisponible('No se pueden hacer reservas después de las 5:00 PM');
       return;
     }
     if (_consolaSeleccionada == null) {
@@ -170,12 +147,8 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
       _mostrarError('Por favor completa la hora y duración de la reserva');
       return;
     }
-
-    // Validación del checkbox de acuerdo
     if (!_aceptoAcuerdo) {
-      _mostrarError(
-        'Debes aceptar el acuerdo de responsabilidad para continuar',
-      );
+      _mostrarError('Debes aceptar el acuerdo de responsabilidad para continuar');
       return;
     }
 
@@ -187,33 +160,43 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
     ReservationToastService.showLoading(context, 'Procesando tu reserva...');
     setState(() => _isSubmitting = true);
+
     try {
       final inicioLocal = DateTime(
-        _fechaActual.year,
-        _fechaActual.month,
-        _fechaActual.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
+        _fechaActual.year, _fechaActual.month, _fechaActual.day,
+        _selectedTime!.hour, _selectedTime!.minute,
       );
       final finLocal = _calcularFechaFin(inicioLocal, _selectedDuration!);
       final inicioIso = inicioLocal.toUtc().toIso8601String();
       final finIso = finLocal.toUtc().toIso8601String();
-      final String propositoFinal;
 
-      // Manejo opcional del propósito
+      final conflictoCount = await _reservaService.getActiveReservationsCount(
+        idArticulo: _consolaSeleccionada!.idObjeto,
+        inicio: inicioLocal,
+        fin: finLocal,
+      );
+
+      if (conflictoCount >= _consolaSeleccionada!.cantidadTotal) {
+        ReservationToastService.dismissAll();
+        ReservationToastService.showReservationError(
+          context,
+          'La consola "${_consolaSeleccionada!.nombre}" no tiene unidades disponibles en ese horario.',
+        );
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
+
       final textoProposito = _purposeController.text.trim().isEmpty
           ? 'Sin especificar'
           : _purposeController.text.trim();
 
-      if (_selectedGame != null &&
-          _selectedGame!.isNotEmpty &&
-          _selectedGame != 'Otro juego') {
-        propositoFinal = 'Juego: $_selectedGame. Propósito: $textoProposito';
-      } else {
-        propositoFinal = textoProposito;
-      }
+      final propositoFinal = (_selectedGame != null &&
+              _selectedGame!.isNotEmpty &&
+              _selectedGame != 'Otro juego')
+          ? 'Juego: $_selectedGame. Propósito: $textoProposito'
+          : textoProposito;
 
-      final reservaData = {
+      await Supabase.instance.client.from('reserva').insert({
         'id_articulo': _consolaSeleccionada!.idObjeto,
         'id_usuario': user.id,
         'fecha_reserva': DateTime.now().toUtc().toIso8601String().split('T')[0],
@@ -221,30 +204,19 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
         'fin': finIso,
         'compromiso_estudiante': propositoFinal,
         'estado': 'activa',
-      };
-
-      await Supabase.instance.client.from('reserva').insert(reservaData);
+      });
 
       ReservationToastService.dismissAll();
-      ReservationToastService.showReservationSuccess(
-        context,
-        _consolaSeleccionada!.nombre,
-      );
+      ReservationToastService.showReservationSuccess(context, _consolaSeleccionada!.nombre);
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) Navigator.of(context).pop();
     } on PostgrestException catch (e) {
       ReservationToastService.dismissAll();
-      ReservationToastService.showReservationError(
-        context,
-        'Error de conexión con la base de datos',
-      );
+      ReservationToastService.showReservationError(context, 'Error de conexión con la base de datos');
       _mostrarError('Error al crear la reserva: ${e.message}');
     } catch (e) {
       ReservationToastService.dismissAll();
-      ReservationToastService.showReservationError(
-        context,
-        'Error inesperado al procesar la reserva',
-      );
+      ReservationToastService.showReservationError(context, 'Error inesperado al procesar la reserva');
       _mostrarError('Error al crear la reserva: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -253,633 +225,425 @@ class _ReservationFormConsoleState extends State<ReservationFormConsole> {
 
   DateTime _calcularFechaFin(DateTime fechaInicio, String duracion) {
     switch (duracion) {
-      case '30 min':
-        return fechaInicio.add(const Duration(minutes: 30));
-      case '1 hora':
-        return fechaInicio.add(const Duration(hours: 1));
-      case '1.5 horas':
-        return fechaInicio.add(const Duration(minutes: 90));
-      case '2 horas':
-        return fechaInicio.add(const Duration(hours: 2));
-      default:
-        return fechaInicio.add(const Duration(hours: 1));
+      case '30 min': return fechaInicio.add(const Duration(minutes: 30));
+      case '1 hora': return fechaInicio.add(const Duration(hours: 1));
+      case '1.5 horas': return fechaInicio.add(const Duration(minutes: 90));
+      case '2 horas': return fechaInicio.add(const Duration(hours: 2));
+      default: return fechaInicio.add(const Duration(hours: 1));
     }
   }
 
-  // ====== Helpers visuales ======
-  Card _modernCard({required Widget child, EdgeInsets? padding}) {
-    return Card(
-      elevation: 5,
-      shadowColor: AppColors.unimetBlue.withOpacity(.15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: padding ?? const EdgeInsets.all(16),
-        child: child,
-      ),
-    );
-  }
+  // ===== UI HELPERS =====
 
-  InputDecoration _inputDec({
+  InputDecoration _field({
     required String label,
     String? hint,
-    IconData? prefix,
-    bool? enabled,
+    IconData? icon,
+    bool enabled = true,
   }) {
-    final isDisabled = enabled == false;
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: TextStyle(
-        color: isDisabled ? AppColors.textSecondary : AppColors.textPrimary,
-        fontWeight: FontWeight.w700,
-        letterSpacing: .2,
-      ),
-      hintStyle: TextStyle(
-        color: isDisabled
-            ? AppColors.textSecondary.withOpacity(0.7)
-            : AppColors.textSecondary,
-      ),
-      prefixIcon: prefix != null
-          ? Icon(
-              prefix,
-              color: isDisabled
-                  ? AppColors.textSecondary
-                  : AppColors.unimetBlue,
-            )
+      prefixIcon: icon != null
+          ? Icon(icon, color: enabled ? AppColors.unimetBlue : Colors.grey.shade400, size: 20)
           : null,
       filled: true,
-      fillColor: isDisabled ? Colors.grey.shade100 : AppColors.fieldBg,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(
-          color: isDisabled ? Colors.grey.shade400 : AppColors.unimetBlue,
-          width: 1,
-        ),
-        borderRadius: const BorderRadius.all(Radius.circular(16)),
+      fillColor: enabled ? Colors.white : Colors.grey.shade50,
+      labelStyle: TextStyle(
+        color: enabled ? Colors.grey.shade600 : Colors.grey.shade400,
+        fontSize: 14,
       ),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: AppColors.unimetBlue, width: 2),
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.unimetBlue, width: 1.5),
       ),
       disabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade100),
       ),
     );
   }
 
-  Widget _sectionHeader({required IconData icon, required String title}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.fieldBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: AppColors.unimetBlue.withOpacity(.12),
-                ),
-              ),
-              child: Icon(icon, color: AppColors.unimetBlue, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                softWrap: true,
-                maxLines: 2,
-                style: const TextStyle(
-                  fontSize: 20,
-                  height: 1.25,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: .2,
-                ),
-              ),
-            ),
-          ],
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.unimetBlue,
+          letterSpacing: 0.5,
         ),
-        const SizedBox(height: 10),
-        Container(
-          width: 64,
-          height: 3,
-          decoration: BoxDecoration(
-            color: AppColors.unimetBlue,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
+      ),
     );
   }
+
+  Widget _divider() => Divider(color: Colors.grey.shade100, height: 28);
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-
     return Container(
-      color: cs.surface,
-      padding: const EdgeInsets.all(20),
+      color: Colors.grey.shade50,
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Reserva tu Consola',
-                style: text.titleLarge?.copyWith(
+
+              // ===== HEADER =====
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
                   color: AppColors.unimetBlue,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 23,
-                  height: 1.22,
-                  letterSpacing: .2,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Este es un formulario para realizar la solicitud de una consola al Decanato de Estudiantes para disfrutar del espacio de la GAME ROOM ',
-                style: text.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.35,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.sports_esports_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Game Room',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
+                          ),
+                          Text(
+                            'Solicitud de consola · $_fechaFormateada',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.75),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_yaPasoHoraLimite)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade400,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Cerrado',
+                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
 
-              // ====== Selección de consola ======
-              _modernCard(
+              // ===== CARD PRINCIPAL =====
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade100),
+                ),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _sectionHeader(
-                      icon: Icons.videogame_asset_rounded,
-                      title: 'Seleccionar Consola',
-                    ),
-                    const SizedBox(height: 16),
+
+                    // Selección de consola
+                    _sectionTitle('CONSOLA'),
                     if (_isLoading)
                       const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.unimetBlue,
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            color: AppColors.unimetBlue,
+                            strokeWidth: 2,
+                          ),
                         ),
                       )
                     else if (_consolasDisponibles.isEmpty)
-                      const Text(
-                        'No hay consolas disponibles en este momento',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange.shade100),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.orange.shade600, size: 18),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'No hay consolas disponibles en este momento',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ],
+                        ),
                       )
                     else
                       DropdownButtonFormField<Consola>(
                         value: _consolaSeleccionada,
                         isExpanded: true,
-                        itemHeight: null,
-                        menuMaxHeight: 320,
-                        borderRadius: BorderRadius.circular(16),
-                        decoration: _inputDec(
-                          label: 'Consolas disponibles',
-                          hint: 'Elige una consola',
-                          prefix: Icons.videogame_asset_rounded,
+                        menuMaxHeight: 300,
+                        borderRadius: BorderRadius.circular(12),
+                        decoration: _field(
+                          label: 'Selecciona una consola',
+                          icon: Icons.videogame_asset_rounded,
                         ),
                         selectedItemBuilder: (context) =>
-                            _consolasDisponibles.map((c) {
-                              return Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  c.nombre,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                        items: _consolasDisponibles.map((consola) {
-                          return DropdownMenuItem<Consola>(
-                            value: consola,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  consola.nombre,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Modelo: ${consola.modelo}',
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: AppColors.textSecondary,
-                                    height: 1.2,
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.check_circle_rounded,
-                                      size: 14,
-                                      color: Colors.green.shade700,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Disponibles: ${consola.cantidadDisponible}',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.green.shade700,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _consolaSeleccionada = newValue;
-                            _selectedGame = null;
-                          });
-                        },
-                        validator: (value) => value == null
-                            ? 'Por favor selecciona una consola'
-                            : null,
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ====== Info de la consola seleccionada ======
-              if (_consolaSeleccionada != null) ...[
-                _modernCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _sectionHeader(
-                        icon: Icons.info_rounded,
-                        title: 'Información de la Consola',
-                      ),
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.blueSoft,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: AppColors.unimetBlue.withOpacity(.12),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.sports_esports_rounded,
-                            color: AppColors.unimetBlue,
-                          ),
-                        ),
-                        title: Text(
-                          _consolaSeleccionada!.nombre,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            color: AppColors.textPrimary,
-                            height: 1.2,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 2),
-                            Text(
-                              'Modelo: ${_consolaSeleccionada!.modelo}',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Disponibles: ${_consolaSeleccionada!.cantidadDisponible} unidades',
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.w700,
-                                height: 1.2,
-                              ),
-                            ),
-                            Text(
-                              'Total en inventario: ${_consolaSeleccionada!.cantidadTotal}',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                color: AppColors.textSecondary,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // ====== Detalles de la reserva ======
-              _modernCard(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionHeader(
-                      icon: Icons.calendar_month_rounded,
-                      title: 'Detalles de la Reserva',
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      initialValue: _fechaFormateada,
-                      readOnly: true,
-                      enabled: false,
-                      decoration: _inputDec(
-                        label: 'Fecha de reserva',
-                        prefix: Icons.event_rounded,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _timeController,
-                      readOnly: true,
-                      onTap: () {
-                        if (_yaPasoHoraLimite) {
-                          _mostrarHorarioNoDisponible(
-                            'No se pueden hacer reservas después de las 5:00 PM',
-                          );
-                        } else {
-                          _selectTime(context);
-                        }
-                      },
-                      decoration: _inputDec(
-                        label: 'Hora de inicio',
-                        hint: _yaPasoHoraLimite
-                            ? 'Horario no disponible'
-                            : 'Selecciona la hora',
-                        prefix: Icons.access_time_rounded,
-                        enabled: !_yaPasoHoraLimite,
-                      ),
-                      validator: (value) {
-                        if (_yaPasoHoraLimite)
-                          return 'No se permiten reservas después de las 5:00 PM';
-                        return (value == null || value.isEmpty)
-                            ? 'Por favor selecciona una hora'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<String>(
-                      value: _selectedDuration,
-                      isExpanded: true,
-                      menuMaxHeight: 320,
-                      borderRadius: BorderRadius.circular(16),
-                      decoration: _inputDec(
-                        label: 'Duración de uso',
-                        prefix: Icons.timer_rounded,
-                        enabled: !_yaPasoHoraLimite,
-                      ),
-                      items: _duracionesDisponibles
-                          .map(
-                            (duracion) => DropdownMenuItem(
-                              value: duracion,
+                            _consolasDisponibles.map((c) => Align(
+                              alignment: Alignment.centerLeft,
                               child: Text(
-                                duracion,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                ),
+                                '${c.nombre} · ${c.cantidadDisponible} disp.',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _yaPasoHoraLimite
-                          ? null
-                          : (newValue) =>
-                                setState(() => _selectedDuration = newValue),
-                      validator: (value) => (value == null || value.isEmpty)
-                          ? 'Por favor selecciona una duración'
-                          : null,
-                    ),
-                    const SizedBox(height: 14),
+                            )).toList(),
+                        items: _consolasDisponibles.map((c) => DropdownMenuItem<Consola>(
+                          value: c,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(c.nombre, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                              Text(
+                                '${c.modelo} · ${c.cantidadDisponible}/${c.cantidadTotal} disponibles',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        )).toList(),
+                        onChanged: (v) => setState(() { _consolaSeleccionada = v; _selectedGame = null; }),
+                        validator: (v) => v == null ? 'Por favor selecciona una consola' : null,
+                      ),
 
-                    DropdownButtonFormField<String>(
-                      value: _selectedGame,
-                      isExpanded: true,
-                      itemHeight: null,
-                      menuMaxHeight: 320,
-                      borderRadius: BorderRadius.circular(16),
-                      decoration: _inputDec(
-                        label: 'Juego (opcional)',
-                        hint: 'Selecciona un juego',
-                        prefix: Icons.games_rounded,
-                        enabled: !_yaPasoHoraLimite,
-                      ),
-                      disabledHint: Text(
-                        _yaPasoHoraLimite
-                            ? 'Horario no disponible'
-                            : 'Selecciona un juego',
-                      ),
-                      onChanged: _yaPasoHoraLimite
-                          ? null
-                          : (newValue) =>
-                                setState(() => _selectedGame = newValue),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('Ningún juego específico'),
+                    _divider(),
+
+                    // Hora y duración
+                    _sectionTitle('HORARIO'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _timeController,
+                            readOnly: true,
+                            onTap: () => _yaPasoHoraLimite
+                                ? _mostrarHorarioNoDisponible('No se pueden hacer reservas después de las 5:00 PM')
+                                : _selectTime(context),
+                            decoration: _field(
+                              label: 'Hora de inicio',
+                              hint: 'Selecciona',
+                              icon: Icons.access_time_rounded,
+                              enabled: !_yaPasoHoraLimite,
+                            ),
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Selecciona una hora'
+                                : null,
+                          ),
                         ),
-                        ...(_consolaSeleccionada?.juegosCompatibles ?? [])
-                            .map(
-                              (juego) => DropdownMenuItem(
-                                value: juego,
-                                child: Text(juego),
-                              ),
-                            )
-                            .toList(),
-                        const DropdownMenuItem(
-                          value: 'Otro juego',
-                          child: Text('Otro juego (no listado)'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedDuration,
+                            menuMaxHeight: 240,
+                            borderRadius: BorderRadius.circular(12),
+                            decoration: _field(
+                              label: 'Duración',
+                              icon: Icons.timer_rounded,
+                              enabled: !_yaPasoHoraLimite,
+                            ),
+                            items: _duracionesDisponibles.map((d) => DropdownMenuItem(
+                              value: d,
+                              child: Text(d, style: const TextStyle(fontSize: 14)),
+                            )).toList(),
+                            onChanged: _yaPasoHoraLimite
+                                ? null
+                                : (v) => setState(() => _selectedDuration = v),
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Selecciona duración'
+                                : null,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
 
-                    // 🟢 CAMPO OPCIONAL DE PROPÓSITO
+                    _divider(),
+
+                    // Juego
+                    _sectionTitle('JUEGO (OPCIONAL)'),
+                    DropdownButtonFormField<String>(
+                      value: _selectedGame,
+                      isExpanded: true,
+                      menuMaxHeight: 280,
+                      borderRadius: BorderRadius.circular(12),
+                      decoration: _field(
+                        label: 'Selecciona un juego',
+                        icon: Icons.games_rounded,
+                        enabled: !_yaPasoHoraLimite,
+                      ),
+                      onChanged: _yaPasoHoraLimite
+                          ? null
+                          : (v) => setState(() => _selectedGame = v),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Ningún juego específico')),
+                        ...(_consolaSeleccionada?.juegosCompatibles ?? []).map(
+                          (j) => DropdownMenuItem(value: j, child: Text(j)),
+                        ),
+                        const DropdownMenuItem(value: 'Otro juego', child: Text('Otro juego (no listado)')),
+                      ],
+                    ),
+
+                    _divider(),
+
+                    // Propósito
+                    _sectionTitle('PROPÓSITO (OPCIONAL)'),
                     TextFormField(
                       controller: _purposeController,
                       maxLines: 3,
                       enabled: !_yaPasoHoraLimite,
-                      decoration: _inputDec(
-                        label: 'Propósito de uso (Opcional)',
-                        hint: 'Describe para qué usarás la consola...',
-                        prefix: Icons.description_rounded,
+                      decoration: _field(
+                        label: 'Describe el uso',
+                        hint: 'Ej: Torneo de Mario Kart con amigos...',
+                        icon: Icons.edit_note_rounded,
                         enabled: !_yaPasoHoraLimite,
                       ),
-                      // Se eliminó el validator para hacerlo opcional
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              // ====== ACUERDO REUBICADO CON CHECKBOX ======
+              // ===== ACUERDO =====
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.blueSoft,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: AppColors.unimetBlue.withOpacity(.18),
-                  ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade100),
                 ),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
-                          Icons.info_rounded,
-                          color: AppColors.unimetBlue,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Acuerdo de responsabilidad del estudiante',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                        Icon(Icons.shield_outlined, color: AppColors.unimetBlue, size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Acuerdo de responsabilidad',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: AppColors.unimetBlue,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Usted como estudiante acepta la responsabilidad de cuidar la integridad del equipo y devolver exactamente todo lo otorgado por el Decanato de estudiantes.\n\n'
-                      'En caso de extravío o daño el ESTUDIANTE deberá de reponer exactamente el equipo extraviado o dañado.\n'
-                      'LOS JUEGOS NO SON TRANSFERIBLES A OTROS ESTUDIANTES. (Debe ser entregado por el solicitante)\n\n'
-                      'Cuidemos nuestros espacios para poder seguirlos disfrutando.',
+                    Text(
+                      'Al retirar el equipo aceptas cuidarlo y devolverlo en las mismas condiciones. '
+                      'En caso de extravío o daño deberás reponerlo. '
+                      'Los juegos no son transferibles a otros estudiantes.',
                       style: TextStyle(
                         fontSize: 13,
-                        height: 1.35,
-                        color: AppColors.textSecondary,
+                        color: Colors.grey.shade600,
+                        height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     InkWell(
-                      onTap: () {
-                        setState(() {
-                          _aceptoAcuerdo = !_aceptoAcuerdo;
-                        });
-                      },
+                      onTap: () => setState(() => _aceptoAcuerdo = !_aceptoAcuerdo),
                       borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: _aceptoAcuerdo,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _aceptoAcuerdo = val ?? false;
-                                  });
-                                },
-                                activeColor: AppColors.unimetBlue,
-                                side: const BorderSide(
-                                  color: AppColors.unimetBlue,
-                                  width: 2,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: _aceptoAcuerdo,
+                              onChanged: (v) => setState(() => _aceptoAcuerdo = v ?? false),
+                              activeColor: AppColors.unimetBlue,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                              side: BorderSide(
+                                color: _aceptoAcuerdo ? AppColors.unimetBlue : Colors.grey.shade400,
+                                width: 1.5,
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Text(
-                                'Acepto el acuerdo de responsabilidad',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                ),
-                              ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Acepto el acuerdo de responsabilidad',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // ====== BOTÓN DE CONFIRMACIÓN ======
+              // ===== BOTÓN =====
               SizedBox(
                 width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed:
-                      _isSubmitting ||
-                          _consolasDisponibles.isEmpty ||
-                          _yaPasoHoraLimite
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting || _consolasDisponibles.isEmpty || _yaPasoHoraLimite
                       ? null
                       : _crearReserva,
-                  icon: _isSubmitting
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.unimetBlue,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: _isSubmitting
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          _yaPasoHoraLimite
+                              ? 'Reservas cerradas por hoy'
+                              : _consolasDisponibles.isEmpty
+                              ? 'Sin consolas disponibles'
+                              : 'Confirmar reserva',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
                           ),
-                        )
-                      : const Icon(
-                          Icons.check_circle_rounded,
-                          color: Colors.white,
                         ),
-                  label: Text(
-                    _yaPasoHoraLimite
-                        ? 'Reservas cerradas'
-                        : _isSubmitting
-                        ? 'Procesando…'
-                        : 'Confirmar Reserva',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: .2,
-                      height: 1.1,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _isSubmitting ||
-                            _consolasDisponibles.isEmpty ||
-                            _yaPasoHoraLimite
-                        ? Colors.grey
-                        : AppColors.unimetBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 4,
-                  ),
                 ),
               ),
               const SizedBox(height: 16),

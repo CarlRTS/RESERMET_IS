@@ -1,28 +1,28 @@
-// lib/screens/catalog_equipo_deportivo_screen.dart
+// lib/screens/catalog_consola_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/equipo_deportivo.dart';
+import '../models/consola.dart';
+import '../services/consola_service.dart';
 import '../services/reserva_service.dart';
 import '../utils/app_colors.dart';
 
-class CatalogEquipoDeportivoScreen extends StatefulWidget {
-  const CatalogEquipoDeportivoScreen({super.key});
+class CatalogConsolaScreen extends StatefulWidget {
+  const CatalogConsolaScreen({super.key});
 
   @override
-  State<CatalogEquipoDeportivoScreen> createState() =>
-      _CatalogEquipoDeportivoScreenState();
+  State<CatalogConsolaScreen> createState() => _CatalogConsolaScreenState();
 }
 
-class _CatalogEquipoDeportivoScreenState
-    extends State<CatalogEquipoDeportivoScreen> {
+class _CatalogConsolaScreenState extends State<CatalogConsolaScreen> {
   final _client = Supabase.instance.client;
+  final _consolaService = ConsolaService();
   final _reservaService = ReservaService();
 
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
-  List<EquipoDeportivo> _all = [];
-  List<EquipoDeportivo> _filtered = [];
+  List<Consola> _all = [];
+  List<Consola> _filtered = [];
   final Map<int, DateTime?> _horasDisponibilidad = {};
 
   String _query = '';
@@ -33,33 +33,29 @@ class _CatalogEquipoDeportivoScreenState
     super.initState();
     _loadOnce();
     _sub = _client
-        .from('equipo_deportivo')
+        .from('consola')
         .stream(primaryKey: ['id_articulo'])
         .listen((_) => _loadOnce());
   }
 
   Future<void> _loadOnce() async {
-    final rows = await _client
-        .from('equipo_deportivo')
-        .select('*, articulo(*)');
-
-    final equipos = rows.map((m) => EquipoDeportivo.fromSupabase(m)).toList()
-      ..sort(
-        (a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),
-      );
+    final consolas = await _consolaService.getConsolas();
+    consolas.sort(
+      (a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),
+    );
 
     final Map<int, DateTime?> horas = {};
-    for (final e in equipos) {
-      if (e.cantidadDisponible <= 0) {
-        horas[e.idObjeto] =
-            await _reservaService.getHoraDisponibilidad(e.idObjeto);
+    for (final c in consolas) {
+      if (c.cantidadDisponible <= 0) {
+        horas[c.idObjeto] =
+            await _reservaService.getHoraDisponibilidad(c.idObjeto);
       } else {
-        horas[e.idObjeto] = null;
+        horas[c.idObjeto] = null;
       }
     }
 
     setState(() {
-      _all = equipos;
+      _all = consolas;
       _horasDisponibilidad.addAll(horas);
       _applyFilter();
     });
@@ -85,33 +81,27 @@ class _CatalogEquipoDeportivoScreenState
   void _applyFilter() {
     final q = _query.trim().toLowerCase();
     _filtered = _all
-        .where((e) => q.isEmpty || e.nombre.toLowerCase().contains(q))
+        .where((c) => q.isEmpty || c.nombre.toLowerCase().contains(q))
         .toList();
   }
 
-  (Color, String) _stateChip(EquipoDeportivo e) {
-    final base = e.estado.toLowerCase().trim();
-    if (base == 'no disponible') {
+  (Color, String) _stateChip(Consola c) {
+    final base = c.estado.toLowerCase().trim();
+    if (base == 'no disponible' || base == 'en_mantenimiento') {
       return (Colors.red, 'No disponible');
     }
-    if (e.cantidadDisponible <= 0) {
+    if (c.cantidadDisponible <= 0) {
       return (Colors.amber, 'Reservado');
     }
     return (Colors.green, 'Disponible');
   }
 
-  IconData _iconForTipoEquipo(String tipo) {
-    switch (tipo.toLowerCase()) {
-      case 'raqueta':
-        return Icons.sports_tennis;
-      case 'balon':
-      case 'balón':
-        return Icons.sports_soccer;
-      case 'pesas':
-        return Icons.fitness_center;
-      default:
-        return Icons.sports;
+  IconData _iconForConsola(String nombre) {
+    final n = nombre.toLowerCase();
+    if (n.contains('nintendo') || n.contains('switch')) {
+      return Icons.videogame_asset;
     }
+    return Icons.sports_esports;
   }
 
   String _hhmm(DateTime dt) =>
@@ -121,7 +111,7 @@ class _CatalogEquipoDeportivoScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Catálogo • Equipo Deportivo'),
+        title: const Text('Catálogo • Consolas'),
         backgroundColor: AppColors.unimetBlue,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -153,7 +143,7 @@ class _CatalogEquipoDeportivoScreenState
       return Center(
         child: Text(
           _query.isEmpty
-              ? 'No hay artículos.'
+              ? 'No hay consolas registradas.'
               : 'No hay resultados para "$_query".',
         ),
       );
@@ -164,9 +154,9 @@ class _CatalogEquipoDeportivoScreenState
       itemCount: _filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
-        final e = _filtered[i];
-        final (color, label) = _stateChip(e);
-        final horaDisp = _horasDisponibilidad[e.idObjeto];
+        final c = _filtered[i];
+        final (color, label) = _stateChip(c);
+        final horaDisp = _horasDisponibilidad[c.idObjeto];
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -185,7 +175,7 @@ class _CatalogEquipoDeportivoScreenState
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  _iconForTipoEquipo(e.tipoEquipo),
+                  _iconForConsola(c.nombre),
                   color: AppColors.unimetBlue,
                   size: 22,
                 ),
@@ -196,7 +186,7 @@ class _CatalogEquipoDeportivoScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      e.nombre,
+                      c.nombre,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -205,7 +195,7 @@ class _CatalogEquipoDeportivoScreenState
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      e.tipoEquipo.isEmpty ? 'Equipo' : e.tipoEquipo,
+                      c.modelo,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade500,
@@ -217,7 +207,7 @@ class _CatalogEquipoDeportivoScreenState
                         _StatusBadge(color: color, label: label),
                         const SizedBox(width: 8),
                         Text(
-                          'Disp: ${e.cantidadDisponible}/${e.cantidadTotal}',
+                          'Disp: ${c.cantidadDisponible}/${c.cantidadTotal}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade500,
