@@ -1,4 +1,5 @@
 // lib/services/reserva_service.dart
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'base_service.dart';
 import '../models/reserva.dart';
@@ -37,13 +38,11 @@ class ReservaService with BaseService {
     if (userId == null) return [];
 
     try {
-      // Traer reservas donde el usuario es TITULAR
       final titularResponse = await supabase
           .from('reserva')
           .select('*')
           .eq('id_usuario', userId);
 
-      // Traer reservas donde el usuario es ACOMPAÑANTE
       final acompananteResponse = await supabase
           .from('reserva')
           .select('*')
@@ -54,7 +53,6 @@ class ReservaService with BaseService {
       final List<Map<String, dynamic>> acompananteList =
           (acompananteResponse as List).cast<Map<String, dynamic>>();
 
-      // Unir y evitar duplicados por id_reserva
       final Map<int, Map<String, dynamic>> merged = {};
       for (final item in titularList) {
         final id = item['id_reserva'] as int;
@@ -67,7 +65,6 @@ class ReservaService with BaseService {
         }
       }
 
-      // Ordenar por inicio DESC (como antes: ascending: false)
       final List<Map<String, dynamic>> ordenadas = merged.values.toList()
         ..sort((a, b) {
           final aInicio = DateTime.parse(a['inicio'] as String);
@@ -75,7 +72,6 @@ class ReservaService with BaseService {
           return bInicio.compareTo(aInicio);
         });
 
-      // Mapear a modelos Reserva
       final List<Reserva> reservas = [];
       for (final item in ordenadas) {
         final int idArticulo = item['id_articulo'] as int;
@@ -112,13 +108,11 @@ class ReservaService with BaseService {
       const selectColumns =
           'id_reserva, id_articulo, id_usuario, inicio, fin, estado, companions_user_ids, articulo(nombre)';
 
-      // Reservas donde el usuario es TITULAR
       final titularData = await supabase
           .from('reserva')
           .select(selectColumns)
           .eq('id_usuario', userId);
 
-      // Reservas donde el usuario es ACOMPAÑANTE
       final acompananteData = await supabase
           .from('reserva')
           .select(selectColumns)
@@ -129,7 +123,6 @@ class ReservaService with BaseService {
       final List<Map<String, dynamic>> acompananteList =
           (acompananteData as List).cast<Map<String, dynamic>>();
 
-      // Unir las dos listas evitando duplicados por id_reserva
       final Map<int, Map<String, dynamic>> merged = {};
       for (final item in titularList) {
         final id = item['id_reserva'] as int;
@@ -142,7 +135,6 @@ class ReservaService with BaseService {
         }
       }
 
-      // Convertir a lista y ordenar por inicio ASC (como antes)
       final List<Map<String, dynamic>> result = merged.values.toList()
         ..sort((a, b) {
           final aInicio = DateTime.parse(a['inicio'] as String);
@@ -150,7 +142,6 @@ class ReservaService with BaseService {
           return aInicio.compareTo(bInicio);
         });
 
-      // Enriquecer con campo 'es_invitado'
       for (final reserva in result) {
         final String creadorId = reserva['id_usuario'] as String;
         reserva['es_invitado'] = creadorId != userId;
@@ -208,10 +199,10 @@ class ReservaService with BaseService {
           .gt('fin', inicioIso);
       return (response as List).length;
     } on PostgrestException catch (e) {
-      print('Error de BD al calcular las reservas activas: ${e.message}');
+      debugPrint('Error de BD al calcular las reservas activas: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error al calcular las reservas activas: $e');
+      debugPrint('Error al calcular las reservas activas: $e');
       rethrow;
     }
   }
@@ -262,11 +253,11 @@ class ReservaService with BaseService {
     await sb.from('reservations').insert(payload);
   }
 
-  // --- ¡FUNCIÓN DE REPORTES ACTUALIZADA! ---
+  // --- FUNCIÓN DE REPORTES ---
   Future<ReporteStats> getEstadisticasReservas({
     required DateTime fechaInicio,
     required DateTime fechaFin,
-    int filtroArea = 0, // <-- Acepta el filtro
+    int filtroArea = 0,
   }) async {
     try {
       final inicioStr = fechaInicio.toIso8601String().split('T').first;
@@ -277,7 +268,7 @@ class ReservaService with BaseService {
         params: {
           'fecha_inicio': inicioStr,
           'fecha_fin': finStr,
-          'filtro_area': filtroArea, // <-- Lo pasa al SQL
+          'filtro_area': filtroArea,
         },
       );
 
@@ -286,6 +277,36 @@ class ReservaService with BaseService {
       throw Exception('Error de BD al generar reporte: ${e.message}');
     } catch (e) {
       throw Exception('Error al generar reporte: $e');
+    }
+  }
+
+  // ====== HORA DE DISPONIBILIDAD ← NUEVO ======
+
+  /// Retorna la hora de fin más próxima de las reservas activas
+  /// de un artículo. Retorna null si el artículo está disponible.
+  Future<DateTime?> getHoraDisponibilidad(int idArticulo) async {
+    try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+      final response = await supabase
+          .from('reserva')
+          .select('fin')
+          .eq('id_articulo', idArticulo)
+          .eq('estado', 'activa')
+          .gt('fin', nowUtc)
+          .order('fin', ascending: true)
+          .limit(1);
+
+      final list = (response as List).cast<Map<String, dynamic>>();
+      if (list.isEmpty) return null;
+
+      return DateTime.parse(list.first['fin'] as String).toLocal();
+    } on PostgrestException catch (e) {
+      debugPrint('Error obteniendo hora disponibilidad: ${e.message}');
+      return null;
+    } catch (e) {
+      debugPrint('Error obteniendo hora disponibilidad: $e');
+      return null;
     }
   }
 }
@@ -323,7 +344,7 @@ class ReporteStats {
   final int totalReservas;
   final int finalizadas;
   final int canceladas;
-  final double totalHoras; // <-- El nuevo KPI
+  final double totalHoras;
   final GraficoTipo graficoTipo;
   final List<GraficoHora> graficoHora;
 

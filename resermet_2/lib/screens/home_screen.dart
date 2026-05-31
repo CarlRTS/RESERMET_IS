@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Importaciones existentes
 import 'my_reservations.dart';
 import 'admin/admin_home_screen.dart';
 import 'login.dart';
@@ -11,6 +10,8 @@ import 'reservations/reservation_form_cubiculo.dart';
 import 'reservations/reservation_form_console.dart';
 import 'reservations/reservation_form_equipment.dart';
 import 'package:resermet_2/services/reserva_service.dart';
+import 'catalog_consola_screen.dart';
+import 'catalog_equipo_deportivo_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -55,10 +56,9 @@ class _MainScreenState extends State<MainScreen> {
     final screens = <Widget>[
       const HomeScreen(),
       const MyBookingsScreen(),
-      const UserProfileScreen(), // 👈 PERFIL AGREGADO COMO PANTALLA PRINCIPAL
+      const UserProfileScreen(),
     ];
 
-    // Si es admin, insertamos la pantalla de admin antes del perfil
     if (_isAdmin) {
       screens.insert(2, const AdminHomeScreen());
     }
@@ -137,7 +137,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
         label: 'Mis Reservas',
       ),
-      // 👇 NUEVO ITEM DE PERFIL
       BottomNavigationBarItem(
         icon: Container(
           padding: const EdgeInsets.all(6),
@@ -172,7 +171,6 @@ class _MainScreenState extends State<MainScreen> {
       ),
     ];
 
-    // 👇 ITEM DE ADMIN (se inserta antes del perfil)
     if (_isAdmin) {
       items.insert(
         2,
@@ -294,28 +292,53 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _reservas = [];
   List<Map<String, dynamic>> _reservasMostradas = [];
 
+  // ← NUEVO: canal realtime
+  RealtimeChannel? _reservaChannel;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _cargarReservas();
+    _suscribirRealtime(); // ← NUEVO
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // ← NUEVO: cerrar canal
+    try {
+      _reservaChannel?.unsubscribe();
+      Supabase.instance.client.removeChannel(_reservaChannel!);
+    } catch (_) {}
     super.dispose();
   }
 
-  // Este método se llama cuando la app vuelve a primer plano
+  // ← NUEVO: suscripción realtime a la tabla reserva
+  void _suscribirRealtime() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _reservaChannel = Supabase.instance.client
+        .channel('home-reservas-$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'reserva',
+          callback: (payload) {
+            if (mounted) _cargarReservas();
+          },
+        )
+        .subscribe();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
-      _cargarReservas(); // Recargar cuando la app vuelve a estar activa
+      _cargarReservas();
     }
   }
 
-  // Método helper para navegación consistente
   void _navigateToReservationForm(
     BuildContext context, {
     required Widget formScreen,
@@ -335,10 +358,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     ).then((_) {
-      // Cuando regresamos de cualquier pantalla de reserva, recargamos las reservas
-      if (mounted) {
-        _cargarReservas();
-      }
+      if (mounted) _cargarReservas();
     });
   }
 
@@ -355,13 +375,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (resp is Map) {
         final map = Map<String, dynamic>.from(resp as Map);
         final nombreCompleto = (map['nombre'] as String?)?.trim() ?? '';
-
-        // 👇 TOMAR SOLO EL PRIMER NOMBRE
         if (nombreCompleto.isNotEmpty) {
-          final primerNombre = nombreCompleto.split(' ').first;
-          return primerNombre;
+          return nombreCompleto.split(' ').first;
         }
-
         return 'Usuario';
       }
     } catch (_) {}
@@ -373,7 +389,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final data = await _reservaService.getMisReservasRaw();
       final now = DateTime.now().toUtc();
 
-      // Filtrar canceladas y finalizadas, solo activas/futuras
       final filtradas = <Map<String, dynamic>>[];
       for (final r in data) {
         final inicio = DateTime.tryParse('${r['inicio']}')?.toUtc();
@@ -381,15 +396,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (inicio == null || fin == null) continue;
         final estado = ('${r['estado'] ?? ''}').toLowerCase();
 
-        // EXCLUIR tanto canceladas como finalizadas
         if (estado == 'cancelada' || estado == 'finalizada') continue;
 
         final esFutura = now.isBefore(inicio);
         final esActiva = now.isAfter(inicio) && now.isBefore(fin);
 
-        // Solo incluir activas o futuras
         if (esFutura || esActiva) {
-          // Enriquecemos el registro con etiqueta/color
           final enriched = Map<String, dynamic>.from(r);
           enriched['_etiqueta'] = esActiva ? 'ACTIVA' : 'FUTURA';
           enriched['_color'] = esActiva ? Colors.green : Colors.orange;
@@ -399,29 +411,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
 
-      // Orden: primero ACTIVAS por fin más cercano, luego FUTURAS por inicio más cercano
       filtradas.sort((a, b) {
         final ea = a['_etiqueta'] as String;
         final eb = b['_etiqueta'] as String;
-        if (ea != eb) {
-          // ACTIVA antes que FUTURA
-          return ea == 'ACTIVA' ? -1 : 1;
-        }
+        if (ea != eb) return ea == 'ACTIVA' ? -1 : 1;
         if (ea == 'ACTIVA') {
-          final fa = (a['_fin'] as DateTime);
-          final fb = (b['_fin'] as DateTime);
-          return fa.compareTo(fb);
+          return (a['_fin'] as DateTime).compareTo(b['_fin'] as DateTime);
         } else {
-          final ia = (a['_inicio'] as DateTime);
-          final ib = (b['_inicio'] as DateTime);
-          return ia.compareTo(ib);
+          return (a['_inicio'] as DateTime).compareTo(b['_inicio'] as DateTime);
         }
       });
 
       if (mounted) {
         setState(() {
           _reservas = filtradas;
-          _reservasMostradas = filtradas.take(3).toList(); // 👈 SOLO PRIMERAS 3
+          _reservasMostradas = filtradas.take(3).toList();
         });
       }
     } catch (e) {
@@ -429,39 +433,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  // 👇 FUNCIÓN CORREGIDA - DETERMINAR ICONO Y COLOR
   (IconData, Color) _obtenerIconoYColor(
     Map<String, dynamic> reserva,
     Map<String, dynamic>? articulo,
   ) {
     final etiqueta = reserva['_etiqueta'] as String;
-
-    // Si es FUTURA, siempre usar el icono de reloj
     if (etiqueta == 'FUTURA') {
       return (Icons.access_time_rounded, Colors.orange);
     }
 
-    // Si es ACTIVA, usar el icono específico del artículo
     final nombre = (articulo?['nombre'] ?? '').toString().toLowerCase();
-    final tipo =
-        (articulo?['tipo'] ??
-                articulo?['categoria'] ??
-                articulo?['tipo_articulo'] ??
-                '')
-            .toString()
-            .toLowerCase();
+    final tipo = (articulo?['tipo'] ??
+            articulo?['categoria'] ??
+            articulo?['tipo_articulo'] ??
+            '')
+        .toString()
+        .toLowerCase();
 
-    // Primero verificar por nombre específico
     if (nombre.contains('ps') ||
         nombre.contains('xbox') ||
         nombre.contains('nintendo') ||
-        nombre.contains('switch') || // ← AGREGADO SWITCH
+        nombre.contains('switch') ||
         nombre.contains('consola') ||
         tipo.contains('consola')) {
-      return (
-        Icons.sports_esports_rounded,
-        AppColors.unimetOrange,
-      ); // Mando para consolas
+      return (Icons.sports_esports_rounded, AppColors.unimetOrange);
     }
 
     if (nombre.contains('cubículo') ||
@@ -470,10 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         nombre.contains('estudio') ||
         tipo.contains('cubículo') ||
         tipo.contains('sala')) {
-      return (
-        Icons.meeting_room_rounded,
-        AppColors.unimetBlue,
-      ); // Cubículo para cubículos
+      return (Icons.meeting_room_rounded, AppColors.unimetBlue);
     }
 
     if (nombre.contains('balón') ||
@@ -483,13 +475,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         nombre.contains('equipo') ||
         tipo.contains('deportivo') ||
         tipo.contains('equipo')) {
-      return (
-        Icons.sports_soccer_rounded,
-        Colors.green,
-      ); // Balón para equipos deportivos
+      return (Icons.sports_soccer_rounded, Colors.green);
     }
 
-    // Por defecto para ACTIVAS
     return (Icons.event_available_rounded, Colors.teal);
   }
 
@@ -497,7 +485,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // 🔵 Tarjeta superior MÁS COMPACTA (SOLO CON BOTÓN DE LOGOUT)
+        // 🔵 Header
         Container(
           width: double.infinity,
           height: MediaQuery.of(context).size.height * 0.22,
@@ -568,60 +556,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Positioned(
                 top: 8,
                 right: 0,
-                child: Row(
-                  children: [
-                    // 👇 SOLO BOTÓN DE LOGOUT (PERFIL SE MUEVE A BARRA INFERIOR)
-                    Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Cerrar sesión'),
-                              content: const Text(
-                                '¿Estás seguro que deseas cerrar sesión?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  child: const Text('Cancelar'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Cerrar sesión'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            await Supabase.instance.client.auth.signOut();
-                            if (mounted) {
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(
-                                  builder: (_) => const LoginScreen(),
-                                ),
-                                (route) => false,
-                              );
-                            }
-                          }
-                        },
-                      ),
+                child: Container(
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 0.8,
                     ),
-                  ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Cerrar sesión'),
+                          content: const Text(
+                            '¿Estás seguro que deseas cerrar sesión?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Cerrar sesión'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await Supabase.instance.client.auth.signOut();
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ),
               ),
             ],
@@ -635,7 +617,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Accesos directos
+                // Accesos directos — RESERVAR
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -647,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         context,
                         formScreen: const ReservationFormCubiculo(),
                         title: 'Cubículos de Estudio',
-                        color: AppColors.unimetBlue, // Header azul UNIMET
+                        color: AppColors.unimetBlue,
                       ),
                     ),
                     _buildCircleButton(
@@ -658,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         context,
                         formScreen: const ReservationFormConsole(),
                         title: 'Consolas de Videojuegos',
-                        color: AppColors.unimetBlue, // Header azul UNIMET
+                        color: AppColors.unimetBlue,
                       ),
                     ),
                     _buildCircleButton(
@@ -669,30 +651,68 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         context,
                         formScreen: const ReservationFormEquipment(),
                         title: 'Artículos Deportivos',
-                        color: AppColors.unimetBlue, // Header azul UNIMET
+                        color: AppColors.unimetBlue,
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 28),
 
-                // 📋 Sección RESERVAS (LIMITADA A 3)
+                // Sección disponibilidad minimalista
+                Text(
+                  'Disponibilidad en tiempo real',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildDisponibilidadTile(
+                  context,
+                  icon: Icons.sports_esports_rounded,
+                  titulo: 'Consolas',
+                  subtitulo: 'Ver estado actual de la Game Room',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CatalogConsolaScreen(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildDisponibilidadTile(
+                  context,
+                  icon: Icons.sports_rounded,
+                  titulo: 'Equipos deportivos',
+                  subtitulo: 'Ver estado actual de implementos',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CatalogEquipoDeportivoScreen(),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // 📋 Sección RESERVAS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Reservas Activas',
                       style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     Text(
                       '${_reservas.length} reservas',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey.shade600,
                       ),
@@ -709,7 +729,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 else
                   Column(
                     children: _reservasMostradas.map((r) {
-                      final inicioLocal = (r['_inicio'] as DateTime).toLocal();
+                      final inicioLocal =
+                          (r['_inicio'] as DateTime).toLocal();
                       final finLocal = (r['_fin'] as DateTime).toLocal();
                       String nombre = 'Artículo';
                       Map<String, dynamic>? articulo;
@@ -718,20 +739,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         articulo = Map<String, dynamic>.from(
                           r['articulo'] as Map,
                         );
-                        nombre = (articulo['nombre'] ?? 'Artículo').toString();
+                        nombre =
+                            (articulo['nombre'] ?? 'Artículo').toString();
                       }
 
                       final etiqueta = r['_etiqueta'] as String;
                       final colorEstado = r['_color'] as Color;
-
-                      // 👇 saber si es invitado en esta reserva
                       final bool esInvitado = (r['es_invitado'] == true);
-
-                      // 👇 USAR LA FUNCIÓN CORREGIDA PARA OBTENER ICONO Y COLOR
-                      final (icono, colorIcono) = _obtenerIconoYColor(
-                        r,
-                        articulo,
-                      );
+                      final (icono, colorIcono) =
+                          _obtenerIconoYColor(r, articulo);
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -750,12 +766,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   color: colorIcono.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Icon(icono, color: colorIcono, size: 24),
+                                child: Icon(icono,
+                                    color: colorIcono, size: 24),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       nombre,
@@ -786,9 +804,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                           decoration: BoxDecoration(
                                             color: colorEstado.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
                                           child: Text(
                                             etiqueta,
@@ -807,9 +824,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               vertical: 4,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Colors.purple.withOpacity(
-                                                0.08,
-                                              ),
+                                              color: Colors.purple
+                                                  .withOpacity(0.08),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                               border: Border.all(
@@ -839,9 +855,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     }).toList(),
                   ),
 
-                // 👇 BOTÓN MÁS ARRIBA Y MENSAJE CONDICIONAL
                 if (_reservas.length > 3) ...[
-                  const SizedBox(height: 8), // 👈 MENOS ESPACIO
+                  const SizedBox(height: 8),
                   Center(
                     child: Text(
                       '+ ${_reservas.length - 3} reservas más...',
@@ -852,10 +867,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8), // 👈 MENOS ESPACIO
+                  const SizedBox(height: 8),
                 ],
 
-                const SizedBox(height: 8), // 👈 ESPACIO REDUCIDO
+                const SizedBox(height: 8),
 
                 Center(
                   child: Container(
@@ -875,7 +890,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         final mainState = context
                             .findAncestorStateOfType<_MainScreenState>();
                         if (mainState != null && mounted) {
-                          mainState._onItemTapped(1); // 👈 Cambiado a índice 1
+                          mainState._onItemTapped(1);
                         }
                       },
                       child: Row(
@@ -905,6 +920,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDisponibilidadTile(
+    BuildContext context, {
+    required IconData icon,
+    required String titulo,
+    required String subtitulo,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(14),
+            color: Colors.white,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.unimetBlue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.unimetBlue, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitulo,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

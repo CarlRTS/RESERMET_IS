@@ -10,163 +10,214 @@ import 'reporte_reservas_screen.dart';
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
 
-  void _navigateToCubiculos(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CubiculosListScreen()),
-    );
-  }
-
-  void _navigateToConsolas(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ConsolasListScreen()),
-    );
-  }
-
-  void _navigateToEquiposDeportivos(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const EquiposListScreen()),
-    );
-  }
-
-  void _navigateToReservasActivas(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ReservasActivasScreen()),
-    );
-  }
-
-  void _navigateToUsers(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const UsersListScreen()),
-    );
-  }
-
-  void _navigateToReportes(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ReporteReservasScreen()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 100,
-        title: const Padding(
-          padding: EdgeInsets.only(top: 10.0),
-          child: Text(
-            'Panel de Administración',
-            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+      backgroundColor: Colors.grey.shade50,
+      body: CustomScrollView(
+        slivers: [
+          // ===== HEADER =====
+          SliverToBoxAdapter(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+              decoration: const BoxDecoration(
+                color: AppColors.unimetBlue,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Panel de Administración',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 22,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'RESERMET · Gestión de recursos',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        backgroundColor: AppColors.unimetBlue,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(20.0),
-            bottomRight: Radius.circular(20.0),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+
+                // ===== SECCIÓN: MONITOREO =====
+                _sectionLabel('Monitoreo'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTile(
+                        context,
+                        icon: Icons.bar_chart_rounded,
+                        title: 'Reportes',
+                        subtitle: 'Estadísticas de uso',
+                        color: AppColors.unimetBlue,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const ReporteReservasScreen())),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: _buildTile(
+                        context,
+                        icon: Icons.schedule_rounded,
+                        title: 'Reservas',
+                        subtitle: 'Activas ahora',
+                        color: AppColors.unimetOrange,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const ReservasActivasScreen())),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildWideRow(
+                  context,
+                  icon: Icons.people_alt_rounded,
+                  title: 'Usuarios',
+                  subtitle: 'Buscar y gestionar perfiles de estudiantes',
+                  color: AppColors.unimetBlue,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const UsersListScreen())),
+                ),
+
+                const SizedBox(height: 32),
+
+                // ===== SECCIÓN: INVENTARIO =====
+                _sectionLabel('Inventario'),
+                const SizedBox(height: 12),
+                _buildWideRow(
+                  context,
+                  icon: Icons.meeting_room_rounded,
+                  title: 'Cubículos de Estudio',
+                  subtitle: 'Gestionar espacios individuales y grupales',
+                  color: AppColors.unimetOrange,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CubiculosListScreen())),
+                ),
+                const SizedBox(height: 14),
+                _buildWideRow(
+                  context,
+                  icon: Icons.sports_esports_rounded,
+                  title: 'Consolas y Juegos',
+                  subtitle: 'Gestionar equipos de la Game Room',
+                  color: AppColors.unimetBlue,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ConsolasListScreen())),
+                ),
+                const SizedBox(height: 14),
+                _buildWideRow(
+                  context,
+                  icon: Icons.sports_rounded,
+                  title: 'Equipos Deportivos',
+                  subtitle: 'Gestionar implementos y material deportivo',
+                  color: AppColors.unimetOrange,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const EquiposListScreen())),
+                ),
+
+                const SizedBox(height: 20),
+              ]),
+            ),
           ),
-        ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
+    );
+  }
+
+  Widget _sectionLabel(String label) {
+    return Text(
+      label.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.unimetBlue,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
+
+  Widget _buildTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Gestión de Recursos',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0033A0),
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 26),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Selecciona el módulo que deseas gestionar',
-                style: TextStyle(fontSize: 16, color: Colors.black87),
-              ),
-              const SizedBox(height: 30),
-
-              // 1️⃣ Azul
-              _buildManagementCard(
-                context,
-                title: 'Reporte de Reservas',
-                subtitle: 'Ver estadísticas de uso por mes',
-                icon: Icons.bar_chart_rounded,
-                color: AppColors.unimetBlue,
-                onTap: () => _navigateToReportes(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              // 2️⃣ Naranja
-              _buildManagementCard(
-                context,
-                title: 'Reservas Activas',
-                subtitle: 'Monitorear y finalizar reservas en curso',
-                icon: Icons.schedule_rounded,
-                color: AppColors.unimetOrange,
-                onTap: () => _navigateToReservasActivas(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              // 3️⃣ Azul
-              _buildManagementCard(
-                context,
-                title: 'Usuarios',
-                subtitle: 'Buscar y ver perfiles de estudiantes',
-                icon: Icons.people_alt_rounded,
-                color: AppColors.unimetBlue,
-                onTap: () => _navigateToUsers(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              const Divider(height: 20),
-
-              // 4️⃣ Naranja
-              _buildManagementCard(
-                context,
-                title: 'Cubículos de Estudio',
-                subtitle: 'Gestionar espacios individuales o grupales',
-                icon: Icons.meeting_room_rounded,
-                color: AppColors.unimetOrange,
-                onTap: () => _navigateToCubiculos(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              // 5️⃣ Azul
-              _buildManagementCard(
-                context,
-                title: 'Consolas y Juegos',
-                subtitle: 'Gestionar equipos del Centro de Diseño Digital',
-                icon: Icons.gamepad_rounded,
-                color: AppColors.unimetBlue,
-                onTap: () => _navigateToConsolas(context),
-                available: true,
-              ),
-              const SizedBox(height: 20),
-
-              // 6️⃣ Naranja
-              _buildManagementCard(
-                context,
-                title: 'Equipos Deportivos',
-                subtitle: 'Gestionar material deportivo y equipos',
-                icon: Icons.sports_baseball_rounded,
-                color: AppColors.unimetOrange,
-                onTap: () => _navigateToEquiposDeportivos(context),
-                available: true,
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                ),
               ),
             ],
           ),
@@ -175,55 +226,68 @@ class AdminHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildManagementCard(
+  Widget _buildWideRow(
     BuildContext context, {
+    required IconData icon,
     required String title,
     required String subtitle,
-    required IconData icon,
     required Color color,
     required VoidCallback onTap,
-    required bool available,
   }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(20),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 30),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: available ? const Color(0xFF0033A0) : Colors.grey,
-            fontSize: 18,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(subtitle),
-            const SizedBox(height: 5),
-            Text(
-              available ? '✅ Disponible' : '🔄 Próximamente',
-              style: TextStyle(
-                color: available ? Colors.green : Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          color: available ? const Color(0xFF0033A0) : Colors.grey,
-        ),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
